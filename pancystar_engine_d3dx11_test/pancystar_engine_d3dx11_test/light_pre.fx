@@ -55,10 +55,10 @@ float CalcShadowFactor(SamplerComparisonState samShadow,
 	shadowPosH.xyz /= shadowPosH.w;
 
 	// Depth in NDC space.
-	float depth = shadowPosH.z - 0.01f;
+	float depth = shadowPosH.z;
 
 	// Texel size.
-	const float dx = 1.0f / 1024.0f;
+	const float dx = 1.0f / 3072.0f;
 
 	float percentLit = 0.0f;
 	const float2 offsets[9] =
@@ -164,7 +164,7 @@ float4 PS_withshadow(VertexOut pin) :SV_TARGET
 	compute_pointlight(material_need, point_light_need[0], pin.position_bef, pin.normal,position_view, A1, D1, S1);
 	compute_spotlight(material_need, spot_light_need[0], pin.position_bef, pin.normal, eye_direct, A, D, S);
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
-	ambient += (0.5 + 0.5*rec_shadow)*A + A1;
+	ambient += A + A1;
 	diffuse += (0.5 + 0.5*rec_shadow)*D + D1;
 	spec += (0.5 + 0.5*rec_shadow)*S + S1;
 	float4 final_color = tex_color * (ambient + diffuse) + spec;

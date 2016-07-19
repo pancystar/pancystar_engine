@@ -152,8 +152,10 @@ void compute_spotlight(
 	if (diffuse_angle > 0.0f)
 	{
 		float3 v = reflect(-lightVec, normal);
+		
 		float spec_angle = pow(max(dot(v, direction_view), 0.0f), mat.specular.w);
 		diffuse = decay_spot*decay_final * diffuse_angle * mat.diffuse * light_spot.diffuse;//漫反射光
 		spec = decay_spot*decay_final * spec_angle * mat.specular * light_spot.specular;    //镜面反射光
 	}
+	
 }

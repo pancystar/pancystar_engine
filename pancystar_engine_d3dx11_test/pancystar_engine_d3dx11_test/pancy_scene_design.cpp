@@ -100,7 +100,7 @@ HRESULT scene_engine_test::scene_create()
 	shader_test->set_pointlight(test_point2, 0);
 
 	pancy_light_spot test_point3;
-	XMFLOAT4 rec_ambient2(0.3, 0.3, 0.3, 1.0);
+	XMFLOAT4 rec_ambient2(0.6, 0.6, 0.6, 1.0);
 	XMFLOAT4 rec_diffuse2(1.0, 1.0, 1.0, 1.0);
 	XMFLOAT4 rec_specular2(1.0, 1.0, 1.0, 1.0);
 
@@ -148,7 +148,7 @@ HRESULT scene_engine_test::scene_create()
 		MessageBox(0, L"load model file error", L"tip", MB_OK);
 		return hr_need;
 	}
-	hr_need = shadowmap_part->create(scene_window_width, scene_window_height);
+	hr_need = shadowmap_part->create(1024, 1024);
 	if (hr_need != S_OK)
 	{
 		MessageBox(0, L"load shadowmmap class error", L"tip", MB_OK);
@@ -233,7 +233,7 @@ void scene_engine_test::show_ball()
 	pancy_material test_Mt;
 	XMFLOAT4 rec_ambient2(0.4f, 0.6f, 0.1f, 1.0f);
 	XMFLOAT4 rec_diffuse2(0.4f, 0.6f, 0.1f, 1.0f);
-	XMFLOAT4 rec_specular2(1.0f, 1.0f, 1.0f, 6.0f);
+	XMFLOAT4 rec_specular2(0.4f, 0.6f, 0.1f, 13.0f);
 	test_Mt.ambient = rec_ambient2;
 	test_Mt.diffuse = rec_diffuse2;
 	test_Mt.specular = rec_specular2;
@@ -325,6 +325,7 @@ void scene_engine_test::show_lightsource()
 }
 void scene_engine_test::show_floor()
 {
+	
 	auto* shader_test = shader_lib->get_shader_prelight();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
@@ -381,6 +382,18 @@ void scene_engine_test::show_floor()
 }
 void scene_engine_test::draw_shadowmap() 
 {
+	D3D11_RASTERIZER_DESC cull_front_Desc;
+	ZeroMemory(&cull_front_Desc, sizeof(D3D11_RASTERIZER_DESC));
+	cull_front_Desc.FillMode = D3D11_FILL_SOLID;
+	cull_front_Desc.CullMode = D3D11_CULL_FRONT;
+	cull_front_Desc.FrontCounterClockwise = false;
+	cull_front_Desc.DepthClipEnable = true;
+	ID3D11RasterizerState* CULL_front;
+	device_pancy->CreateRasterizerState(&cull_front_Desc, &CULL_front);
+	contex_pancy->RSSetState(CULL_front);
+
+
+
 	XMFLOAT3 position = XMFLOAT3(0.0, 5.0, 5.0);
 	XMFLOAT3 dir      = XMFLOAT3(0.0,-1.0,-1.0);
 
@@ -422,6 +435,9 @@ void scene_engine_test::draw_shadowmap()
 	floor_need->get_teque(shadowmap_part->get_technique());
 	floor_need->show_mesh();
 	engine_state->restore_rendertarget();
+
+	contex_pancy->RSSetState(0);
+	CULL_front->Release();
 }
 HRESULT scene_engine_test::update(float delta_time)
 {
