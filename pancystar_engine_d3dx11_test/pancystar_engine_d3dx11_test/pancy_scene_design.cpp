@@ -162,7 +162,7 @@ HRESULT scene_engine_test::display()
 
 	show_yuri();
 	show_ball();
-	show_lightsource();
+	//show_lightsource();
 	show_floor();
 	//redraw_scene();
 	return S_OK;
@@ -227,7 +227,7 @@ void scene_engine_test::show_ball()
 	auto* shader_test = shader_lib->get_shader_prelight();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
-	shader_test->get_technique(&teque_need, "LightTech");
+	shader_test->get_technique(&teque_need, "draw_withshadow");
 
 	//地面的材质
 	pancy_material test_Mt;
@@ -254,6 +254,15 @@ void scene_engine_test::show_ball()
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
 	shader_test->set_trans_world(&world_matrix);
+
+	//设定阴影变换以及阴影贴图
+	XMFLOAT4X4 shadow_matrix_pre = shadowmap_part->get_ViewProjTex_matrix();
+	XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
+	shadow_matrix = rec_world * shadow_matrix;
+	XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
+	shader_test->set_trans_shadow(&shadow_matrix_pre);
+	shader_test->set_shadowtex(shadowmap_part->get_mapresource());
+
 	//设定总变换
 	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
 	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
@@ -319,7 +328,7 @@ void scene_engine_test::show_floor()
 	auto* shader_test = shader_lib->get_shader_prelight();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
-	shader_test->get_technique(&teque_need, "LightTech");
+	shader_test->get_technique(&teque_need, "draw_withshadow");
 
 	//地面的材质
 	pancy_material test_Mt;
@@ -340,12 +349,22 @@ void scene_engine_test::show_floor()
 	XMMATRIX rotation_world;
 	XMMATRIX rec_world;
 	XMFLOAT4X4 world_matrix;
-	trans_world = XMMatrixTranslation(0.0f, -3.2f, 0.0f);
-	scal_world = XMMatrixScaling(5.0f, 1.05f, 5.0f);
+	trans_world = XMMatrixTranslation(0.0f, -1.2f, 0.0f);
+	scal_world = XMMatrixScaling(15.0f, 0.55f, 15.0f);
 
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
 	shader_test->set_trans_world(&world_matrix);
+
+	//设定阴影变换以及阴影贴图
+	XMFLOAT4X4 shadow_matrix_pre = shadowmap_part->get_ViewProjTex_matrix();
+	XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
+	shadow_matrix = rec_world * shadow_matrix;
+	XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
+	shader_test->set_trans_shadow(&shadow_matrix_pre);
+	shader_test->set_shadowtex(shadowmap_part->get_mapresource());
+
+
 	//设定总变换
 	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
 	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
@@ -367,8 +386,9 @@ void scene_engine_test::draw_shadowmap()
 
 	BoundingSphere  cube_range;
 	cube_range.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	cube_range.Radius = sqrtf(30.0f*30.0f + 30.0f*30.0f);
+	cube_range.Radius = sqrtf(10.0f*10.0f + 10.0f*10.0f);
 	shadowmap_part->set_renderstate(position, dir,cube_range,direction_light);
+	//engine_state->restore_rendertarget();
 	//设定球体世界变换
 	XMMATRIX trans_world;
 	XMMATRIX scal_world;
@@ -393,8 +413,8 @@ void scene_engine_test::draw_shadowmap()
 	model_yuri->draw_mesh();
 
 	//设定地面世界变换
-	trans_world = XMMatrixTranslation(0.0f, -3.2f, 0.0f);
-	scal_world = XMMatrixScaling(5.0f, 1.05f, 5.0f);
+	trans_world = XMMatrixTranslation(0.0f, -1.2f, 0.0f);
+	scal_world = XMMatrixScaling(15.0f, 0.55f, 15.0f);
 
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);

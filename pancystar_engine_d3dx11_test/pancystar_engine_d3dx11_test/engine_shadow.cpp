@@ -66,8 +66,8 @@ void shadow_basic::release()
 }
 HRESULT shadow_basic::set_viewport(int width_need, int height_need)
 {
-	shadowmap_width = width_need;
-	shadowmap_height = height_need;
+	shadowmap_width = 3 * width_need;
+	shadowmap_height = 3 * height_need;
 	//释放之前的shader resource view以及render target view
 	if(depthmap_tex != NULL)
 	{
@@ -151,7 +151,13 @@ HRESULT shadow_basic::set_shaderresource(XMFLOAT4X4 word_matrix)
 		MessageBox(0, L"get technique error when create shadowmap resource", L"tip", MB_OK);
 		return hr;
 	}
-	hr = shader_test->set_trans_all(&word_matrix);
+	XMMATRIX rec_final,rec_world;
+	XMFLOAT4X4 rec_mat;
+	rec_final = XMLoadFloat4x4(&shadow_build);
+	rec_world = XMLoadFloat4x4(&word_matrix);
+	rec_final = rec_world*rec_final;
+	XMStoreFloat4x4(&rec_mat, rec_final);
+	hr = shader_test->set_trans_all(&rec_mat);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"set shader matrix error when create shadowmap resource", L"tip", MB_OK);

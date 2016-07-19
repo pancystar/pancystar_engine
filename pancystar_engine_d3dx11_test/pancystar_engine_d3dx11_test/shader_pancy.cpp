@@ -329,7 +329,7 @@ shader_control::shader_control()
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
 	HRESULT hr;
-	shader_light_pre = new light_pre(L"F:\\Microsoft Visual Studio\\vcwindowsdebug\\c_windows程序\\DirectX程序\\\pancystar_engine_d3dx11_test\\Debug\\light_pre.cso", device_pancy, contex_pancy);
+	shader_light_pre = new light_pre(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\light_pre.cso", device_pancy, contex_pancy);
 	hr = shader_light_pre->shder_create();
 	if (FAILED(hr))
 	{
@@ -337,7 +337,7 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 		return hr;
 	}
 
-	shader_shadowmap = new light_shadow(L"F:\\Microsoft Visual Studio\\vcwindowsdebug\\c_windows程序\\DirectX程序\\\pancystar_engine_d3dx11_test\\Debug\\shadowmap.cso", device_pancy, contex_pancy);
+	shader_shadowmap = new light_shadow(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\shadowmap.cso", device_pancy, contex_pancy);
 	hr = shader_shadowmap->shder_create();
 	if (FAILED(hr))
 	{
