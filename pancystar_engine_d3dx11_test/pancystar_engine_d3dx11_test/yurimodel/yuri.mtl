@@ -1,0 +1,172 @@
+# 3ds Max Wavefront OBJ Exporter v0.97b - (c)2007 guruware
+# 创建的文件:21.03.2016 17:25:29
+
+newmtl Model001_Material001
+	Ns 30.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5500 0.5500 0.5500
+	Kd 0.5500 0.5500 0.5500
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka data\model\yurimodel\eyeshine_d.dds
+	map_Kd data\model\yurimodel\eyeshine_d.dds
+
+newmtl Model001_Material002
+	Ns 30.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5500 0.5500 0.5500
+	Kd 0.5500 0.5500 0.5500
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka data\model\yurimodel\eyelash_d.dds
+	map_Kd data\model\yurimodel\eyelash_d.dds
+
+newmtl Model001_Material003
+	Ns 30.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5500 0.5500 0.5500
+	Kd 0.5500 0.5500 0.5500
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka data\model\yurimodel\eyeshadow_d.dds
+	map_Kd data\model\yurimodel\eyeshadow_d.dds
+
+newmtl Model001_Material004
+	Ns 30.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5500 0.5500 0.5500
+	Kd 0.5500 0.5500 0.5500
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka data\model\yurimodel\hair_d.dds
+	map_Kd data\model\yurimodel\hair_d.dds
+	map_bump data\model\yurimodel\hair_n.dds
+	bump data\model\yurimodel\hair_n.dds
+
+newmtl Model001_Material005
+	Ns 30.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5500 0.5500 0.5500
+	Kd 0.5500 0.5500 0.5500
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka data\model\yurimodel\skin_d.dds
+	map_Kd data\model\yurimodel\skin_d.dds
+	map_bump data\model\yurimodel\skin_n.dds
+	bump data\model\yurimodel\skin_n.dds
+
+newmtl Model001_Material006
+	Ns 30.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5500 0.5500 0.5500
+	Kd 0.5500 0.5500 0.5500
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka data\model\yurimodel\skin_d.dds
+	map_Kd data\model\yurimodel\skin_d.dds
+	map_bump data\model\yurimodel\skin_n.dds
+	bump data\model\yurimodel\skin_n.dds
+
+newmtl Model001_Material007
+	Ns 30.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5500 0.5500 0.5500
+	Kd 0.5500 0.5500 0.5500
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka data\model\yurimodel\face_d.dds
+	map_Kd data\model\yurimodel\face_d.dds
+	map_bump data\model\yurimodel\face_n.dds
+	bump data\model\yurimodel\face_n.dds
+
+newmtl Model001_Material008
+	Ns 30.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5500 0.5500 0.5500
+	Kd 0.5500 0.5500 0.5500
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka data\model\yurimodel\clothes_d.dds
+	map_Kd data\model\yurimodel\clothes_d.dds
+	map_bump data\model\yurimodel\clothes_n.dds
+	bump data\model\yurimodel\clothes_n.dds
+
+newmtl Model001_Material009
+	Ns 30.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5500 0.5500 0.5500
+	Kd 0.5500 0.5500 0.5500
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka data\model\yurimodel\clothes_d.dds
+	map_Kd data\model\yurimodel\clothes_d.dds
+	map_bump data\model\yurimodel\clothes_n.dds
+	bump data\model\yurimodel\clothes_n.dds
+
+newmtl Model001_Material010
+	Ns 30.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5500 0.5500 0.5500
+	Kd 0.5500 0.5500 0.5500
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka data\model\yurimodel\lower_d.dds
+	map_Kd data\model\yurimodel\lower_d.dds
+	map_bump data\model\yurimodel\lower_n.dds
+	bump data\model\yurimodel\lower_n.dds
+
+newmtl Model001_Material011
+	Ns 30.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5500 0.5500 0.5500
+	Kd 0.5500 0.5500 0.5500
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka data\model\yurimodel\eye_d.dds
+	map_Kd data\model\yurimodel\eye_d.dds
+	map_bump data\model\yurimodel\eye_n.dds
+	bump data\model\yurimodel\eye_n.dds
