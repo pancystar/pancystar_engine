@@ -5,6 +5,7 @@
 	data 2016.7.15：pancystar engine设计程序，模型载入系统完成。
 	data 2016.7.15: pancystar engine设计程序，mesh合并系统完成。
 	data 2016.7.19: pancystar engine设计程序，shadow map系统完成。
+	data 2016.7.21: pancystar engine设计程序，shadow map系统简易修缮，添加状态类。
 	created by pancy_star
 */
 #include"geometry.h"
@@ -15,7 +16,7 @@
 #include"shader_pancy.h"
 #include"pancy_model_import.h"
 #include"pancy_scene_design.h"
-
+#include"pancy_DXrenderstate.h"
 
 
 
@@ -28,6 +29,7 @@ class d3d_pancy_1 :public d3d_pancy_basic
 	time_count               time_need;            //时钟控制
 	pancy_input              *test_input;          //输入输出控制
     pancy_camera             *test_camera;         //虚拟摄像机
+	pancy_renderstate        *render_state;        //渲染格式
 	float                    time_game;            //游戏时间
 	float                    delta_need;
 	HINSTANCE                hInstance;
@@ -40,6 +42,7 @@ public:
 };
 void d3d_pancy_1::release()
 {
+	render_state->release();
 	shader_list->release();
 	first_scene_test->release();
 	m_renderTargetView->Release();
@@ -65,6 +68,7 @@ d3d_pancy_1::d3d_pancy_1(HWND hwnd_need, UINT width_need, UINT hight_need, HINST
 	time_game = 0.0f;
 	shader_list = new shader_control();
 	hInstance = hInstance_need;
+	render_state = NULL;
 	//游戏时间
 	delta_need = 0.0f;
 }
@@ -80,7 +84,7 @@ HRESULT d3d_pancy_1::init_create()
 	}
 	test_camera = new pancy_camera(device_pancy, window_width, window_hight);
 	test_input = new pancy_input(wind_hwnd, device_pancy, hInstance);
-	first_scene_test = new scene_engine_test(this,device_pancy,contex_pancy, test_input, test_camera, shader_list, wind_width, wind_hight);
+	render_state = new pancy_renderstate(device_pancy,contex_pancy);
 	HRESULT hr;
 	hr = shader_list->shader_init(device_pancy, contex_pancy);
 	if (FAILED(hr)) 
@@ -88,12 +92,21 @@ HRESULT d3d_pancy_1::init_create()
 		MessageBox(0,L"create shader failed",L"tip",MB_OK);
 		return hr;
 	}
-	first_scene_test->scene_create();
+	hr = render_state->create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create render state failed", L"tip", MB_OK);
+		return hr;
+	}
+
+	first_scene_test = new scene_engine_test(this,device_pancy,contex_pancy, render_state,test_input, test_camera, shader_list, wind_width, wind_hight);
+	hr = first_scene_test->scene_create();
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create scene failed", L"tip", MB_OK);
 		return hr;
 	}
+	
 	return S_OK;
 }
 void d3d_pancy_1::update()

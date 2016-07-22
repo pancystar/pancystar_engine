@@ -1,5 +1,5 @@
 #include"pancy_scene_design.h"
-scene_root::scene_root(d3d_pancy_basic *engine_root, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, int width, int height)
+scene_root::scene_root(d3d_pancy_basic *engine_root, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, int width, int height)
 {
 	user_input = input_need;
 	scene_camera = camera_need;
@@ -9,6 +9,7 @@ scene_root::scene_root(d3d_pancy_basic *engine_root, ID3D11Device *device_need, 
 	scene_window_width = width;
 	scene_window_height = height;
 	engine_state = engine_root;
+	renderstate_lib = render_state;
 	//初始化投影以及取景变换矩阵
 	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, scene_window_width*1.0f / scene_window_height, 0.1f, 1000.f);
 	XMStoreFloat4x4(&proj_matrix, proj);
@@ -61,7 +62,7 @@ HRESULT scene_root::camera_move()
 	return S_OK;
 }
 
-scene_engine_test::scene_engine_test(d3d_pancy_basic *engine_root, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, int width, int height) : scene_root(engine_root,device_need, contex_need, input_need, camera_need, lib_need,width,height)
+scene_engine_test::scene_engine_test(d3d_pancy_basic *engine_root, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, int width, int height) : scene_root(engine_root,device_need, contex_need, render_state, input_need, camera_need, lib_need,width,height)
 {
 	floor_need = new mesh_cubewithtargent(device_need, contex_need);
 	ball_need = new mesh_ball(device_need, contex_need, 50, 50);
@@ -162,7 +163,7 @@ HRESULT scene_engine_test::display()
 
 	show_yuri();
 	show_ball();
-	//show_lightsource();
+	show_lightsource();
 	show_floor();
 	//redraw_scene();
 	return S_OK;
@@ -172,7 +173,7 @@ void scene_engine_test::show_yuri()
 	auto* shader_test = shader_lib->get_shader_prelight();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
-	shader_test->get_technique(&teque_need, "draw_withtexture");
+	shader_test->get_technique(&teque_need, "draw_withshadow");
 
 	//地面的材质
 	pancy_material test_Mt;
@@ -197,6 +198,14 @@ void scene_engine_test::show_yuri()
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
 	shader_test->set_trans_world(&world_matrix);
+
+	//设定阴影变换以及阴影贴图
+	XMFLOAT4X4 shadow_matrix_pre = shadowmap_part->get_ViewProjTex_matrix();
+	XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
+	shadow_matrix = rec_world * shadow_matrix;
+	XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
+	shader_test->set_trans_shadow(&shadow_matrix_pre);
+	shader_test->set_shadowtex(shadowmap_part->get_mapresource());
 	//设定总变换
 	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
 	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
@@ -382,25 +391,14 @@ void scene_engine_test::show_floor()
 }
 void scene_engine_test::draw_shadowmap() 
 {
-	D3D11_RASTERIZER_DESC cull_front_Desc;
-	ZeroMemory(&cull_front_Desc, sizeof(D3D11_RASTERIZER_DESC));
-	cull_front_Desc.FillMode = D3D11_FILL_SOLID;
-	cull_front_Desc.CullMode = D3D11_CULL_FRONT;
-	cull_front_Desc.FrontCounterClockwise = false;
-	cull_front_Desc.DepthClipEnable = true;
-	ID3D11RasterizerState* CULL_front;
-	device_pancy->CreateRasterizerState(&cull_front_Desc, &CULL_front);
-	contex_pancy->RSSetState(CULL_front);
-
-
-
+	contex_pancy->RSSetState(renderstate_lib->get_CULL_front_rs());
 	XMFLOAT3 position = XMFLOAT3(0.0, 5.0, 5.0);
 	XMFLOAT3 dir      = XMFLOAT3(0.0,-1.0,-1.0);
 
 	BoundingSphere  cube_range;
 	cube_range.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	cube_range.Radius = sqrtf(10.0f*10.0f + 10.0f*10.0f);
-	shadowmap_part->set_renderstate(position, dir,cube_range,direction_light);
+	cube_range.Radius = sqrtf(1.0f*1.0f + 1.0f*1.0f);
+	shadowmap_part->set_renderstate(position, dir,cube_range,spot_light);
 	//engine_state->restore_rendertarget();
 	//设定球体世界变换
 	XMMATRIX trans_world;
@@ -437,7 +435,6 @@ void scene_engine_test::draw_shadowmap()
 	engine_state->restore_rendertarget();
 
 	contex_pancy->RSSetState(0);
-	CULL_front->Release();
 }
 HRESULT scene_engine_test::update(float delta_time)
 {

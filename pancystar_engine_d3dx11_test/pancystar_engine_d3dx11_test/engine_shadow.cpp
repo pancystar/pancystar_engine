@@ -45,6 +45,32 @@ HRESULT shadow_basic::set_renderstate(XMFLOAT3 light_position, XMFLOAT3 light_di
 		);
 		XMStoreFloat4x4(&shadow_rebuild, final_matrix*T_need);
 	}
+	else if (check == spot_light) 
+	{
+		//光源视角取景变换
+		XMVECTOR lightDir = XMLoadFloat3(&light_dir);
+
+		XMVECTOR lightPos = -2.0f*shadow_range.Radius*lightDir;
+		XMVECTOR targetPos = XMLoadFloat3(&shadow_range.Center);
+		XMVECTOR up = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+		XMMATRIX viewmat = XMMatrixLookAtLH(lightPos, targetPos, up);
+
+		//透视投影
+		XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, shadowmap_width*1.0f / shadowmap_height*1.0f, 0.1f, 1000.f);
+
+		//正投影矩阵
+		XMMATRIX final_matrix = viewmat * proj;
+		XMStoreFloat4x4(&shadow_build, final_matrix);
+
+		//3D重建后的对比投影矩阵
+		XMMATRIX T_need(
+			0.5f, 0.0f, 0.0f, 0.0f,
+			0.0f, -0.5f, 0.0f, 0.0f,
+			0.0f, 0.0f, 1.0f, 0.0f,
+			0.5f, 0.5f, 0.0f, 1.0f
+			);
+		XMStoreFloat4x4(&shadow_rebuild, final_matrix*T_need);
+	}
 	contex_pancy->RSSetViewports(1, &shadow_map_VP);
 	ID3D11RenderTargetView* renderTargets[1] = { 0 };
 	contex_pancy->OMSetRenderTargets(1, renderTargets, depthmap_target);
@@ -66,8 +92,8 @@ void shadow_basic::release()
 }
 HRESULT shadow_basic::set_viewport(int width_need, int height_need)
 {
-	shadowmap_width = 3 * width_need;
-	shadowmap_height = 3 * height_need;
+	shadowmap_width = width_need;
+	shadowmap_height = height_need;
 	//释放之前的shader resource view以及render target view
 	if(depthmap_tex != NULL)
 	{

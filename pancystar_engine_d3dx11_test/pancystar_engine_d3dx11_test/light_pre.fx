@@ -51,15 +51,14 @@ float CalcShadowFactor(SamplerComparisonState samShadow,
 	Texture2D shadowMap,
 	float4 shadowPosH)
 {
-	// Complete projection by doing division by w.
+	//归一化
 	shadowPosH.xyz /= shadowPosH.w;
 
-	// Depth in NDC space.
+	//采集光源投影后的深度
 	float depth = shadowPosH.z;
 
-	// Texel size.
-	const float dx = 1.0f / 3072.0f;
-
+	//阴影贴图的步长
+	const float dx = 1.0f / 1024.0f;
 	float percentLit = 0.0f;
 	const float2 offsets[9] =
 	{
@@ -71,9 +70,16 @@ float CalcShadowFactor(SamplerComparisonState samShadow,
 	[unroll]
 	for (int i = 0; i < 9; ++i)
 	{
-		percentLit += shadowMap.SampleCmpLevelZero(samShadow,shadowPosH.xy + offsets[i], depth).r;
+		float2 rec_pos = shadowPosH.xy + offsets[i];
+		if (rec_pos.x > 1.0f || rec_pos.x < 0.0f || rec_pos.y > 1.0f || rec_pos.y < 0.0f) 
+		{
+			percentLit += 1.0f;
+		}
+		else 
+		{
+			percentLit += shadowMap.SampleCmpLevelZero(samShadow, rec_pos, depth).r;
+		}
 	}
-
 	return percentLit /= 9.0f;
 }
 
@@ -165,8 +171,8 @@ float4 PS_withshadow(VertexOut pin) :SV_TARGET
 	compute_spotlight(material_need, spot_light_need[0], pin.position_bef, pin.normal, eye_direct, A, D, S);
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
 	ambient += A + A1;
-	diffuse += (0.5 + 0.5*rec_shadow)*D + D1;
-	spec += (0.5 + 0.5*rec_shadow)*S + S1;
+	diffuse += (0.2 + 0.8*rec_shadow)*D + D1;
+	spec += (0.2 + 0.8*rec_shadow)*S + S1;
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
 	return final_color;
 }

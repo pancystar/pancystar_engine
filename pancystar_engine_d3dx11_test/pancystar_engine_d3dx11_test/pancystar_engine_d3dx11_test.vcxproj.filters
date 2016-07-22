@@ -42,6 +42,9 @@
     <ClInclude Include="engine_shadow.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="pancy_DXrenderstate.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="geometry.cpp">
@@ -72,6 +75,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="engine_shadow.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="pancy_DXrenderstate.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
