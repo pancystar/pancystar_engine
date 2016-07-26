@@ -5,7 +5,8 @@
 	data 2016.7.15：pancystar engine设计程序，模型载入系统完成。
 	data 2016.7.15: pancystar engine设计程序，mesh合并系统完成。
 	data 2016.7.19: pancystar engine设计程序，shadow map系统完成。
-	data 2016.7.21: pancystar engine设计程序，shadow map系统简易修缮，添加状态类。
+	data 2016.7.21: pancystar engine设计程序，shadow map系统简易修缮，添加状态类及normalmap。
+	data 2016.7.26: pancystar engine设计程序，ssao系统完成，并在以往的基础上做了修缮。
 	created by pancy_star
 */
 #include"geometry.h"
@@ -17,6 +18,7 @@
 #include"pancy_model_import.h"
 #include"pancy_scene_design.h"
 #include"pancy_DXrenderstate.h"
+#include"pancy_ssao.h"
 
 
 

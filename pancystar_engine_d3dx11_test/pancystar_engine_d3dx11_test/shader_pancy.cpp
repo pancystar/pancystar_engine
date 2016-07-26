@@ -1,4 +1,5 @@
 #include"shader_pancy.h"
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~基础的着色器编译部分~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_basic::shader_basic(LPCWSTR filename,ID3D11Device *device_need,ID3D11DeviceContext *contex_need)
 {
 	fx_need = NULL;
@@ -82,7 +83,7 @@ HRESULT shader_basic::set_matrix(ID3DX11EffectMatrixVariable *mat_handle, XMFLOA
 	hr = mat_handle->SetMatrix(reinterpret_cast<float*>(&rec_mat));
 	return hr;
 }
-
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~前向光照明部分~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 light_pre::light_pre(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
 {
 
@@ -126,7 +127,6 @@ void light_pre::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT
 		member_point[i] = rec[i];
 	}
 }
-
 HRESULT light_pre::set_view_pos(XMFLOAT3 eye_pos)
 {
 	HRESULT hr = view_pos_handle->SetRawValue((void*)&eye_pos, 0, sizeof(eye_pos));
@@ -277,6 +277,7 @@ void light_pre::release()
 {
 	release_basic();
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shadow map部分~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 light_shadow::light_shadow(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
 {
 }
@@ -315,14 +316,231 @@ void light_shadow::release()
 {
 	release_basic();
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao 深度法线记录部分~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_ssaodepthnormal_map::shader_ssaodepthnormal_map(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+{
+}
+void shader_ssaodepthnormal_map::init_handle()
+{
+	world_matrix_handle = fx_need->GetVariableByName("world_matrix")->AsMatrix();
+	normal_matrix_handle = fx_need->GetVariableByName("normal_matrix")->AsMatrix();
+	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();
+}
+HRESULT shader_ssaodepthnormal_map::set_trans_world(XMFLOAT4X4 *mat_world, XMFLOAT4X4 *mat_view)
+{
+	XMVECTOR x_delta;
+	XMMATRIX world_need = XMLoadFloat4x4(mat_world);
+	XMMATRIX view_need = XMLoadFloat4x4(mat_view);
+	XMMATRIX normal_need = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&x_delta, world_need));
+	normal_need.r[0].m128_f32[3] = 0;
+	normal_need.r[1].m128_f32[3] = 0;
+	normal_need.r[2].m128_f32[3] = 0;
+	normal_need.r[3].m128_f32[3] = 1;
+	HRESULT hr;
+	hr = world_matrix_handle->SetMatrix(reinterpret_cast<float*>(&(world_need*view_need)));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set world matrix error in ssao depthnormal part", L"tip", MB_OK);
+		return hr;
+	}
+	hr = normal_matrix_handle->SetMatrix(reinterpret_cast<float*>(&(normal_need*view_need)));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set view matrix error in ssao depthnormal part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_ssaodepthnormal_map::set_trans_all(XMFLOAT4X4 *mat_final) 
+{
+	HRESULT hr;
+	hr = set_matrix(project_matrix_handle, mat_final);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set final matrix error in ssao depthnormal part", L"tip", MB_OK);
+		return hr;
+	}
+}
+void shader_ssaodepthnormal_map::release()
+{
+	release_basic();
+}
+void shader_ssaodepthnormal_map::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT" ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao 遮蔽渲染部分~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_ssaomap::shader_ssaomap(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+{
+}
+void shader_ssaomap::init_handle()
+{
+	ViewToTexSpace = fx_need->GetVariableByName("gViewToTexSpace")->AsMatrix();
+	OffsetVectors = fx_need->GetVariableByName("gOffsetVectors")->AsVector();
+	FrustumCorners = fx_need->GetVariableByName("gFrustumCorners")->AsVector();
 
+	NormalDepthMap = fx_need->GetVariableByName("gNormalDepthMap")->AsShaderResource();
+	RandomVecMap = fx_need->GetVariableByName("gRandomVecMap")->AsShaderResource();
+}
+void shader_ssaomap::release()
+{
+	release_basic();
+}
+HRESULT shader_ssaomap::set_ViewToTexSpace(XMFLOAT4X4 *mat)
+{
+	HRESULT hr = set_matrix(ViewToTexSpace, mat);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set viewtotex matrix error in ssao draw part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_ssaomap::set_FrustumCorners(const XMFLOAT4 v[4])
+{
+	HRESULT hr = FrustumCorners->SetFloatVectorArray(reinterpret_cast<const float*>(v), 0, 4);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set FrustumCorners error in ssao draw part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_ssaomap::set_OffsetVectors(const XMFLOAT4 v[14])
+{
+	HRESULT hr = OffsetVectors->SetFloatVectorArray(reinterpret_cast<const float*>(v), 0, 14);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set OffsetVectors error in ssao draw part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_ssaomap::set_NormalDepthtex(ID3D11ShaderResourceView* srv)
+{
+	HRESULT hr = NormalDepthMap->SetResource(srv);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set NormalDepthtex error in ssao draw part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_ssaomap::set_randomtex(ID3D11ShaderResourceView* srv)
+{
+	HRESULT hr = RandomVecMap->SetResource(srv);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set randomtex error in ssao draw part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_ssaomap::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao ao图模糊处理部分~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_ssaoblur::shader_ssaoblur(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+{
+}
+void shader_ssaoblur::release()
+{
+	release_basic();
+}
+void shader_ssaoblur::init_handle()
+{
+	TexelWidth = fx_need->GetVariableByName("gTexelWidth")->AsScalar();
+	TexelHeight = fx_need->GetVariableByName("gTexelHeight")->AsScalar();
+
+	NormalDepthMap = fx_need->GetVariableByName("gNormalDepthMap")->AsShaderResource();
+	InputImage = fx_need->GetVariableByName("gInputImage")->AsShaderResource();
+}
+HRESULT shader_ssaoblur::set_image_size(float width, float height)
+{
+	HRESULT hr;
+	hr = TexelWidth->SetFloat(width);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set image_size error in ssao blur part", L"tip", MB_OK);
+		return hr;
+	}
+	hr = TexelHeight->SetFloat(height);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set image_size error in ssao blur part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_ssaoblur::set_tex_resource(ID3D11ShaderResourceView* tex_normaldepth, ID3D11ShaderResourceView* tex_aomap)
+{
+	HRESULT hr;
+	hr = NormalDepthMap->SetResource(tex_normaldepth);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set tex_normaldepth error in ssao blur part", L"tip", MB_OK);
+		return hr;
+	}
+	hr = InputImage->SetResource(tex_aomap);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set tex_aomap error in ssao blur part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_ssaoblur::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全局shader管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_control::shader_control()
 {
 	shader_light_pre = NULL;
 	shader_light_deferred = NULL;
 	shader_shadowmap = NULL;
 	shader_cubemap = NULL;
-	shader_ssao = NULL;
+	shader_ssao_depthnormal = NULL;
+	shader_ssao_draw = NULL;
+	shader_ssao_blur = NULL;
 	particle_build = NULL;
 	particle_show = NULL;
 }
@@ -344,10 +562,38 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 		MessageBox(0, L"an error when pre lighting shader created", L"tip", MB_OK);
 		return hr;
 	}
+	
+	shader_ssao_depthnormal = new shader_ssaodepthnormal_map(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\ssao_normaldepth_map.cso", device_pancy, contex_pancy);
+	hr = shader_ssao_depthnormal->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when pre lighting shader created", L"tip", MB_OK);
+		return hr;
+	}
+	
+	shader_ssao_draw = new shader_ssaomap(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\ssao_draw_aomap.cso", device_pancy, contex_pancy);
+	hr = shader_ssao_draw->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when pre lighting shader created", L"tip", MB_OK);
+		return hr;
+	}
+
+	shader_ssao_blur = new shader_ssaoblur(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\ssao_blur_map.cso", device_pancy, contex_pancy);
+	hr = shader_ssao_blur->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when pre lighting shader created", L"tip", MB_OK);
+		return hr;
+	}
+	
 	return S_OK;
 }
 void shader_control::release()
 {
 	shader_light_pre->release();
 	shader_shadowmap->release();
+	shader_ssao_depthnormal->release();
+	shader_ssao_draw->release();
+	shader_ssao_blur->release();
 }

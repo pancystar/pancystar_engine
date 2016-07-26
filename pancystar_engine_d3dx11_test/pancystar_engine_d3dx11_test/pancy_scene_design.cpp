@@ -68,6 +68,7 @@ scene_engine_test::scene_engine_test(d3d_pancy_basic *engine_root, ID3D11Device 
 	ball_need = new mesh_ball(device_need, contex_need, 50, 50);
 	model_yuri = new model_reader_assimp(device_need, contex_need, "yurimodel\\yuri.obj", "yurimodel\\");
 	shadowmap_part = new shadow_basic(device_need, contex_need,shader_lib);
+	ssao_part = new ssao_pancy(device_need, contex_need, shader_lib, scene_window_width, scene_window_height, XM_PI*0.25f, 1000.0f);
 	tex_floor = NULL;
 	tex_normal = NULL;
 }
@@ -155,17 +156,22 @@ HRESULT scene_engine_test::scene_create()
 		MessageBox(0, L"load shadowmmap class error", L"tip", MB_OK);
 		return hr_need;
 	}
+	hr_need = ssao_part->basic_create();
+	if (hr_need != S_OK)
+	{
+		MessageBox(0, L"load ssao class error", L"tip", MB_OK);
+		return hr_need;
+	}
 	return S_OK;
 }
 HRESULT scene_engine_test::display()
 {
 	draw_shadowmap();
-
+	draw_ssaomap();
 	show_yuri();
 	show_ball();
 	show_lightsource();
 	show_floor();
-	//redraw_scene();
 	return S_OK;
 }
 void scene_engine_test::show_yuri()
@@ -173,7 +179,7 @@ void scene_engine_test::show_yuri()
 	auto* shader_test = shader_lib->get_shader_prelight();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
-	shader_test->get_technique(&teque_need, "draw_withshadow");
+	shader_test->get_technique(&teque_need, "draw_withshadowssao");
 
 	//地面的材质
 	pancy_material test_Mt;
@@ -216,10 +222,20 @@ void scene_engine_test::show_yuri()
 	XMFLOAT4X4 world_viewrec;
 	XMStoreFloat4x4(&world_viewrec, worldViewProj);
 	shader_test->set_trans_all(&world_viewrec);
-
+	//设定ssao变换及贴图
+	XMMATRIX T_need(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f
+		);
+	XMFLOAT4X4 ssao_matrix;
+	XMStoreFloat4x4(&ssao_matrix, worldViewProj*T_need);
+	shader_test->set_trans_ssao(&ssao_matrix);
+	shader_test->set_ssaotex(ssao_part->get_aomap());
+	//获取渲染路径并渲染
 	model_yuri->get_technique(teque_need);
 	//model_yuri->draw_mesh();
-
 	for (int i = 0; i < model_yuri->get_meshnum(); ++i)
 	{
 		//纹理设定
@@ -236,7 +252,7 @@ void scene_engine_test::show_ball()
 	auto* shader_test = shader_lib->get_shader_prelight();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
-	shader_test->get_technique(&teque_need, "draw_withshadow");
+	shader_test->get_technique(&teque_need, "draw_withshadowssao");
 
 	//地面的材质
 	pancy_material test_Mt;
@@ -338,12 +354,12 @@ void scene_engine_test::show_floor()
 	auto* shader_test = shader_lib->get_shader_prelight();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
-	shader_test->get_technique(&teque_need, "draw_withshadow");
+	shader_test->get_technique(&teque_need, "draw_withshadownormal");
 
 	//地面的材质
 	pancy_material test_Mt;
 	XMFLOAT4 rec_ambient2(0.3f, 0.3f, 0.3f, 1.0f);
-	XMFLOAT4 rec_diffuse2(0.4f, 0.6f, 0.1f, 1.0f);
+	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
 	XMFLOAT4 rec_specular2(1.0f, 1.0f, 1.0f, 12.0f);
 	test_Mt.ambient = rec_ambient2;
 	test_Mt.diffuse = rec_diffuse2;
@@ -436,6 +452,62 @@ void scene_engine_test::draw_shadowmap()
 
 	contex_pancy->RSSetState(0);
 }
+void scene_engine_test::draw_ssaomap() 
+{
+	ssao_part->set_normaldepth_target(NULL);
+	//设定球体世界变换
+	XMMATRIX trans_world;
+	XMMATRIX scal_world;
+	XMMATRIX rec_world;
+	XMFLOAT4X4 world_matrix;
+	XMFLOAT4X4 final_matrix;
+	trans_world = XMMatrixTranslation(0.0, 0.0, 0.0);
+	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
+	rec_world = scal_world * trans_world;
+	XMStoreFloat4x4(&world_matrix, rec_world);
+	//设定总变换
+	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
+	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
+	XMStoreFloat4x4(&final_matrix, worldViewProj);
+    ssao_part->set_normaldepth_mat(world_matrix, view_matrix, final_matrix);
+	ball_need->get_teque(ssao_part->get_technique());
+	ball_need->show_mesh();
+
+	//设定yuri世界变换
+	trans_world = XMMatrixTranslation(0.0, 0.0, 0.0);
+	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
+
+	rec_world = scal_world * trans_world;
+	XMStoreFloat4x4(&world_matrix, rec_world);
+	//设定总变换
+	world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+	worldViewProj = world_matrix_rec*view*proj;
+	XMStoreFloat4x4(&final_matrix, worldViewProj);
+	ssao_part->set_normaldepth_mat(world_matrix, view_matrix, final_matrix);
+	model_yuri->get_technique(ssao_part->get_technique());
+	model_yuri->draw_mesh();
+
+	//设定地面世界变换
+	trans_world = XMMatrixTranslation(0.0f, -1.2f, 0.0f);
+	scal_world = XMMatrixScaling(15.0f, 0.55f, 15.0f);
+
+	rec_world = scal_world * trans_world;
+	XMStoreFloat4x4(&world_matrix, rec_world);
+	//设定总变换
+	world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+	worldViewProj = world_matrix_rec*view*proj;
+	XMStoreFloat4x4(&final_matrix, worldViewProj);
+	ssao_part->set_normaldepth_mat(world_matrix, view_matrix, final_matrix);
+	floor_need->get_teque(ssao_part->get_technique());
+	floor_need->show_mesh();
+	ssao_part->compute_ssaomap();
+	ssao_part->blur_ssaomap();
+	engine_state->restore_rendertarget();
+	
+	//engine_state->restore_rendertarget();
+}
 HRESULT scene_engine_test::update(float delta_time)
 {
 	HRESULT hr = camera_move();
@@ -459,5 +531,6 @@ HRESULT scene_engine_test::release()
 	model_yuri->release();
 	ball_need->release();
 	shadowmap_part->release();
+	ssao_part->release();
 	return S_OK;
 }

@@ -154,13 +154,69 @@ private:
 	void init_handle();                 //注册全局变量句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_ssaodepthnormal_map : public shader_basic
+{
+	ID3DX11EffectMatrixVariable           *project_matrix_handle;      //全套几何变换句柄
+	ID3DX11EffectMatrixVariable           *world_matrix_handle;        //世界变换句柄
+	ID3DX11EffectMatrixVariable           *normal_matrix_handle;       //法线变换句柄
+public:
+	shader_ssaodepthnormal_map(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_trans_world(XMFLOAT4X4 *mat_world, XMFLOAT4X4 *mat_view);
+	HRESULT set_trans_all(XMFLOAT4X4 *mat_final);
+	void release();
+private:
+	void init_handle();//注册shader中所有全局变量的句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao_map_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_ssaomap : public shader_basic
+{
+	ID3DX11EffectMatrixVariable* ViewToTexSpace;
+	ID3DX11EffectVectorVariable* OffsetVectors;
+	ID3DX11EffectVectorVariable* FrustumCorners;
+	ID3DX11EffectShaderResourceVariable* NormalDepthMap;
+	ID3DX11EffectShaderResourceVariable* RandomVecMap;
+public:
+	shader_ssaomap(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+
+	HRESULT set_ViewToTexSpace(XMFLOAT4X4 *mat);
+	HRESULT set_OffsetVectors(const XMFLOAT4 v[14]);
+	HRESULT set_FrustumCorners(const XMFLOAT4 v[4]);
+	HRESULT set_NormalDepthtex(ID3D11ShaderResourceView* srv);
+	HRESULT set_randomtex(ID3D11ShaderResourceView* srv);
+	void release();
+private:
+	void init_handle();//注册shader中所有全局变量的句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao_blur_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_ssaoblur : public shader_basic
+{
+	ID3DX11EffectScalarVariable* TexelWidth;
+	ID3DX11EffectScalarVariable* TexelHeight;
+
+	ID3DX11EffectShaderResourceVariable* NormalDepthMap;
+	ID3DX11EffectShaderResourceVariable* InputImage;
+public:
+	shader_ssaoblur(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_image_size(float width, float height);
+	HRESULT set_tex_resource(ID3D11ShaderResourceView* tex_normaldepth, ID3D11ShaderResourceView* tex_aomap);
+	void release();
+private:
+	void init_handle();//注册shader中所有全局变量的句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
 class shader_control
 {
-	light_pre    *shader_light_pre;
-	light_shadow *shader_shadowmap;
+	light_pre                  *shader_light_pre;          //前向光照着色器
+	light_shadow               *shader_shadowmap;          //阴影着色器
+	shader_ssaodepthnormal_map *shader_ssao_depthnormal;   //ssao深度纹理着色器
+	shader_ssaomap             *shader_ssao_draw;          //ssao遮蔽图渲染着色器
+	shader_ssaoblur            *shader_ssao_blur;          //ssao模糊着色器
+
 	shader_basic *shader_light_deferred;
 	shader_basic *shader_cubemap;
-	shader_basic *shader_ssao;
 	shader_basic *particle_build;
 	shader_basic *particle_show;
 public:
@@ -168,6 +224,9 @@ public:
 	HRESULT shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy);
 	light_pre* get_shader_prelight() { return shader_light_pre; };
 	light_shadow* get_shader_shadowmap() { return shader_shadowmap; };
+	shader_ssaodepthnormal_map* get_shader_ssaodepthnormal() {return shader_ssao_depthnormal;};
+	shader_ssaomap* get_shader_ssaodraw() { return shader_ssao_draw; };
+	shader_ssaoblur* get_shader_ssaoblur() { return shader_ssao_blur; };
 	void release();
 };
 

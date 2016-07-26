@@ -8,6 +8,7 @@
 #include"engine_shadow.h"
 #include"pancy_d3d11_basic.h"
 #include"pancy_DXrenderstate.h"
+#include"pancy_ssao.h"
 class scene_root
 {
 protected:
@@ -18,6 +19,7 @@ protected:
 	pancy_input            *user_input;       //输入输出控制
 	pancy_camera           *scene_camera;     //虚拟摄像机
 	shadow_basic           *shadowmap_part;
+	ssao_pancy             *ssao_part;
 	d3d_pancy_basic        *engine_state;
 	XMFLOAT4X4             view_matrix;
 	XMFLOAT4X4             proj_matrix;
@@ -54,5 +56,6 @@ private:
 	void show_yuri();
 	void show_lightsource();
 	void draw_shadowmap();
+	void draw_ssaomap();
 	//	HRESULT get_scene_point(Geometry<point_with_tangent> **rec_geometry, int &all_geometry);
 };
