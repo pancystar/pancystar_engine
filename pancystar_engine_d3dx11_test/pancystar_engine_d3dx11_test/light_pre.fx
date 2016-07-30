@@ -232,7 +232,7 @@ float4 PS_withshadowssao(VertexOut pin) :SV_TARGET
 	compute_pointlight(material_need, point_light_need[0], pin.position_bef, pin.normal,position_view, A1, D1, S1);
 	compute_spotlight(material_need, spot_light_need[0], pin.position_bef, pin.normal, eye_direct, A, D, S);
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
-	ambient += (A+A1)*rec_ssao;
+	ambient += (A + A1)*(0.8*rec_ssao);
 	diffuse += (0.2 + 0.8*rec_shadow)*D + D1;
 	spec += (0.2 + 0.8*rec_shadow)*S + S1;
 	float4 final_color = tex_color * (ambient + diffuse) + spec;

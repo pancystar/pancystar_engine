@@ -39,9 +39,10 @@ protected:
 class scene_engine_test : public scene_root
 {
 	model_reader_assimp                   *model_yuri;          //yuri模型
+	model_reader_assimp                   *model_castel;        //城堡模型
 	Geometry<point_with_tangent>          *floor_need;          //盒子模型
 	Geometry<point_with_tangent>          *ball_need;           //球体模型
-
+	ID3D11ShaderResourceView              *tex_skycube;         //天空盒
 	ID3D11ShaderResourceView              *tex_floor;           //地面纹理视图指针
 	ID3D11ShaderResourceView              *tex_normal;          //法线贴图
 public:
@@ -53,7 +54,9 @@ public:
 private:
 	void show_ball();
 	void show_floor();
+	void show_aotestproj();
 	void show_yuri();
+	void show_castel();
 	void show_lightsource();
 	void draw_shadowmap();
 	void draw_ssaomap();

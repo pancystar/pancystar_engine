@@ -43,11 +43,12 @@ protected:
 
 	material_list *matlist_need; //材质表
 	mesh_list *mesh_need;        //网格表
-
+	int material_optimization;   //优化后的材质数量
+	int mesh_optimization;       //优化后的网格数量
 	Geometry<point_with_tangent> *mesh_scene;  //存储合并的场景顶点
 public:
 	model_reader_assimp(ID3D11Device *device_need, ID3D11DeviceContext *contex_need,char* filename, char* texture_path);
-	HRESULT model_create();
+	HRESULT model_create(bool if_optimize);
 	int get_meshnum();
 	void get_texture(material_list *texture_need, int i);
 	void release();
@@ -59,4 +60,5 @@ protected:
 	HRESULT init_texture();
 	void remove_texture_path(char rec[]);
 	HRESULT combine_vertex_array();
+	HRESULT optimization_mesh();//网格优化
 };

@@ -190,7 +190,7 @@ private:
 	void init_handle();//注册shader中所有全局变量的句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao_blur_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao_blur_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_ssaoblur : public shader_basic
 {
 	ID3DX11EffectScalarVariable* TexelWidth;
@@ -207,6 +207,25 @@ private:
 	void init_handle();//注册shader中所有全局变量的句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~cube mapping~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_reflect : public shader_basic 
+{
+	ID3DX11EffectMatrixVariable           *project_matrix_handle;      //全套几何变换句柄
+	ID3DX11EffectMatrixVariable           *world_matrix_handle;        //世界变换句柄
+	ID3DX11EffectMatrixVariable           *normal_matrix_handle;       //法线变换句柄
+	ID3DX11EffectVariable                 *view_pos_handle;            //视点位置
+	ID3DX11EffectShaderResourceVariable   *cubemap_texture;            //立方贴图资源
+public:
+	shader_reflect(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_view_pos(XMFLOAT3 eye_pos);                                 //设置视点位置
+	HRESULT set_trans_world(XMFLOAT4X4 *mat_need);                          //设置世界变换
+	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);                            //设置总变换
+	HRESULT set_tex_resource(ID3D11ShaderResourceView* tex_cube);           //设置纹理资源
+	void release();
+private:
+	void init_handle();//注册shader中所有全局变量的句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
 class shader_control
 {
 	light_pre                  *shader_light_pre;          //前向光照着色器
@@ -214,9 +233,9 @@ class shader_control
 	shader_ssaodepthnormal_map *shader_ssao_depthnormal;   //ssao深度纹理着色器
 	shader_ssaomap             *shader_ssao_draw;          //ssao遮蔽图渲染着色器
 	shader_ssaoblur            *shader_ssao_blur;          //ssao模糊着色器
+	shader_reflect             *shader_cubemap;            //立方贴图着色器
 
 	shader_basic *shader_light_deferred;
-	shader_basic *shader_cubemap;
 	shader_basic *particle_build;
 	shader_basic *particle_show;
 public:
@@ -227,6 +246,7 @@ public:
 	shader_ssaodepthnormal_map* get_shader_ssaodepthnormal() {return shader_ssao_depthnormal;};
 	shader_ssaomap* get_shader_ssaodraw() { return shader_ssao_draw; };
 	shader_ssaoblur* get_shader_ssaoblur() { return shader_ssao_blur; };
+	shader_reflect* get_shader_reflect() { return shader_cubemap; };
 	void release();
 };
 

@@ -7,6 +7,9 @@
 	data 2016.7.19: pancystar engine设计程序，shadow map系统完成。
 	data 2016.7.21: pancystar engine设计程序，shadow map系统简易修缮，添加状态类及normalmap。
 	data 2016.7.26: pancystar engine设计程序，ssao系统完成，并在以往的基础上做了修缮。
+	data 2016.7.27: pancystar engine设计程序，cubemapping系统完成。
+	data 2016.7.28: pancystar engine设计程序，修改了ssao的一些错误。
+	data 2016.7.30: pancystar engine设计程序，优化了模型载入系统，合并同一纹理的网格以大幅度减少draw call。
 	created by pancy_star
 */
 #include"geometry.h"

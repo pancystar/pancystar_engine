@@ -4,7 +4,7 @@ cbuffer PerFrame
 	float4   gOffsetVectors[14];   //偏移向量，用于收集AO
 	float4   gFrustumCorners[4];   //3D重建的四个角，用于借助光栅化插值
 	//随机反射光线的反射半径
-	float    gOcclusionRadius = 0.5f;
+	float    gOcclusionRadius = 0.3f;
 	//遮挡参数，用于根据遮挡距离计算遮挡权值
 	float    gOcclusionFadeStart = 0.2f;
 	float    gOcclusionFadeEnd = 2.0f;
@@ -13,6 +13,16 @@ cbuffer PerFrame
 // Nonnumeric values cannot be added to a cbuffer.
 Texture2D gNormalDepthMap;
 Texture2D gRandomVecMap;
+float OcclusionFunction(float distZ)
+{
+	float occlusion = 0.0f;
+	if (distZ > gSurfaceEpsilon)
+	{
+		float fadeLength = gOcclusionFadeEnd - gOcclusionFadeStart;
+		occlusion = saturate((gOcclusionFadeEnd - distZ) / fadeLength);
+	}
+	return occlusion;
+}
 SamplerState samTex
 {
 	Filter = ANISOTROPIC;
@@ -66,18 +76,8 @@ VertexOut VS(VertexIn vin)
 	return vout;
 }
 //根据两点间的距离对遮挡情况赋予权值
-float OcclusionFunction(float distZ)
-{
-	float occlusion = 0.0f;
-	if (distZ > 0.0f)
-	{
-		//occlusion = 1.0f;
-		float fadeLength = gOcclusionFadeEnd - gOcclusionFadeStart;
-		occlusion = saturate((gOcclusionFadeEnd - distZ) / fadeLength);
-	}
-	return occlusion;
-}
 
+[earlydepthstencil]
 float4 PS(VertexOut pin) : SV_Target
 {
 	//还原点的世界坐标
@@ -85,9 +85,8 @@ float4 PS(VertexOut pin) : SV_Target
 	float3 n = normalDepth.xyz;
 	float pz = normalDepth.w;
 	float3 p = (pz / pin.ToFarPlane.z)*pin.ToFarPlane;
-
 	//获取随机向量
-	float3 randVec = 2.0f*gRandomVecMap.Sample(samRandomVec, pin.Tex).rgb - 1.0f;
+	float3 randVec = 2.0f*gRandomVecMap.SampleLevel(samRandomVec, 4.0f*pin.Tex,0.0f).rgb - 1.0f;
 	randVec = normalize(randVec);
 	float occlusionSum = 0.0f;
 	[unroll]
@@ -102,7 +101,6 @@ float4 PS(VertexOut pin) : SV_Target
 		//得到这个随机点在normaldepthmap上的坐标
 		float4 projQ = mul(float4(q, 1.0f), gViewToTexSpace);
 		projQ /= projQ.w;
-
 		//根据坐标在normalmap上找到当前视角能看到的一个随机点
 		float rz = gNormalDepthMap.SampleLevel(samNormalDepth, projQ.xy, 0.0f).a;
 
@@ -119,12 +117,12 @@ float4 PS(VertexOut pin) : SV_Target
 	occlusionSum /= 14;
 	float access = 1.0f - occlusionSum;
 	float4 outputColor;
+	//高次平滑
 	outputColor.r = saturate(pow(access, 4.0f));
 	outputColor.g = 0.0f;
 	outputColor.b = 0.0f;
 	outputColor.a = 0.0f;
-	//高次平滑
-	return saturate(pow(access, 4.0f));
+	return outputColor;
 }
 technique11 draw_ssaomap
 {

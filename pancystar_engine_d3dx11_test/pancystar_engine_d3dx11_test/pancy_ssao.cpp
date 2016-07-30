@@ -388,7 +388,7 @@ HRESULT ssao_pancy::build_randomtex()
 }
 void ssao_pancy::blur_ssaomap()
 {
-	for (int i = 0; i < 2; ++i)
+	for (int i = 0; i < 4; ++i)
 	{
 		basic_blur(ambient_tex0, ambient_target1, true);
 		basic_blur(ambient_tex1, ambient_target0, false);
@@ -424,6 +424,34 @@ void ssao_pancy::basic_blur(ID3D11ShaderResourceView *texin, ID3D11RenderTargetV
 	{
 		shader_blurpass->get_technique(&tech, "VertBlur");
 	}
+	D3DX11_TECHNIQUE_DESC techDesc;
+	tech->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+		contex_pancy->DrawIndexed(6, 0, 0);
+	}
+	shader_blurpass->set_tex_resource(NULL, NULL);
+	tech->GetPassByIndex(0)->Apply(0, contex_pancy);
+}
+void ssao_pancy::check_ssaomap()
+{
+	contex_pancy->RSSetViewports(1, &render_viewport);
+	float black[4] = { 0.0f,0.0f,0.0f,0.0f };
+	ID3D11RenderTargetView* renderTargets[1] = { ambient_target1 };
+	auto *shader_blurpass = shader_list->get_shader_ssaoblur();
+	shader_blurpass->set_image_size(1.0f / render_viewport.Width, 1.0f / render_viewport.Height);
+	shader_blurpass->set_tex_resource(normaldepth_tex, ambient_tex0);
+	UINT stride = sizeof(pancy_point);
+	UINT offset = 0;
+
+	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	contex_pancy->IASetVertexBuffers(0, 1, &AoMap_VB, &stride, &offset);
+	contex_pancy->IASetIndexBuffer(AoMap_IB, DXGI_FORMAT_R16_UINT, 0);
+
+	ID3DX11EffectTechnique* tech;
+	//选定绘制路径
+	shader_blurpass->get_technique(&tech, "HorzBlur");
 	D3DX11_TECHNIQUE_DESC techDesc;
 	tech->GetDesc(&techDesc);
 	for (UINT p = 0; p < techDesc.Passes; ++p)

@@ -106,6 +106,9 @@
     <FxCompile Include="ssao_normaldepth_map.fx">
       <Filter>源文件</Filter>
     </FxCompile>
+    <FxCompile Include="light_reflect.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram.cd" />

@@ -360,6 +360,7 @@ HRESULT shader_ssaodepthnormal_map::set_trans_all(XMFLOAT4X4 *mat_final)
 		MessageBox(0, L"set final matrix error in ssao depthnormal part", L"tip", MB_OK);
 		return hr;
 	}
+	return S_OK;
 }
 void shader_ssaodepthnormal_map::release()
 {
@@ -531,6 +532,96 @@ void shader_ssaoblur::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point
 		member_point[i] = rec[i];
 	}
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~cube mapping~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_reflect::shader_reflect(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT shader_reflect::set_view_pos(XMFLOAT3 eye_pos)
+{
+	HRESULT hr = view_pos_handle->SetRawValue((void*)&eye_pos, 0, sizeof(eye_pos));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting view position", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_reflect::set_trans_world(XMFLOAT4X4 *mat_need)
+{
+	XMMATRIX rec_mat = XMLoadFloat4x4(mat_need);
+	XMVECTOR x_delta;
+	XMMATRIX check = rec_mat;
+	//法线变换
+	XMMATRIX normal_need = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&x_delta, check));
+	normal_need.r[0].m128_f32[3] = 0.0f;
+	normal_need.r[1].m128_f32[3] = 0.0f;
+	normal_need.r[2].m128_f32[3] = 0.0f;
+	normal_need.r[3].m128_f32[3] = 1.0f;
+	HRESULT hr;
+	hr = set_matrix(world_matrix_handle, mat_need);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting world matrix", L"tip", MB_OK);
+		return hr;
+	}
+	hr = normal_matrix_handle->SetMatrix(reinterpret_cast<float*>(&normal_need));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting normal matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_reflect::set_trans_all(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(project_matrix_handle, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting project matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_reflect::set_tex_resource(ID3D11ShaderResourceView* tex_cube)
+{
+	HRESULT hr;
+	hr = cubemap_texture->SetResource(tex_cube);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set cube texture error in cube mapping", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_reflect::init_handle()
+{
+	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();         //全套几何变换句柄
+	world_matrix_handle = fx_need->GetVariableByName("world_matrix")->AsMatrix();           //世界变换句柄
+	normal_matrix_handle = fx_need->GetVariableByName("normal_matrix")->AsMatrix();         //法线变换句柄
+	view_pos_handle = fx_need->GetVariableByName("position_view");
+	cubemap_texture = fx_need->GetVariableByName("texture_cube")->AsShaderResource();  //shader中的纹理资源句柄
+}
+void shader_reflect::release()
+{
+	release_basic();
+}
+void shader_reflect::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT" ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全局shader管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_control::shader_control()
 {
@@ -559,7 +650,7 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 	hr = shader_shadowmap->shder_create();
 	if (FAILED(hr))
 	{
-		MessageBox(0, L"an error when pre lighting shader created", L"tip", MB_OK);
+		MessageBox(0, L"an error when shadowmap shader created", L"tip", MB_OK);
 		return hr;
 	}
 	
@@ -567,7 +658,7 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 	hr = shader_ssao_depthnormal->shder_create();
 	if (FAILED(hr))
 	{
-		MessageBox(0, L"an error when pre lighting shader created", L"tip", MB_OK);
+		MessageBox(0, L"an error when ssao_depthnormal shader created", L"tip", MB_OK);
 		return hr;
 	}
 	
@@ -575,7 +666,7 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 	hr = shader_ssao_draw->shder_create();
 	if (FAILED(hr))
 	{
-		MessageBox(0, L"an error when pre lighting shader created", L"tip", MB_OK);
+		MessageBox(0, L"an error when shader_ssaomap shader created", L"tip", MB_OK);
 		return hr;
 	}
 
@@ -583,10 +674,17 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 	hr = shader_ssao_blur->shder_create();
 	if (FAILED(hr))
 	{
-		MessageBox(0, L"an error when pre lighting shader created", L"tip", MB_OK);
+		MessageBox(0, L"an error when shader_ssaoblur shader created", L"tip", MB_OK);
 		return hr;
 	}
 	
+	shader_cubemap = new shader_reflect(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\light_reflect.cso", device_pancy, contex_pancy);
+	hr = shader_cubemap->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when reflect lighting shader created", L"tip", MB_OK);
+		return hr;
+	}
 	return S_OK;
 }
 void shader_control::release()
@@ -596,4 +694,5 @@ void shader_control::release()
 	shader_ssao_depthnormal->release();
 	shader_ssao_draw->release();
 	shader_ssao_blur->release();
+	shader_cubemap->release();
 }

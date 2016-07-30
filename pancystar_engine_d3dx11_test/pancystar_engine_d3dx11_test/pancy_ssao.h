@@ -37,6 +37,7 @@ public:
 	void compute_ssaomap();
 	ID3D11ShaderResourceView* get_aomap();
 	void blur_ssaomap();
+	void check_ssaomap();
 	void release();
 private:
 	void set_size(int width, int height, float fovy, float farZ);
