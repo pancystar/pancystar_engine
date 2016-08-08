@@ -208,8 +208,8 @@ HRESULT mesh_heart::find_point(pancy_point *vertex,UINT *index,int &num_vertex,i
 			} 
 		}
 	}
-	vertex[num_vertex].normal = XMFLOAT3(0,0,-1);
-	vertex[num_vertex++].position = XMFLOAT3(0,0.54,1.13);
+	vertex[num_vertex].normal = XMFLOAT3(0.0f,0.0f,-1.0f);
+	vertex[num_vertex++].position = XMFLOAT3(0.0f,0.54f,1.13f);
 	//加上前后盖信息
 	for(int j=0; j < line_percircle*2; ++j)
 	{
@@ -226,8 +226,8 @@ HRESULT mesh_heart::find_point(pancy_point *vertex,UINT *index,int &num_vertex,i
 			index[num_index++] = num_vertex - line_percircle*2 + j;
 		}
 	}
-	vertex[num_vertex].normal = XMFLOAT3(0,0,1);
-	vertex[num_vertex++].position = XMFLOAT3(0,0.54,-1.13);
+	vertex[num_vertex].normal = XMFLOAT3(0.0f,0.0f,1.0f);
+	vertex[num_vertex++].position = XMFLOAT3(0.0f,0.54f,-1.13f);
 	for(int j=0; j < line_percircle*2; ++j)
 	{
 		if(j == line_percircle*2-1)
@@ -480,17 +480,17 @@ HRESULT mesh_mountain::find_point(pancy_point *vertex,UINT *index,int &num_verte
 		{
 			vertex[num_vertex].position.x = st_x + static_cast<float>(i)/width_rec * (ed_x - st_x);
 			vertex[num_vertex].position.z = st_z + static_cast<float>(j)/height_rec * (ed_z - st_z);
-			vertex[num_vertex].position.y = 0.3*vertex[num_vertex].position.z*sin(vertex[num_vertex].position.x) +  0.3*vertex[num_vertex].position.x*cos(vertex[num_vertex].position.z);
-			if(vertex[num_vertex].position.x > 8.0 || vertex[num_vertex].position.x < -8.0 || vertex[num_vertex].position.z > 7.0 || vertex[num_vertex].position.z < -7.0)
+			vertex[num_vertex].position.y = 0.3f*vertex[num_vertex].position.z*sin(vertex[num_vertex].position.x) +  0.3f*vertex[num_vertex].position.x*cos(vertex[num_vertex].position.z);
+			if(vertex[num_vertex].position.x > 8.0f || vertex[num_vertex].position.x < -8.0f || vertex[num_vertex].position.z > 7.0f || vertex[num_vertex].position.z < -7.0f)
 			{
-				vertex[num_vertex].position.y *= 0.1;
+				vertex[num_vertex].position.y *= 0.1f;
 			}
 			vertex[num_vertex].tex.x = 0.0f;
 			vertex[num_vertex].tex.y = 0.0f;
-			float x = -0.03*vertex[i].position.z*cos(0.1*vertex[i].position.x) - 0.3*cos(0.1*vertex[i].position.z);
-			float y = 1.0;
-			float z = -0.3*sin(0.1*vertex[num_vertex].position.x) + 0.03*vertex[num_vertex].position.x*sin(0.1*vertex[num_vertex].position.z);
-			XMVECTOR N = XMVectorSet(x,y,z,0.f);
+			float x = -0.03f*vertex[i].position.z*cos(0.1f*vertex[i].position.x) - 0.3f*cos(0.1*vertex[i].position.z);
+			float y = 1.0f;
+			float z = -0.3f*sin(0.1*vertex[num_vertex].position.x) + 0.03f*vertex[num_vertex].position.x*sin(0.1f*vertex[num_vertex].position.z);
+			XMVECTOR N = XMVectorSet(x,y,z,0.0f);
 			XMStoreFloat3(&vertex[num_vertex].normal,XMVector3Normalize(N));
 			if(vertex[num_vertex].normal.y < 0)
 			{

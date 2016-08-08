@@ -53,6 +53,11 @@ struct tess_point
 {
 	XMFLOAT3 position;
 };
+struct HDR_fullscreen 
+{
+	XMFLOAT3 position;
+	XMFLOAT2 tex;
+};
 template<typename T>
 class Geometry
 {

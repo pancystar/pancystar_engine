@@ -149,13 +149,13 @@ HRESULT model_reader_assimp::init_mesh()
 		}
 		//Ë÷Òý»º´æÇø
 		int count_index = 0;
-		for (unsigned int i = 0; i < paiMesh->mNumFaces; i++)
+		for (unsigned int j = 0; j < paiMesh->mNumFaces; j++)
 		{
-			if (paiMesh->mFaces[i].mNumIndices == 3)
+			if (paiMesh->mFaces[j].mNumIndices == 3)
 			{
-				index_need[count_index++] = paiMesh->mFaces[i].mIndices[0];
-				index_need[count_index++] = paiMesh->mFaces[i].mIndices[1];
-				index_need[count_index++] = paiMesh->mFaces[i].mIndices[2];
+				index_need[count_index++] = paiMesh->mFaces[j].mIndices[0];
+				index_need[count_index++] = paiMesh->mFaces[j].mIndices[1];
+				index_need[count_index++] = paiMesh->mFaces[j].mIndices[2];
 			}
 			else
 			{

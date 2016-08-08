@@ -4,7 +4,7 @@ cbuffer PerFrame
 	float4   gOffsetVectors[14];   //偏移向量，用于收集AO
 	float4   gFrustumCorners[4];   //3D重建的四个角，用于借助光栅化插值
 	//随机反射光线的反射半径
-	float    gOcclusionRadius = 0.3f;
+	float    gOcclusionRadius = 0.2f;
 	//遮挡参数，用于根据遮挡距离计算遮挡权值
 	float    gOcclusionFadeStart = 0.2f;
 	float    gOcclusionFadeEnd = 2.0f;

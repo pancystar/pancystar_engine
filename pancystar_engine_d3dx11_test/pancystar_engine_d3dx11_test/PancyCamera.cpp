@@ -24,7 +24,6 @@ void pancy_camera::count_view_matrix(XMMATRIX* view_matrix)
 	rec_camera_right = XMVector3Normalize(XMVector3Cross(rec_camera_up, rec_camera_look));
 	rec_camera_up = XMVector3Normalize(XMVector3Cross(rec_camera_look, rec_camera_right));
 	rec_camera_look = XMVector3Normalize(rec_camera_look);
-	XMVECTOR rec_ans;
 	float x = -XMVectorGetX(XMVector3Dot(rec_camera_right, rec_camera_position));
 	float y = -XMVectorGetX(XMVector3Dot(rec_camera_up,rec_camera_position));
 	float z = -XMVectorGetX(XMVector3Dot(rec_camera_look,rec_camera_position));

@@ -154,7 +154,7 @@ private:
 	void init_handle();                 //注册全局变量句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_ssaodepthnormal_map : public shader_basic
 {
 	ID3DX11EffectMatrixVariable           *project_matrix_handle;      //全套几何变换句柄
@@ -169,7 +169,7 @@ private:
 	void init_handle();//注册shader中所有全局变量的句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao_map_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao_map_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_ssaomap : public shader_basic
 {
 	ID3DX11EffectMatrixVariable* ViewToTexSpace;
@@ -190,7 +190,7 @@ private:
 	void init_handle();//注册shader中所有全局变量的句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao_blur_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao_blur_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_ssaoblur : public shader_basic
 {
 	ID3DX11EffectScalarVariable* TexelWidth;
@@ -207,7 +207,7 @@ private:
 	void init_handle();//注册shader中所有全局变量的句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~cube mapping~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~cube mapping~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_reflect : public shader_basic 
 {
 	ID3DX11EffectMatrixVariable           *project_matrix_handle;      //全套几何变换句柄
@@ -226,6 +226,76 @@ private:
 	void init_handle();//注册shader中所有全局变量的句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~HDR_average_part~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class compute_averagelight : public shader_basic
+{
+	ID3DX11EffectShaderResourceVariable      *texture_input;      //shader中的纹理资源句柄
+	ID3DX11EffectUnorderedAccessViewVariable *buffer_input;       //shader中的纹理资源句柄
+	ID3DX11EffectUnorderedAccessViewVariable *buffer_output;	  //compute_shader传到cpu的纹理资源
+	ID3DX11EffectVariable                    *texture_range;      //输入纹理大小
+public:
+	compute_averagelight(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_compute_tex(ID3D11ShaderResourceView *tex_input);
+	HRESULT set_piccturerange(int width_need, int height_need, int buffer_num,int bytewidth);
+	HRESULT set_compute_buffer(ID3D11UnorderedAccessView *buffer_input, ID3D11UnorderedAccessView *buffer_output);
+	
+	void release();
+	void dispatch(int width_need, int height_need, int final_need);
+private:
+	void init_handle();//注册shader中所有全局变量的句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~HDR_preblur_pass~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_HDRpreblur : public shader_basic
+{
+	ID3DX11EffectShaderResourceVariable      *tex_input;       //shader中的纹理资源句柄
+	ID3DX11EffectVariable                    *lum_message;     //亮度信息及参数
+	ID3DX11EffectMatrixVariable              *matrix_YUV2RGB;  //YUV2RGB变换句柄
+	ID3DX11EffectMatrixVariable              *matrix_RGB2YUV;  //RGB2YUV变换句柄
+public:
+	shader_HDRpreblur(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_buffer_input(ID3D11ShaderResourceView *buffer_input);
+	//亮度信息(平均亮度，高光分界点，高光最大值，tonemapping参数)
+	HRESULT set_lum_message(float average_lum, float HighLight_divide, float HightLight_max, float key_tonemapping);
+	void release();
+private:
+	void init_handle();//注册shader中所有全局变量的句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~HDR_blur_pass~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_HDRblur : public shader_basic
+{
+	ID3DX11EffectScalarVariable*             TexelWidth;
+	ID3DX11EffectScalarVariable*             TexelHeight;
+	ID3DX11EffectShaderResourceVariable      *tex_input;      //shader中的纹理资源句柄
+public:
+	shader_HDRblur(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_tex_resource(ID3D11ShaderResourceView *buffer_input);
+	HRESULT set_image_size(float width, float height);
+	void release();
+private:
+	void init_handle();//注册shader中所有全局变量的句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~HDR_final_pass~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_HDRfinal : public shader_basic
+{
+	ID3DX11EffectVariable                    *lum_message;    //亮度信息及参数
+	ID3DX11EffectShaderResourceVariable      *tex_input;      //原始图像
+	ID3DX11EffectShaderResourceVariable      *tex_bloom;      //高亮曝光图形
+	ID3DX11EffectMatrixVariable              *matrix_YUV2RGB; //YUV2RGB变换句柄
+	ID3DX11EffectMatrixVariable              *matrix_RGB2YUV; //RGB2YUV变换句柄
+public:
+	shader_HDRfinal(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_tex_resource(ID3D11ShaderResourceView *tex_input, ID3D11ShaderResourceView *tex_bloom);
+	//亮度信息(平均亮度，高光分界点，高光最大值，tonemapping参数)
+	HRESULT set_lum_message(float average_lum, float HighLight_divide, float HightLight_max, float key_tonemapping);
+	void release();
+private:
+	void init_handle();//注册shader中所有全局变量的句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shader list~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_control
 {
 	light_pre                  *shader_light_pre;          //前向光照着色器
@@ -234,19 +304,26 @@ class shader_control
 	shader_ssaomap             *shader_ssao_draw;          //ssao遮蔽图渲染着色器
 	shader_ssaoblur            *shader_ssao_blur;          //ssao模糊着色器
 	shader_reflect             *shader_cubemap;            //立方贴图着色器
-
+	compute_averagelight       *shader_HDR_average;        //HDR像素平均
+	shader_HDRpreblur          *shader_HDR_preblur;        //HDR高光提取
+	shader_HDRblur             *shader_HDR_blur;           //HDR高光模糊
+	shader_HDRfinal            *shader_HDR_final;          //HDR最终结果
 	shader_basic *shader_light_deferred;
 	shader_basic *particle_build;
 	shader_basic *particle_show;
 public:
 	shader_control();
 	HRESULT shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy);
-	light_pre* get_shader_prelight() { return shader_light_pre; };
-	light_shadow* get_shader_shadowmap() { return shader_shadowmap; };
+	light_pre*                  get_shader_prelight() { return shader_light_pre; };
+	light_shadow*               get_shader_shadowmap() { return shader_shadowmap; };
 	shader_ssaodepthnormal_map* get_shader_ssaodepthnormal() {return shader_ssao_depthnormal;};
-	shader_ssaomap* get_shader_ssaodraw() { return shader_ssao_draw; };
-	shader_ssaoblur* get_shader_ssaoblur() { return shader_ssao_blur; };
-	shader_reflect* get_shader_reflect() { return shader_cubemap; };
+	shader_ssaomap*             get_shader_ssaodraw() { return shader_ssao_draw; };
+	shader_ssaoblur*            get_shader_ssaoblur() { return shader_ssao_blur; };
+	shader_reflect*             get_shader_reflect() { return shader_cubemap; };
+	compute_averagelight*       get_shader_HDRaverage() { return shader_HDR_average; };
+	shader_HDRpreblur*          get_shader_HDRpreblur() { return shader_HDR_preblur; };
+	shader_HDRblur*             get_shader_HDRblur() { return shader_HDR_blur; };
+	shader_HDRfinal*            get_shader_HDRfinal() { return shader_HDR_final; };
 	void release();
 };
 

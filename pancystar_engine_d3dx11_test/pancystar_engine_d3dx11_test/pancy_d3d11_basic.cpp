@@ -6,11 +6,12 @@ d3d_pancy_basic::d3d_pancy_basic(HWND hwnd_need, UINT width_need, UINT hight_nee
 	swapchain = NULL;
 	m_renderTargetView = NULL;
 	depthStencilView = NULL;
+	posttreatment_RTV = NULL;
 	wind_hwnd  = hwnd_need;
 	wind_width = width_need;
 	wind_hight = hight_need;
 }
-bool d3d_pancy_basic::init(HWND hwnd_need, UINT width_need, UINT hight_need)
+HRESULT d3d_pancy_basic::init(HWND hwnd_need, UINT width_need, UINT hight_need)
 {
 	UINT create_flag = 0;
 	bool if_use_HIGHCARD = true;
@@ -29,7 +30,7 @@ bool d3d_pancy_basic::init(HWND hwnd_need, UINT width_need, UINT hight_need)
 		IDXGIAdapter1 * pAdapter = 0;
 		DXGI_ADAPTER_DESC1 pancy_star;
 		UINT i = 0;
-		HRESULT check_hardweare;
+		//HRESULT check_hardweare;
 		while (factory->EnumAdapters1(i, &pAdapter) != DXGI_ERROR_NOT_FOUND)
 		{
 			vAdapters.push_back(pAdapter);
@@ -94,10 +95,38 @@ bool d3d_pancy_basic::init(HWND hwnd_need, UINT width_need, UINT hight_need)
 	IDXGIFactory *pDxgiFactory(NULL);
 	hr1 = pDxgiAdapter->GetParent(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&pDxgiFactory));
 	hr1 = pDxgiFactory->CreateSwapChain(device_pancy, &swapchain_format, &swapchain);
+	//~~~~~~~~~~~~~~~~~~~~~~~~创建后处理渲染目标~~~~~~~~~~~~~~~~~~~~~~~
+	//创建输入资源
+	D3D11_TEXTURE2D_DESC texDesc;
+	texDesc.Width = width_need;
+	texDesc.Height = hight_need;
+	texDesc.MipLevels = 1;
+	texDesc.ArraySize = 1;
+	texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	texDesc.SampleDesc.Count = 4;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.BindFlags = D3D11_BIND_RENDER_TARGET;
+	texDesc.CPUAccessFlags = 0;
+	texDesc.MiscFlags = 0;
+	ID3D11Texture2D* posttreatment_tex = 0;
+	hr = device_pancy->CreateTexture2D(&texDesc, 0, &posttreatment_tex);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create posttreatment render target tex error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = device_pancy->CreateRenderTargetView(posttreatment_tex, 0, &posttreatment_RTV);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create posttreatment render target view error", L"tip", MB_OK);
+		return hr;
+	}
 	//释放接口  
 	pDxgiFactory->Release();
 	pDxgiAdapter->Release();
 	pDxgiDevice->Release();
+	posttreatment_tex->Release();
 	change_size();
 	return true;
 }
@@ -116,6 +145,10 @@ bool d3d_pancy_basic::change_size()
 		return false;
 	}
 	hr = device_pancy->CreateRenderTargetView(backBuffer, 0, &m_renderTargetView);
+	D3D11_TEXTURE2D_DESC check;
+	backBuffer->GetDesc(&check);
+
+
 	if (FAILED(hr))
 	{
 		MessageBox(wind_hwnd, L"change size error", L"tip", MB_OK);
@@ -168,12 +201,13 @@ d3d_pancy_basic::~d3d_pancy_basic()
 	safe_release(m_renderTargetView);
 	safe_release(depthStencilView);
 }
-bool d3d_pancy_basic::ifsucceed()
-{
-	return check_init;
-}
 void d3d_pancy_basic::restore_rendertarget()
 {
 	contex_pancy->OMSetRenderTargets(1, &m_renderTargetView, depthStencilView);
+	contex_pancy->RSSetViewports(1, &viewPort);
+}
+void d3d_pancy_basic::set_posttreatment_rendertarget() 
+{
+	contex_pancy->OMSetRenderTargets(1, &posttreatment_RTV, depthStencilView);
 	contex_pancy->RSSetViewports(1, &viewPort);
 }

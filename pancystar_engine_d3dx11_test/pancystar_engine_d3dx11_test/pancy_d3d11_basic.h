@@ -25,18 +25,19 @@ protected:
     ID3D11RenderTargetView  *m_renderTargetView; //视图变量
 	D3D11_VIEWPORT          viewPort;            //视口信息
     ID3D11DepthStencilView  *depthStencilView;   //缓冲区信息
-	bool                    check_init;          //检验初始化是否成功
+
+	ID3D11RenderTargetView  *posttreatment_RTV;  //用于后处理的渲染目标
 public:
 	d3d_pancy_basic(HWND wind_hwnd,UINT wind_width,UINT wind_hight);
 	~d3d_pancy_basic();
 	virtual void update()   = 0;
 	virtual void display()  = 0;
 	virtual void release()  = 0;
-	bool ifsucceed();
 	bool change_size();
 	void restore_rendertarget();
+	void set_posttreatment_rendertarget();
 protected:	
-	bool init(HWND wind_hwnd,UINT wind_width,UINT wind_hight);
+	HRESULT init(HWND wind_hwnd,UINT wind_width,UINT wind_hight);
 	
 	template<class T> 
 	void safe_release(T t)

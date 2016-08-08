@@ -14,6 +14,7 @@ class ssao_pancy
 
 	ID3D11DepthStencilView   *depthmap_target;     //临时深度缓冲区
 	ID3D11RenderTargetView   *normaldepth_target;  //存储法线和深度的渲染目标
+
 	ID3D11ShaderResourceView *normaldepth_tex;     //存储法线和深度的纹理资源
 
 	ID3D11RenderTargetView   *ambient_target0;     //存储ssao的渲染目标

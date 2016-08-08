@@ -35,6 +35,17 @@ HRESULT ssao_pancy::basic_create()
 
 void ssao_pancy::compute_ssaomap()
 {
+	ID3D11Resource * normalDepthTex = 0;
+	ID3D11Resource * normalDepthTex_singlesample = 0;
+	normaldepth_target->GetResource(&normalDepthTex);
+	normaldepth_tex->GetResource(&normalDepthTex_singlesample);
+	//将多重采样纹理转换至非多重纹理
+	contex_pancy->ResolveSubresource(normalDepthTex_singlesample,D3D11CalcSubresource(0, 0, 1),normalDepthTex ,D3D11CalcSubresource(0, 0, 1), DXGI_FORMAT_R16G16B16A16_FLOAT);
+	normaldepth_tex->Release();
+	normaldepth_tex = NULL;
+	device_pancy->CreateShaderResourceView(normalDepthTex_singlesample, 0, &normaldepth_tex);
+	normalDepthTex->Release();
+	normalDepthTex_singlesample->Release();
 	//绑定渲染目标纹理，不设置深度模缓冲区因为这里不需要
 	ID3D11RenderTargetView* renderTargets[1] = { ambient_target0 };
 	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -78,7 +89,9 @@ void ssao_pancy::compute_ssaomap()
 	}
 	shader_aopass->set_NormalDepthtex(NULL);
 	shader_aopass->set_randomtex(NULL);
-	tech->GetPassByIndex(0)->Apply(0, contex_pancy);
+	ID3D11RenderTargetView* NULL_target[1] = { NULL };
+	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
+	//tech->GetPassByIndex(0)->Apply(0, contex_pancy);
 }
 ID3D11ShaderResourceView* ssao_pancy::get_aomap()
 {
@@ -113,13 +126,14 @@ HRESULT ssao_pancy::set_normaldepth_mat(XMFLOAT4X4 world_mat, XMFLOAT4X4 view_ma
 HRESULT ssao_pancy::build_texture()
 {
 	HRESULT hr;
+	//作为shader resource view的普通纹理(无多重采样)
 	D3D11_TEXTURE2D_DESC texDesc;
 	texDesc.Width = map_width;
 	texDesc.Height = map_height;
 	texDesc.MipLevels = 1;
 	texDesc.ArraySize = 1;
 	texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Count = 4;
 	texDesc.SampleDesc.Quality = 0;
 	texDesc.Usage = D3D11_USAGE_DEFAULT;
 	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
@@ -132,7 +146,23 @@ HRESULT ssao_pancy::build_texture()
 		MessageBox(0, L"create normalDepth texture error", L"tip", MB_OK);
 		return hr;
 	}
-	hr = device_pancy->CreateShaderResourceView(normalDepthTex, 0, &normaldepth_tex);
+	//作为render target view的非普通纹理(4X多重采样)
+	ID3D11Texture2D* normalDepthTex_singlesample = 0;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	hr = device_pancy->CreateTexture2D(&texDesc, 0, &normalDepthTex_singlesample);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create normalDepth texture error", L"tip", MB_OK);
+		return hr;
+	}
+	/*
+	//将多重采样纹理转换至非多重纹理
+	contex_pancy->ResolveSubresource( DepthTex_singlesample,D3D11CalcSubresource(0, 0, 1),normalDepthTexnormal ,D3D11CalcSubresource(0, 0, 1), DXGI_FORMAT_R16G16B16A16_FLOAT);
+	*/
+
+	//创建shader resource view以及render target view
+	hr = device_pancy->CreateShaderResourceView(normalDepthTex_singlesample, 0, &normaldepth_tex);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create normalDepth texture error", L"tip", MB_OK);
@@ -145,10 +175,12 @@ HRESULT ssao_pancy::build_texture()
 		return hr;
 	}
 	normalDepthTex->Release();
+	normalDepthTex_singlesample->Release();
 
-	//半屏幕纹理
-	texDesc.Width = map_width / 2;
-	texDesc.Height = map_height / 2;
+
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~半屏幕纹理~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	texDesc.Width = map_width;
+	texDesc.Height = map_height;
 	texDesc.Format = DXGI_FORMAT_R16_FLOAT;
 	ID3D11Texture2D* ambientTex0 = 0;
 	device_pancy->CreateTexture2D(&texDesc, 0, &ambientTex0);
@@ -196,8 +228,8 @@ HRESULT ssao_pancy::build_texture()
 	texDesc2.Height = map_height;
 	texDesc2.MipLevels = 1;
 	texDesc2.ArraySize = 1;
-	texDesc2.Format = DXGI_FORMAT_R24G8_TYPELESS;
-	texDesc2.SampleDesc.Count = 1;
+	texDesc2.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	texDesc2.SampleDesc.Count = 4;
 	texDesc2.SampleDesc.Quality = 0;
 	texDesc2.Usage = D3D11_USAGE_DEFAULT;
 	texDesc2.BindFlags = D3D11_BIND_DEPTH_STENCIL;
@@ -211,12 +243,7 @@ HRESULT ssao_pancy::build_texture()
 		MessageBox(0, L"create depth buffer texture2 error", L"tip", MB_OK);
 		return hr;
 	}
-	D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-	dsvDesc.Flags = 0;
-	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-	dsvDesc.Texture2D.MipSlice = 0;
-	hr = device_pancy->CreateDepthStencilView(depthMap, &dsvDesc, &depthmap_target);
+	hr = device_pancy->CreateDepthStencilView(depthMap, 0, &depthmap_target);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create depth buffer texture2 error", L"tip", MB_OK);
@@ -246,8 +273,8 @@ void ssao_pancy::set_size(int width, int height, float fovy, float farZ)
 	//半屏幕渲染
 	render_viewport.TopLeftX = 0.0f;
 	render_viewport.TopLeftY = 0.0f;
-	render_viewport.Width = width / 2.0f;
-	render_viewport.Height = height / 2.0f;
+	render_viewport.Width = static_cast<float>(width);
+	render_viewport.Height = static_cast<float>(height);
 	render_viewport.MinDepth = 0.0f;
 	render_viewport.MaxDepth = 1.0f;
 	BuildFrustumFarCorners(fovy, farZ);
@@ -432,11 +459,13 @@ void ssao_pancy::basic_blur(ID3D11ShaderResourceView *texin, ID3D11RenderTargetV
 		contex_pancy->DrawIndexed(6, 0, 0);
 	}
 	shader_blurpass->set_tex_resource(NULL, NULL);
-	tech->GetPassByIndex(0)->Apply(0, contex_pancy);
+	ID3D11RenderTargetView* NULL_target[1] = { NULL };
+	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
+	//tech->GetPassByIndex(0)->Apply(0, contex_pancy);
 }
 void ssao_pancy::check_ssaomap()
 {
-	contex_pancy->RSSetViewports(1, &render_viewport);
+	//contex_pancy->RSSetViewports(1, &render_viewport);
 	float black[4] = { 0.0f,0.0f,0.0f,0.0f };
 	ID3D11RenderTargetView* renderTargets[1] = { ambient_target1 };
 	auto *shader_blurpass = shader_list->get_shader_ssaoblur();

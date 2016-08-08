@@ -78,10 +78,10 @@ HRESULT scene_engine_test::scene_create()
 {
 	auto* shader_test = shader_lib->get_shader_prelight();
 	pancy_light_dir test_pointL;
-	XMFLOAT4 rec_ambient(1.0, 1.0, 1.0, 1.0);
-	XMFLOAT4 rec_diffuse(1.0, 1.0, 1.0, 1.0);
-	XMFLOAT4 rec_specular(1.0, 1.0, 1.0, 1.0);
-	XMFLOAT3 rec_dir(0.0, -1.0, 0.0);
+	XMFLOAT4 rec_ambient(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_diffuse(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_specular(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT3 rec_dir(0.0f, -1.0f, 0.0f);
 	test_pointL.ambient = rec_ambient;
 	test_pointL.diffuse = rec_diffuse;
 	test_pointL.specular = rec_specular;
@@ -90,33 +90,33 @@ HRESULT scene_engine_test::scene_create()
 	shader_test->set_dirlight(test_pointL, 0);
 
 	pancy_light_point test_point2;
-	XMFLOAT4 rec_ambient1(0.3, 0.3, 0.3, 1.0);
-	XMFLOAT4 rec_diffuse1(1.0, 1.0, 1.0, 1.0);
-	XMFLOAT4 rec_specular1(1.0, 1.0, 1.0, 1.0);
-	XMFLOAT3 rec_decay(0.0, 0.6, 0.0);
+	XMFLOAT4 rec_ambient1(0.3f, 0.3f, 0.3f, 1.0f);
+	XMFLOAT4 rec_diffuse1(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_specular1(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT3 rec_decay(0.0f, 0.6f, 0.0f);
 
 	test_point2.ambient = rec_ambient1;
 	test_point2.diffuse = rec_diffuse1;
 	test_point2.specular = rec_specular1;
 	test_point2.decay = rec_decay;
 	test_point2.range = 100.0f;
-	test_point2.position = XMFLOAT3(0.0, 15.0, 0.0);
+	test_point2.position = XMFLOAT3(0.0f, 15.0f, 0.0f);
 	shader_test->set_pointlight(test_point2, 0);
 
 	pancy_light_spot test_point3;
-	XMFLOAT4 rec_ambient2(0.6, 0.6, 0.6, 1.0);
-	XMFLOAT4 rec_diffuse2(1.0, 1.0, 1.0, 1.0);
-	XMFLOAT4 rec_specular2(1.0, 1.0, 1.0, 1.0);
+	XMFLOAT4 rec_ambient2(0.6f, 0.6f, 0.6f, 1.0f);
+	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_specular2(1.0f, 1.0f, 1.0f, 1.0f);
 
-	XMFLOAT3 rec_decay1(0.0, 0.3, 0.0);
+	XMFLOAT3 rec_decay1(0.0f, 0.3f, 0.0f);
 
 	test_point3.ambient = rec_ambient1;
 	test_point3.diffuse = rec_diffuse1;
 	test_point3.specular = rec_specular1;
 	test_point3.decay = rec_decay1;
 	test_point3.range = 100.0f;
-	test_point3.position = XMFLOAT3(0.0, 5.0, 5.0);
-	test_point3.dir = XMFLOAT3(0.0, -1.0, -1.0);
+	test_point3.position = XMFLOAT3(0.0f, 5.0f, 5.0f);
+	test_point3.dir = XMFLOAT3(0.0f, -1.0f, -1.0f);
 	test_point3.spot = 12.0f;
 	test_point3.theta = 3.141592653f / 5.0f;
 	shader_test->set_spotlight(test_point3, 0);
@@ -550,7 +550,7 @@ void scene_engine_test::draw_shadowmap()
 	cube_range.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	cube_range.Radius = sqrtf(1.0f*1.0f + 1.0f*1.0f);
 	shadowmap_part->set_renderstate(position, dir, cube_range, spot_light);
-	//engine_state->restore_rendertarget();
+	//engine_state->set_posttreatment_rendertarget();
 	//设定球体世界变换
 	XMMATRIX trans_world;
 	XMMATRIX scal_world;
@@ -586,7 +586,7 @@ void scene_engine_test::draw_shadowmap()
 	shadowmap_part->set_shaderresource(world_matrix);
 	floor_need->get_teque(shadowmap_part->get_technique());
 	floor_need->show_mesh();
-	engine_state->restore_rendertarget();
+	engine_state->set_posttreatment_rendertarget();
 
 	contex_pancy->RSSetState(0);
 }
@@ -666,9 +666,9 @@ void scene_engine_test::draw_ssaomap()
 
 	ssao_part->compute_ssaomap();
 	ssao_part->blur_ssaomap();
-	engine_state->restore_rendertarget();
+	engine_state->set_posttreatment_rendertarget();
 	//ssao_part->check_ssaomap();
-	engine_state->restore_rendertarget();
+	//engine_state->set_posttreatment_rendertarget();
 }
 HRESULT scene_engine_test::update(float delta_time)
 {

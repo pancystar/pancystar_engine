@@ -622,6 +622,295 @@ void shader_reflect::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point,
 		member_point[i] = rec[i];
 	}
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~HDR亮度平均~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+compute_averagelight::compute_averagelight(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT compute_averagelight::set_compute_tex(ID3D11ShaderResourceView *tex_input)
+{
+	HRESULT hr = texture_input->SetResource(tex_input);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when setting HDR texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT compute_averagelight::set_compute_buffer(ID3D11UnorderedAccessView *buffer_input_need, ID3D11UnorderedAccessView *buffer_output_need)
+{
+	HRESULT hr;
+	hr = buffer_input->SetUnorderedAccessView(buffer_input_need);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set UAV buffer error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = buffer_output->SetUnorderedAccessView(buffer_output_need);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set UAV buffer error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT compute_averagelight::set_piccturerange(int width_need, int height_need, int buffer_num, int bytewidth)
+{
+	XMUINT4 rec_float = XMUINT4(static_cast<unsigned int>(width_need), static_cast<unsigned int>(height_need), static_cast<unsigned int>(buffer_num), static_cast<unsigned int>(bytewidth));
+	HRESULT hr = texture_range->SetRawValue((void*)&rec_float, 0, sizeof(rec_float));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when setting HDR range", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void compute_averagelight::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+}
+void compute_averagelight::release()
+{
+	release_basic();
+}
+void compute_averagelight::init_handle()
+{
+	texture_input = fx_need->GetVariableByName("input_tex")->AsShaderResource();
+	buffer_input = fx_need->GetVariableByName("input_buffer")->AsUnorderedAccessView();
+	buffer_output = fx_need->GetVariableByName("output_buffer")->AsUnorderedAccessView();
+	texture_range = fx_need->GetVariableByName("input_range");
+}
+void compute_averagelight::dispatch(int width_need,int height_need,int final_need)
+{
+	ID3DX11EffectTechnique* tech_need;
+	tech_need = fx_need->GetTechniqueByName("HDR_average_pass");
+	D3DX11_TECHNIQUE_DESC techDesc;
+	tech_need->GetDesc(&techDesc);
+	for (UINT i = 0; i<techDesc.Passes; ++i)
+	{
+		tech_need->GetPassByIndex(i)->Apply(0, contex_pancy);
+		if (i == 0) 
+		{
+			contex_pancy->Dispatch(width_need, height_need, 1);
+		}
+		else 
+		{
+			contex_pancy->Dispatch(final_need, 1, 1);
+		}
+	}
+	ID3D11ShaderResourceView* nullSRV[1] = { 0 };
+	contex_pancy->CSSetShaderResources(0, 1, nullSRV);
+	ID3D11UnorderedAccessView* nullUAV[1] = { 0 };
+	contex_pancy->CSSetUnorderedAccessViews(0, 1, nullUAV, 0);
+	contex_pancy->CSSetShader(0, 0, 0);
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~HDR_高光提取~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_HDRpreblur::shader_HDRpreblur(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT shader_HDRpreblur::set_buffer_input(ID3D11ShaderResourceView *buffer_need)
+{
+	HRESULT hr = tex_input->SetResource(buffer_need);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting HDR preblur buffer", L"tip", MB_OK);
+		return hr;
+	}
+	XMFLOAT4X4 yuv_rgb = XMFLOAT4X4
+		(1.0f, 1.0f, 1.0f, 0.0f,
+			0.0f, -0.3441f, 1.7720f, 0.0f,
+			1.4020f, -0.7141f, 0.0f, 0.0f,
+			-0.7010f, 0.5291f, -0.8860f, 1.0f);
+	hr = set_matrix(matrix_YUV2RGB, &yuv_rgb);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting YUV2RGB matrix", L"tip", MB_OK);
+		return hr;
+	}
+	XMFLOAT4X4 rgb_yuv = XMFLOAT4X4(0.2990f, -0.1687f, 0.5f, 0.0f,
+		0.5870, -0.3313f, -0.4187f, 0.0f,
+		0.1140, 0.5f, -0.0813f, 0.0f,
+		0.0f, 0.5f, 0.5f, 1.0f);
+	hr = set_matrix(matrix_RGB2YUV, &rgb_yuv);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting RGB2YUV matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_HDRpreblur::set_lum_message(float average_lum, float HighLight_divide, float HightLight_max, float key_tonemapping)
+{
+	XMFLOAT4 rec_float = XMFLOAT4(average_lum, HighLight_divide, HightLight_max, key_tonemapping);
+	HRESULT hr = lum_message->SetRawValue((void*)&rec_float, 0, sizeof(rec_float));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when setting HDR lum_message in preblur pass", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_HDRpreblur::init_handle()
+{
+	matrix_YUV2RGB = fx_need->GetVariableByName("YUV2RGB")->AsMatrix();
+	matrix_RGB2YUV = fx_need->GetVariableByName("RGB2YUV")->AsMatrix();
+	tex_input = fx_need->GetVariableByName("input_tex")->AsShaderResource();
+	lum_message = fx_need->GetVariableByName("light_average");
+}
+void shader_HDRpreblur::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
+void shader_HDRpreblur::release() 
+{
+	release_basic();
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~HDR_高光模糊~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_HDRblur::shader_HDRblur(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT shader_HDRblur::set_tex_resource(ID3D11ShaderResourceView *buffer_input)
+{
+	HRESULT hr;
+	hr = tex_input->SetResource(buffer_input);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set HDR blur texture error in HDR mapping", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_HDRblur::set_image_size(float width, float height)
+{
+	HRESULT hr;
+	hr = TexelWidth->SetFloat(width);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set image_size error in HDR blur part", L"tip", MB_OK);
+		return hr;
+	}
+	hr = TexelHeight->SetFloat(height);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set image_size error in HDR blur part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_HDRblur::release()
+{
+	release_basic();
+}
+void shader_HDRblur::init_handle()
+{
+	TexelWidth = fx_need->GetVariableByName("gTexelWidth")->AsScalar();
+	TexelHeight = fx_need->GetVariableByName("gTexelHeight")->AsScalar();
+	tex_input = fx_need->GetVariableByName("gInputImage")->AsShaderResource();
+}
+void shader_HDRblur::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~HDR_最终渲染~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_HDRfinal::shader_HDRfinal(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT shader_HDRfinal::set_tex_resource(ID3D11ShaderResourceView *tex_input_need, ID3D11ShaderResourceView *tex_bloom_need)
+{
+	HRESULT hr;
+	hr = tex_input->SetResource(tex_input_need);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set HDR blur texture error in HDR final mapping", L"tip", MB_OK);
+		return hr;
+	}
+	hr = tex_bloom->SetResource(tex_bloom_need);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set HDR blur texture error in HDR final mapping", L"tip", MB_OK);
+		return hr;
+	}
+	XMFLOAT4X4 yuv_rgb = XMFLOAT4X4
+		(1.0f, 1.0f, 1.0f, 0.0f,
+			0.0f, -0.3441f, 1.7720f, 0.0f,
+			1.4020f, -0.7141f, 0.0f, 0.0f,
+			-0.7010f, 0.5291f, -0.8860f, 1.0f);
+	hr = set_matrix(matrix_YUV2RGB, &yuv_rgb);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting YUV2RGB matrix", L"tip", MB_OK);
+		return hr;
+	}
+	XMFLOAT4X4 rgb_yuv = XMFLOAT4X4(0.2990f, -0.1687f, 0.5f, 0.0f,
+		0.5870, -0.3313f, -0.4187f, 0.0f,
+		0.1140, 0.5f, -0.0813f, 0.0f,
+		0.0f, 0.5f, 0.5f, 1.0f);
+	hr = set_matrix(matrix_RGB2YUV, &rgb_yuv);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting RGB2YUV matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_HDRfinal::set_lum_message(float average_lum, float HighLight_divide, float HightLight_max, float key_tonemapping)
+{
+	XMFLOAT4 rec_float = XMFLOAT4(average_lum, HighLight_divide, HightLight_max, key_tonemapping);
+	HRESULT hr = lum_message->SetRawValue((void*)&rec_float, 0, sizeof(rec_float));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when setting HDR lum_message in preblur pass", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_HDRfinal::release()
+{
+	release_basic();
+}
+void shader_HDRfinal::init_handle()
+{
+	lum_message = fx_need->GetVariableByName("light_average");
+	matrix_YUV2RGB = fx_need->GetVariableByName("YUV2RGB")->AsMatrix();
+	matrix_RGB2YUV = fx_need->GetVariableByName("RGB2YUV")->AsMatrix();
+	tex_input = fx_need->GetVariableByName("input_tex")->AsShaderResource();
+	tex_bloom = fx_need->GetVariableByName("input_bloom")->AsShaderResource();
+}
+void shader_HDRfinal::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全局shader管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_control::shader_control()
 {
@@ -634,6 +923,10 @@ shader_control::shader_control()
 	shader_ssao_blur = NULL;
 	particle_build = NULL;
 	particle_show = NULL;
+	shader_HDR_average = NULL;
+	shader_HDR_preblur = NULL;
+	shader_HDR_blur = NULL;
+	shader_HDR_final = NULL;
 }
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
@@ -685,6 +978,35 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 		MessageBox(0, L"an error when reflect lighting shader created", L"tip", MB_OK);
 		return hr;
 	}
+
+	shader_HDR_average = new compute_averagelight(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\HDR_average_pass.cso", device_pancy, contex_pancy);
+	hr = shader_HDR_average->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when HDR average shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_HDR_preblur = new shader_HDRpreblur(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\HDR_preblur_pass.cso", device_pancy, contex_pancy);
+	hr = shader_HDR_preblur->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when HDR preblur shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_HDR_blur = new shader_HDRblur(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\HDR_blur_pass.cso", device_pancy, contex_pancy);
+	hr = shader_HDR_blur->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when HDR blur shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_HDR_final = new shader_HDRfinal(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\HDR_final.cso", device_pancy, contex_pancy);
+	hr = shader_HDR_final->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when HDR final shader created", L"tip", MB_OK);
+		return hr;
+	}
 	return S_OK;
 }
 void shader_control::release()
@@ -695,4 +1017,8 @@ void shader_control::release()
 	shader_ssao_draw->release();
 	shader_ssao_blur->release();
 	shader_cubemap->release();
+	shader_HDR_average->release();
+	shader_HDR_preblur->release();
+	shader_HDR_blur->release();
+	shader_HDR_final->release();
 }

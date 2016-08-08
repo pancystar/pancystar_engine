@@ -188,6 +188,10 @@
     <ClCompile Include="shader_pancy.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="HDR_average_pass.fx" />
+    <FxCompile Include="HDR_blur_pass.fx" />
+    <FxCompile Include="HDR_final.fx" />
+    <FxCompile Include="HDR_preblur_pass.fx" />
     <FxCompile Include="light_define.fx" />
     <FxCompile Include="light_pre.fx" />
     <FxCompile Include="light_reflect.fx" />

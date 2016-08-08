@@ -109,6 +109,18 @@
     <FxCompile Include="light_reflect.fx">
       <Filter>源文件</Filter>
     </FxCompile>
+    <FxCompile Include="HDR_average_pass.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
+    <FxCompile Include="HDR_preblur_pass.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
+    <FxCompile Include="HDR_blur_pass.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
+    <FxCompile Include="HDR_final.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram.cd" />
