@@ -36,6 +36,8 @@ protected:
 	virtual HRESULT camera_move();
 
 };
+
+
 class scene_engine_test : public scene_root
 {
 	model_reader_assimp                   *model_yuri;          //yuriÄ£ÐÍ

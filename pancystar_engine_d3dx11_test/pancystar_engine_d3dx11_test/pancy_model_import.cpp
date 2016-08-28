@@ -32,12 +32,24 @@ void model_reader_assimp::remove_texture_path(char rec[])
 	}
 	strcpy(rec, &rec[start]);
 }
-HRESULT model_reader_assimp::model_create(bool if_optimize)
+HRESULT model_reader_assimp::model_create(bool if_optimize, int alpha_partnum, int* alpha_part)
 {
+	for (int i = 0; i < 10000; ++i)
+	{
+		if_alpha_array[i] = false;
+	}
+	if (alpha_partnum != 0 && alpha_part != NULL)
+	{
+		for (int i = 0; i < alpha_partnum; ++i)
+		{
+			if_alpha_array[alpha_part[i]] = true;
+		}
+	}
+
 	aiProcess_ConvertToLeftHanded;
 	model_need = importer.ReadFile(filename,
-		//aiProcess_MakeLeftHanded |
-		//aiProcess_FlipWindingOrder |
+		aiProcess_MakeLeftHanded |
+		aiProcess_FlipWindingOrder |
 		aiProcess_CalcTangentSpace |             //计算切线和副法线
 												 //aiProcess_Triangulate |                 //将四边形面转换为三角面
 		aiProcess_JoinIdenticalVertices		//合并相同的顶点
@@ -75,7 +87,7 @@ HRESULT model_reader_assimp::model_create(bool if_optimize)
 	hr = init_mesh();
 	if (hr != S_OK)
 	{
-		MessageBox(0,L"create model error when init mesh",L"tip",MB_OK);
+		MessageBox(0, L"create model error when init mesh", L"tip", MB_OK);
 		return hr;
 	}
 	hr = init_texture();
@@ -84,13 +96,13 @@ HRESULT model_reader_assimp::model_create(bool if_optimize)
 		MessageBox(0, L"create model error when init texture", L"tip", MB_OK);
 		return hr;
 	}
-	hr = combine_vertex_array();
+	hr = combine_vertex_array(alpha_partnum, alpha_part);
 	if (hr != S_OK)
 	{
 		MessageBox(0, L"create model error when combine scene mesh", L"tip", MB_OK);
 		return hr;
 	}
-	if (if_optimize == true) 
+	if (if_optimize == true)
 	{
 		optimization_mesh();
 	}
@@ -127,7 +139,7 @@ HRESULT model_reader_assimp::init_mesh()
 			if (paiMesh->HasTextureCoords(0))
 			{
 				point_need[j].tex.x = paiMesh->mTextureCoords[0][j].x;
-				point_need[j].tex.y = 1-paiMesh->mTextureCoords[0][j].y;
+				point_need[j].tex.y = 1 - paiMesh->mTextureCoords[0][j].y;
 			}
 			else
 			{
@@ -228,7 +240,7 @@ HRESULT model_reader_assimp::init_texture()
 }
 HRESULT model_reader_assimp::get_technique(ID3DX11EffectTechnique *teque_need)
 {
-	if (teque_need == NULL) 
+	if (teque_need == NULL)
 	{
 		MessageBox(0, L"get render technique error", L"tip", MB_OK);
 		return E_FAIL;
@@ -236,7 +248,7 @@ HRESULT model_reader_assimp::get_technique(ID3DX11EffectTechnique *teque_need)
 	teque_pancy = teque_need;
 	return S_OK;
 }
-HRESULT model_reader_assimp::combine_vertex_array()
+HRESULT model_reader_assimp::combine_vertex_array(int alpha_partnum, int* alpha_part)
 {
 	point_with_tangent *vertex_out;
 	UINT *index_out;
@@ -244,14 +256,24 @@ HRESULT model_reader_assimp::combine_vertex_array()
 	Geometry<point_with_tangent> *now_meshneed[700];
 	for (int i = 0; i < model_need->mNumMeshes; ++i)
 	{
-		now_meshneed[i] = mesh_need[i].point_buffer;
+		if (if_alpha_array[i] == false)
+		{
+			now_meshneed[i] = mesh_need[i].point_buffer;
+		}
+		else 
+		{
+			int a = 0;
+		}
 	}
 	for (int i = 0; i < model_need->mNumMeshes; ++i)
 	{
-		int rec_vertex, rec_index;
-		now_meshneed[i]->get_point_num(rec_vertex, rec_index);
-		all_vertex += rec_vertex;
-		all_index += rec_index;
+		if (if_alpha_array[i] == false)
+		{
+			int rec_vertex, rec_index;
+			now_meshneed[i]->get_point_num(rec_vertex, rec_index);
+			all_vertex += rec_vertex;
+			all_index += rec_index;
+		}
 	}
 	vertex_out = (point_with_tangent*)malloc(all_vertex * sizeof(point_with_tangent) + 100);
 	index_out = (UINT*)malloc(all_index * sizeof(UINT) + 100);
@@ -261,30 +283,33 @@ HRESULT model_reader_assimp::combine_vertex_array()
 	int vertex_num = 0;
 	for (int i = 0; i < model_need->mNumMeshes; ++i)
 	{
-		point_with_tangent *vertex_rec;
-		UINT *index_rec;
-		int all_vertex = 0, all_index = 0;
-		//获取几何体的顶点与索引数目
-		now_meshneed[i]->get_point_num(all_vertex, all_index);
-		vertex_rec = (point_with_tangent*)malloc(all_vertex * sizeof(point_with_tangent) + 100);
-		index_rec = (UINT*)malloc(all_index * sizeof(UINT) + 100);
-		//获取几何体的顶点与索引数据
-		now_meshneed[i]->get_bufferdata(vertex_rec, index_rec);
-		//拷贝顶点
-		memcpy(now_pointer, vertex_rec, all_vertex * sizeof(point_with_tangent));
-		//修改索引号
-		for (int j = 0; j < all_index; ++j)
+		if (if_alpha_array[i] == false)
 		{
-			index_rec[j] += vertex_num;
+			point_with_tangent *vertex_rec;
+			UINT *index_rec;
+			int all_vertex = 0, all_index = 0;
+			//获取几何体的顶点与索引数目
+			now_meshneed[i]->get_point_num(all_vertex, all_index);
+			vertex_rec = (point_with_tangent*)malloc(all_vertex * sizeof(point_with_tangent) + 100);
+			index_rec = (UINT*)malloc(all_index * sizeof(UINT) + 100);
+			//获取几何体的顶点与索引数据
+			now_meshneed[i]->get_bufferdata(vertex_rec, index_rec);
+			//拷贝顶点
+			memcpy(now_pointer, vertex_rec, all_vertex * sizeof(point_with_tangent));
+			//修改索引号
+			for (int j = 0; j < all_index; ++j)
+			{
+				index_rec[j] += vertex_num;
+			}
+			//拷贝索引
+			memcpy(now_index_pointer, index_rec, all_index * sizeof(UINT));
+			//更新记录
+			now_pointer += all_vertex;
+			vertex_num += all_vertex;
+			now_index_pointer += all_index;
+			free(vertex_rec);
+			free(index_rec);
 		}
-		//拷贝索引
-		memcpy(now_index_pointer, index_rec, all_index * sizeof(UINT));
-		//更新记录
-		now_pointer += all_vertex;
-		vertex_num += all_vertex;
-		now_index_pointer += all_index;
-		free(vertex_rec);
-		free(index_rec);
 	}
 	mesh_scene = new mesh_comman(device_pancy, contex_pancy, all_vertex, all_index);
 	HRESULT hr = mesh_scene->create_object(vertex_out, index_out);
@@ -337,16 +362,16 @@ void model_reader_assimp::draw_part(int i)
 	mesh_need[i].point_buffer->get_teque(teque_pancy);
 	mesh_need[i].point_buffer->show_mesh();
 }
-void model_reader_assimp::draw_mesh() 
+void model_reader_assimp::draw_mesh()
 {
 	mesh_scene->get_teque(teque_pancy);
 	mesh_scene->show_mesh();
 }
-HRESULT model_reader_assimp::optimization_mesh() 
+HRESULT model_reader_assimp::optimization_mesh()
 {
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~先合并材质~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	int hash_UnionFind[1000];
-	memset(hash_UnionFind,0, 1000 * sizeof(int));
+	memset(hash_UnionFind, 0, 1000 * sizeof(int));
 	int now_different = 1;//当前已经有的互不相同的材质数量
 	hash_UnionFind[0] = 0;
 	/*
@@ -356,9 +381,9 @@ HRESULT model_reader_assimp::optimization_mesh()
 	for (int i = 1; i < model_need->mNumMaterials; ++i)
 	{
 		bool if_change = true;
-		for (int j = 0; j < i; ++j) 
+		for (int j = 0; j < i; ++j)
 		{
-			if (strcmp(matlist_need[i].texture_diffuse,matlist_need[j].texture_diffuse) == 0 && strcmp(matlist_need[i].texture_normal,matlist_need[j].texture_normal) == 0) 
+			if (strcmp(matlist_need[i].texture_diffuse, matlist_need[j].texture_diffuse) == 0 && strcmp(matlist_need[i].texture_normal, matlist_need[j].texture_normal) == 0)
 			{
 				//当前材质与之前的材质重复，删除之并标记hash
 				if (matlist_need[i].tex_diffuse_resource != NULL)
@@ -378,7 +403,7 @@ HRESULT model_reader_assimp::optimization_mesh()
 				break;
 			}
 		}
-		if (if_change == true) 
+		if (if_change == true)
 		{
 			//添加一个不同的材质
 			matlist_need[now_different] = matlist_need[i];
@@ -387,10 +412,10 @@ HRESULT model_reader_assimp::optimization_mesh()
 		}
 	}
 	material_optimization = now_different;
-	mesh_optimization = now_different-1;
+	mesh_optimization = now_different - 1;
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~合并几何体~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	int all_vertex = 0, all_index = 0;
-	for (int i = 0; i < model_need->mNumMeshes; i++) 
+	for (int i = 0; i < model_need->mNumMeshes; i++)
 	{
 		//更改索引号
 		mesh_need[i].material_use = hash_UnionFind[mesh_need[i].material_use];
@@ -417,43 +442,43 @@ HRESULT model_reader_assimp::optimization_mesh()
 		int vertex_num = 0;
 		int now_count_vertex = 0;
 		int now_count_index = 0;
-		for (int j = 0; j < model_need->mNumMeshes; j++) 
+		for (int j = 0; j < model_need->mNumMeshes; j++)
 		{
 			//找到所有使用材质相同的网格，并将它们合并
-			if (mesh_need[j].material_use == i+1) 
+			if (mesh_need[j].material_use == i + 1)
 			{
-					point_with_tangent *vertex_rec;
-					UINT *index_rec;
-					int check_vertex = 0, check_index = 0;
-					//获取几何体的顶点与索引数目
-					mesh_need[j].point_buffer->get_point_num(check_vertex, check_index);
-					now_count_vertex += check_vertex;
-					now_count_index += check_index;
-					vertex_rec = (point_with_tangent*)malloc(check_vertex * sizeof(point_with_tangent) + 100);
-					index_rec = (UINT*)malloc(check_index * sizeof(UINT) + 100);
-					//获取几何体的顶点与索引数据
-					mesh_need[j].point_buffer->get_bufferdata(vertex_rec, index_rec);
-					
+				point_with_tangent *vertex_rec;
+				UINT *index_rec;
+				int check_vertex = 0, check_index = 0;
+				//获取几何体的顶点与索引数目
+				mesh_need[j].point_buffer->get_point_num(check_vertex, check_index);
+				now_count_vertex += check_vertex;
+				now_count_index += check_index;
+				vertex_rec = (point_with_tangent*)malloc(check_vertex * sizeof(point_with_tangent) + 100);
+				index_rec = (UINT*)malloc(check_index * sizeof(UINT) + 100);
+				//获取几何体的顶点与索引数据
+				mesh_need[j].point_buffer->get_bufferdata(vertex_rec, index_rec);
 
-					//拷贝顶点
-					memcpy(now_pointer, vertex_rec, check_vertex * sizeof(point_with_tangent));
-					//修改索引号
-					for (int k = 0; k< check_index; ++k)
-					{
-						index_rec[k] += vertex_num;
-					}
-					//拷贝索引
-					memcpy(now_index_pointer, index_rec, check_index * sizeof(UINT));
-					//更新记录
-					now_pointer += check_vertex;
-					vertex_num += check_vertex;
-					now_index_pointer += check_index;
-					free(vertex_rec);
-					free(index_rec);
+
+				//拷贝顶点
+				memcpy(now_pointer, vertex_rec, check_vertex * sizeof(point_with_tangent));
+				//修改索引号
+				for (int k = 0; k < check_index; ++k)
+				{
+					index_rec[k] += vertex_num;
+				}
+				//拷贝索引
+				memcpy(now_index_pointer, index_rec, check_index * sizeof(UINT));
+				//更新记录
+				now_pointer += check_vertex;
+				vertex_num += check_vertex;
+				now_index_pointer += check_index;
+				free(vertex_rec);
+				free(index_rec);
 			}
 		}
 		rec_optisave[i].point_buffer = new mesh_comman(device_pancy, contex_pancy, now_count_vertex, now_count_index);
-		rec_optisave[i].material_use = i+1;
+		rec_optisave[i].material_use = i + 1;
 		HRESULT hr = rec_optisave[i].point_buffer->create_object(vertex_rec, index_rec);
 		if (FAILED(hr))
 		{
@@ -463,7 +488,7 @@ HRESULT model_reader_assimp::optimization_mesh()
 	}
 	free(vertex_rec);
 	free(index_rec);
-	for (int i = 0; i < model_need->mNumMeshes; ++i) 
+	for (int i = 0; i < model_need->mNumMeshes; ++i)
 	{
 		mesh_need[i].point_buffer->release();
 	}

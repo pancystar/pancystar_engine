@@ -17,37 +17,15 @@ enum light_type
 	point_light     = 1,
 	spot_light      = 2
 };
-struct light_point_handle//为shader中点光源相关的全局变量赋值的句柄集合
+enum shadow_type
 {
-	ID3DX11EffectVariable *ambient;
-	ID3DX11EffectVariable *diffuse;
-	ID3DX11EffectVariable *specular;
-	ID3DX11EffectVariable *position;
-	ID3DX11EffectVariable *decay;
+	shadow_none = 0,
+	shadow_map = 1,
+	shadow_volume = 2
 };
-struct pancy_light_dir//方向光结构
+struct pancy_light_basic 
 {
-	XMFLOAT4 ambient;
-	XMFLOAT4 diffuse;
-	XMFLOAT4 specular;
-	XMFLOAT3 dir;
-
-	float    range;
-};
-struct pancy_light_point//点光源结构
-{
-	XMFLOAT4 ambient;
-	XMFLOAT4 diffuse;
-	XMFLOAT4 specular;
-
-	XMFLOAT3 position;
-	float    range;
-
-	XMFLOAT3 decay;
-};
-struct pancy_light_spot//聚光灯结构
-{
-	XMFLOAT4    ambient;  
+	XMFLOAT4    ambient;
 	XMFLOAT4    diffuse;
 	XMFLOAT4    specular;
 
@@ -55,11 +33,12 @@ struct pancy_light_spot//聚光灯结构
 	float       spot;
 
 	XMFLOAT3    position;
-	float       theta; 
+	float       theta;
 
 	XMFLOAT3    decay;
 	float       range;
-	
+
+	XMUINT4    light_type;
 };
 struct material_handle//为shader中材质相关的全局变量赋值的句柄集合
 {
@@ -105,12 +84,9 @@ protected:
 };
 class light_pre : public shader_basic 
 {
-	light_point_handle      pointlight_handle;           //光照信息
 	ID3DX11EffectVariable   *view_pos_handle;            //视点位置
 	ID3DX11EffectVariable   *material_need;              //材质
-	ID3DX11EffectVariable   *light_dir;                  //方向光
-	ID3DX11EffectVariable   *light_point;                //点光源
-	ID3DX11EffectVariable   *light_spot;                 //聚光灯
+	ID3DX11EffectVariable   *light_list;                 //灯光
 	ID3DX11EffectShaderResourceVariable   *texture_diffuse_handle;     //shader中的纹理资源句柄
 	ID3DX11EffectShaderResourceVariable   *texture_normal_handle;      //法线贴图纹理
 	ID3DX11EffectShaderResourceVariable   *texture_shadow_handle;      //阴影贴图句柄
@@ -135,9 +111,7 @@ public:
 	virtual HRESULT set_diffusetex(ID3D11ShaderResourceView *tex_in);		//设置漫反射纹理
 	virtual HRESULT set_normaltex(ID3D11ShaderResourceView *tex_in);		//设置法线贴图纹理
 
-	HRESULT set_dirlight(pancy_light_dir light_need,int light_num);         //设置一个方向光源
-	HRESULT set_pointlight(pancy_light_point light_need, int light_num);    //设置一个点光源
-	HRESULT set_spotlight(pancy_light_spot light_need, int light_num);      //设置一个聚光灯光源
+	HRESULT set_light(pancy_light_basic light_need, int light_num);      //设置一个聚光灯光源
 	void release();
 private:
 	void init_handle();                 //注册全局变量句柄
@@ -146,9 +120,11 @@ private:
 class light_shadow : public shader_basic 
 {
 	ID3DX11EffectMatrixVariable *project_matrix_handle; //全套几何变换句柄
+	ID3DX11EffectShaderResourceVariable   *texture_need;
 public:
 	light_shadow(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);        //设置总变换
+	HRESULT set_texture(ID3D11ShaderResourceView *tex_in);
 	void release();
 private:
 	void init_handle();                 //注册全局变量句柄
@@ -160,10 +136,12 @@ class shader_ssaodepthnormal_map : public shader_basic
 	ID3DX11EffectMatrixVariable           *project_matrix_handle;      //全套几何变换句柄
 	ID3DX11EffectMatrixVariable           *world_matrix_handle;        //世界变换句柄
 	ID3DX11EffectMatrixVariable           *normal_matrix_handle;       //法线变换句柄
+	ID3DX11EffectShaderResourceVariable   *texture_need;
 public:
 	shader_ssaodepthnormal_map(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_trans_world(XMFLOAT4X4 *mat_world, XMFLOAT4X4 *mat_view);
 	HRESULT set_trans_all(XMFLOAT4X4 *mat_final);
+	HRESULT set_texture(ID3D11ShaderResourceView *tex_in);
 	void release();
 private:
 	void init_handle();//注册shader中所有全局变量的句柄
@@ -231,16 +209,16 @@ class compute_averagelight : public shader_basic
 {
 	ID3DX11EffectShaderResourceVariable      *texture_input;      //shader中的纹理资源句柄
 	ID3DX11EffectUnorderedAccessViewVariable *buffer_input;       //shader中的纹理资源句柄
-	ID3DX11EffectUnorderedAccessViewVariable *buffer_output;	  //compute_shader传到cpu的纹理资源
+	ID3DX11EffectUnorderedAccessViewVariable *buffer_output;	  //compute_shader计算完毕纹理资源
 	ID3DX11EffectVariable                    *texture_range;      //输入纹理大小
 public:
 	compute_averagelight(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_compute_tex(ID3D11ShaderResourceView *tex_input);
 	HRESULT set_piccturerange(int width_need, int height_need, int buffer_num,int bytewidth);
-	HRESULT set_compute_buffer(ID3D11UnorderedAccessView *buffer_input, ID3D11UnorderedAccessView *buffer_output);
+	HRESULT set_compute_buffer(ID3D11UnorderedAccessView *buffer_input_need, ID3D11UnorderedAccessView *buffer_output_need);
 	
 	void release();
-	void dispatch(int width_need, int height_need, int final_need);
+	void dispatch(int width_need, int height_need, int final_need, int map_need);
 private:
 	void init_handle();//注册shader中所有全局变量的句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
@@ -249,14 +227,17 @@ private:
 class shader_HDRpreblur : public shader_basic
 {
 	ID3DX11EffectShaderResourceVariable      *tex_input;       //shader中的纹理资源句柄
+	ID3DX11EffectShaderResourceVariable      *buffer_input;    //shader中的纹理资源句柄
 	ID3DX11EffectVariable                    *lum_message;     //亮度信息及参数
+	ID3DX11EffectVariable                    *texture_range;   //输入纹理大小
 	ID3DX11EffectMatrixVariable              *matrix_YUV2RGB;  //YUV2RGB变换句柄
 	ID3DX11EffectMatrixVariable              *matrix_RGB2YUV;  //RGB2YUV变换句柄
 public:
 	shader_HDRpreblur(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
-	HRESULT set_buffer_input(ID3D11ShaderResourceView *buffer_input);
+	HRESULT set_buffer_input(ID3D11ShaderResourceView *buffer_need, ID3D11ShaderResourceView *tex_need);
 	//亮度信息(平均亮度，高光分界点，高光最大值，tonemapping参数)
 	HRESULT set_lum_message(float average_lum, float HighLight_divide, float HightLight_max, float key_tonemapping);
+	HRESULT set_piccturerange(int width_need, int height_need, int buffer_num, int bytewidth);
 	void release();
 private:
 	void init_handle();//注册shader中所有全局变量的句柄
@@ -283,13 +264,16 @@ class shader_HDRfinal : public shader_basic
 	ID3DX11EffectVariable                    *lum_message;    //亮度信息及参数
 	ID3DX11EffectShaderResourceVariable      *tex_input;      //原始图像
 	ID3DX11EffectShaderResourceVariable      *tex_bloom;      //高亮曝光图形
+	ID3DX11EffectShaderResourceVariable      *buffer_input;   //平均亮度buffer
+	ID3DX11EffectVariable                    *texture_range;   //输入纹理大小
 	ID3DX11EffectMatrixVariable              *matrix_YUV2RGB; //YUV2RGB变换句柄
 	ID3DX11EffectMatrixVariable              *matrix_RGB2YUV; //RGB2YUV变换句柄
 public:
 	shader_HDRfinal(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
-	HRESULT set_tex_resource(ID3D11ShaderResourceView *tex_input, ID3D11ShaderResourceView *tex_bloom);
+	HRESULT set_tex_resource(ID3D11ShaderResourceView *tex_input, ID3D11ShaderResourceView *tex_bloom,ID3D11ShaderResourceView *buffer_need);
 	//亮度信息(平均亮度，高光分界点，高光最大值，tonemapping参数)
 	HRESULT set_lum_message(float average_lum, float HighLight_divide, float HightLight_max, float key_tonemapping);
+	HRESULT set_piccturerange(int width_need, int height_need, int buffer_num, int bytewidth);
 	void release();
 private:
 	void init_handle();//注册shader中所有全局变量的句柄

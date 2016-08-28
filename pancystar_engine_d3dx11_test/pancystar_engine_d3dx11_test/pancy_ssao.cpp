@@ -14,6 +14,7 @@ HRESULT ssao_pancy::basic_create()
 	HRESULT hr;
 	//选定绘制路径
 	hr = shader_list->get_shader_ssaodepthnormal()->get_technique(&teque_need, "NormalDepth");
+	hr = shader_list->get_shader_ssaodepthnormal()->get_technique(&teque_transparent, "NormalDepth_withalpha");
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"get technique error when create ssao resource", L"tip", MB_OK);
@@ -122,7 +123,16 @@ HRESULT ssao_pancy::set_normaldepth_mat(XMFLOAT4X4 world_mat, XMFLOAT4X4 view_ma
 	}
 	return S_OK;
 }
-
+HRESULT ssao_pancy::set_transparent_tex(ID3D11ShaderResourceView *tex_in) 
+{
+	auto *shader_depthnormal = shader_list->get_shader_ssaodepthnormal();
+	HRESULT hr = shader_depthnormal->set_texture(tex_in);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set normal depth texture error", L"tip", MB_OK);
+		return hr;
+	}
+}
 HRESULT ssao_pancy::build_texture()
 {
 	HRESULT hr;

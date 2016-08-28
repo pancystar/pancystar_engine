@@ -48,6 +48,9 @@
     <ClInclude Include="pancy_ssao.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="pancy_posttreatment.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="geometry.cpp">
@@ -86,6 +89,9 @@
     <ClCompile Include="pancy_ssao.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="pancy_posttreatment.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="light_pre.fx">
@@ -119,6 +125,12 @@
       <Filter>源文件</Filter>
     </FxCompile>
     <FxCompile Include="HDR_final.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
+    <FxCompile Include="light_defferd_gbuffer.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
+    <FxCompile Include="light_defferd_darw.fx">
       <Filter>源文件</Filter>
     </FxCompile>
   </ItemGroup>

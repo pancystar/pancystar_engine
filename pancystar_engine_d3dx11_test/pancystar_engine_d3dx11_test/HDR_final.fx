@@ -1,5 +1,6 @@
 cbuffer perframe
 {
+	uint4                   input_range;
 	float4                  light_average;//平均像素信息(平均亮度，高光分界线，高光最高强度，tonemapping系数)
 };
 cbuffer always
@@ -9,6 +10,7 @@ cbuffer always
 };
 Texture2D               input_tex;
 Texture2D               input_bloom;
+StructuredBuffer<float> input_buffer;
 SamplerState samInputImage
 {
 	Filter = MIN_MAG_LINEAR_MIP_POINT;
@@ -49,10 +51,22 @@ float4 PS(VertexOut Input) : SV_TARGET
 	float alpha_rec = input_texcolor.w;//保存alpha，之后修改至齐次坐标进行颜色空间变换
 	input_texcolor.w = 1.0f;
 	color_lum = mul(input_texcolor,RGB2YUV);
+	
 	//tonemapping操作(突出高光的归一化公式)
-	color_lum.r *= light_average.w*(color_lum.r / light_average.r);
-	color_lum.r = color_lum.r*(color_lum.r / light_average.b*light_average.b + 1.0f) / (1 + color_lum.r);
+	float light_avege_lum = 0.0f;
+	for (uint i = 0; i < input_range.z; ++i)
+	{
+		light_avege_lum += input_buffer[i];
+	}
+	light_avege_lum = exp(light_avege_lum);
+	//color_lum.r *= light_average.w*(color_lum.r / light_average.r);
+	color_lum.r *= light_average.w*(color_lum.r / light_avege_lum);
+	color_lum.r = color_lum.r / (color_lum.r + 1.0f);
+	//color_lum.r = color_lum.r*(color_lum.r / light_average.b + 1.0f) / (1 + color_lum.r);
+	//color_lum.r = color_lum.r*(color_lum.r / light_average.b*light_average.b + 1.0f) / (1 + color_lum.r);
+	
 	float4 finalcolor = float4(0.0f,0.0f,0.0f,1.0f);
+	
 	//YUV->RGB
 	float4 input_bloomcolor = input_bloom.Sample(samTex_liner, Input.Tex);
 	finalcolor = mul(color_lum, YUV2RGB) + 0.6f * input_bloomcolor;

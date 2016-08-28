@@ -12,11 +12,17 @@ HRESULT pancy_renderstate::create()
 	{
 		return hr;
 	}
+	hr = init_common_blend();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
 	return S_OK;
 }
 void pancy_renderstate::release()
 {
 	CULL_front->Release();
+	blend_common->Release();
 	CULL_front = NULL;
 }
 HRESULT pancy_renderstate::init_CULL_front()
@@ -31,6 +37,30 @@ HRESULT pancy_renderstate::init_CULL_front()
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"CULL_front mode init fail", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT pancy_renderstate::init_common_blend() 
+{
+	//开启透明  
+	D3D11_BLEND_DESC transDesc;
+	//先创建一个混合状态的描述  
+	transDesc.AlphaToCoverageEnable = false;
+	transDesc.IndependentBlendEnable = false;       
+	transDesc.RenderTarget[0].BlendEnable = true;
+	transDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	transDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	transDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	transDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	transDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	transDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	transDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	//创建ID3D11BlendState接口  
+	HRESULT hr = device_pancy->CreateBlendState(&transDesc, &blend_common);
+	if (FAILED(hr)) 
+	{
+		MessageBox(NULL,L"create commom blend state error",L"tip",MB_OK);
 		return hr;
 	}
 	return S_OK;

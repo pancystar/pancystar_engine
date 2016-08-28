@@ -46,9 +46,10 @@ protected:
 	int material_optimization;   //优化后的材质数量
 	int mesh_optimization;       //优化后的网格数量
 	Geometry<point_with_tangent> *mesh_scene;  //存储合并的场景顶点
+	bool if_alpha_array[10000];    //用于判断是否是透明部分
 public:
 	model_reader_assimp(ID3D11Device *device_need, ID3D11DeviceContext *contex_need,char* filename, char* texture_path);
-	HRESULT model_create(bool if_optimize);
+	HRESULT model_create(bool if_optimize,int alpha_partnum,int* alpha_part);
 	int get_meshnum();
 	void get_texture(material_list *texture_need, int i);
 	void release();
@@ -59,6 +60,6 @@ protected:
 	virtual HRESULT init_mesh();
 	HRESULT init_texture();
 	void remove_texture_path(char rec[]);
-	HRESULT combine_vertex_array();
+	HRESULT combine_vertex_array(int alpha_partnum, int* alpha_part);
 	HRESULT optimization_mesh();//网格优化
 };

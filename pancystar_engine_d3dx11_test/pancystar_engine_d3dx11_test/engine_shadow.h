@@ -31,6 +31,7 @@ class shadow_basic
 	XMFLOAT4X4               shadow_rebuild;    //调用shadowmap所需要的矩阵
 	shader_control           *shader_list;
 	ID3DX11EffectTechnique   *teque_need;       //渲染路径
+	ID3DX11EffectTechnique   *teque_transparent;       //渲染路径
 public:
 	shadow_basic(ID3D11Device *device_need, ID3D11DeviceContext* contex_need, shader_control *shader_list_need);
 	HRESULT set_viewport(int width_need, int height_need);
@@ -39,6 +40,8 @@ public:
 	virtual HRESULT create(int width_need, int height_need);
 	ID3D11ShaderResourceView* get_mapresource();
 	ID3DX11EffectTechnique* get_technique() { return teque_need; };
+	ID3DX11EffectTechnique* get_technique_transparent() { return teque_transparent; };
+	HRESULT set_transparent_tex(ID3D11ShaderResourceView *tex_in);
 	XMFLOAT4X4 get_ViewProjTex_matrix() {return shadow_rebuild;};
 	void release();
 };

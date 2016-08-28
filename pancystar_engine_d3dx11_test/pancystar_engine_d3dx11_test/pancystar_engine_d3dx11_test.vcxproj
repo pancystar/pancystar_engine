@@ -168,6 +168,7 @@
     <ClInclude Include="pancy_d3d11_basic.h" />
     <ClInclude Include="pancy_DXrenderstate.h" />
     <ClInclude Include="pancy_model_import.h" />
+    <ClInclude Include="pancy_posttreatment.h" />
     <ClInclude Include="pancy_scene_design.h" />
     <ClInclude Include="pancy_ssao.h" />
     <ClInclude Include="pancy_time_basic.h" />
@@ -182,6 +183,7 @@
     <ClCompile Include="pancy_d3d11_basic.cpp" />
     <ClCompile Include="pancy_DXrenderstate.cpp" />
     <ClCompile Include="pancy_model_import.cpp" />
+    <ClCompile Include="pancy_posttreatment.cpp" />
     <ClCompile Include="pancy_scene_design.cpp" />
     <ClCompile Include="pancy_ssao.cpp" />
     <ClCompile Include="pancy_time_basic.cpp" />
@@ -192,6 +194,8 @@
     <FxCompile Include="HDR_blur_pass.fx" />
     <FxCompile Include="HDR_final.fx" />
     <FxCompile Include="HDR_preblur_pass.fx" />
+    <FxCompile Include="light_defferd_darw.fx" />
+    <FxCompile Include="light_defferd_gbuffer.fx" />
     <FxCompile Include="light_define.fx" />
     <FxCompile Include="light_pre.fx" />
     <FxCompile Include="light_reflect.fx" />

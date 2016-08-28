@@ -167,11 +167,27 @@ HRESULT shadow_basic::create(int width_need, int height_need)
 {
 	return set_viewport(width_need, height_need);
 }
+HRESULT shadow_basic::set_transparent_tex(ID3D11ShaderResourceView *tex_in)
+{
+	auto *shader_shadow = shader_list->get_shader_shadowmap();
+	HRESULT hr = shader_shadow->set_texture(tex_in);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set normal depth texture error", L"tip", MB_OK);
+		return hr;
+	}
+}
 HRESULT shadow_basic::set_shaderresource(XMFLOAT4X4 word_matrix) 
 {
 	auto* shader_test = shader_list->get_shader_shadowmap();
 	//选定绘制路径
 	HRESULT hr = shader_test->get_technique(&teque_need, "ShadowTech");
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"get technique error when create shadowmap resource", L"tip", MB_OK);
+		return hr;
+	}
+	hr = shader_test->get_technique(&teque_transparent, "ShadowTech_transparent");
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"get technique error when create shadowmap resource", L"tip", MB_OK);

@@ -28,13 +28,16 @@ class ssao_pancy
 	D3D11_VIEWPORT           render_viewport;      //视口信息
 
 	shader_control           *shader_list;         //shader表
-	ID3DX11EffectTechnique   *teque_need;       //渲染路径
+	ID3DX11EffectTechnique   *teque_need;          //通用渲染路径
+	ID3DX11EffectTechnique   *teque_transparent;   //半透明渲染路径
 public:
 	ssao_pancy(ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, int width, int height, float fovy, float farZ);
 	HRESULT basic_create();
 	void set_normaldepth_target(ID3D11DepthStencilView* dsv);
 	HRESULT set_normaldepth_mat(XMFLOAT4X4 world_mat, XMFLOAT4X4 view_mat, XMFLOAT4X4 final_mat);
+	HRESULT set_transparent_tex(ID3D11ShaderResourceView *tex_in);
 	ID3DX11EffectTechnique* get_technique() { return teque_need; };
+	ID3DX11EffectTechnique* get_technique_transparent() { return teque_transparent; };
 	void compute_ssaomap();
 	ID3D11ShaderResourceView* get_aomap();
 	void blur_ssaomap();

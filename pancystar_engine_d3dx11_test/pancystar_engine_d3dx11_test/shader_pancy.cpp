@@ -106,9 +106,7 @@ void light_pre::init_handle()
 	view_pos_handle = fx_need->GetVariableByName("position_view");
 	material_need = fx_need->GetVariableByName("material_need");
 	//光照句柄
-	light_dir = fx_need->GetVariableByName("dir_light_need");                     //方向光
-	light_point = fx_need->GetVariableByName("point_light_need");                 //点光源
-	light_spot = fx_need->GetVariableByName("spot_light_need");                   //聚光灯
+	light_list = fx_need->GetVariableByName("light_need");                   //灯光
 }
 void light_pre::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
 {
@@ -243,32 +241,12 @@ HRESULT light_pre::set_normaltex(ID3D11ShaderResourceView *tex_in)
 	}
 	return S_OK;
 }
-HRESULT light_pre::set_dirlight(pancy_light_dir light_need, int light_num)
+HRESULT light_pre::set_light(pancy_light_basic light_need, int light_num)
 {
-	HRESULT hr = light_dir->SetRawValue(&light_need, light_num * sizeof(pancy_light_dir), sizeof(pancy_light_dir));
+	HRESULT hr = light_list->SetRawValue(&light_need, light_num * sizeof(light_need), sizeof(light_need));
 	if (hr != S_OK)
 	{
-		MessageBox(0, L"an error when setting direct light", L"tip", MB_OK);
-		return hr;
-	}
-	return S_OK;
-}
-HRESULT light_pre::set_pointlight(pancy_light_point light_need, int light_num)
-{
-	HRESULT hr = light_point->SetRawValue(&light_need, light_num * sizeof(light_need), sizeof(light_need));
-	if (hr != S_OK)
-	{
-		MessageBox(0, L"an error when setting point light", L"tip", MB_OK);
-		return hr;
-	}
-	return S_OK;
-}
-HRESULT light_pre::set_spotlight(pancy_light_spot light_need, int light_num)
-{
-	HRESULT hr = light_spot->SetRawValue(&light_need, light_num * sizeof(light_need), sizeof(light_need));
-	if (hr != S_OK)
-	{
-		MessageBox(0, L"an error when setting spot light", L"tip", MB_OK);
+		MessageBox(0, L"an error when setting light", L"tip", MB_OK);
 		return hr;
 	}
 	return S_OK;
@@ -291,9 +269,21 @@ HRESULT light_shadow::set_trans_all(XMFLOAT4X4 *mat_need)
 	}
 	return S_OK;
 }
+HRESULT light_shadow::set_texture(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr;
+	hr = texture_need->SetResource(tex_in);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set tex_normaldepth error in ssao depth normal part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 void light_shadow::init_handle()
 {
 	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();         //全套几何变换句柄
+	texture_need = fx_need->GetVariableByName("texture_diffuse")->AsShaderResource();
 }
 void light_shadow::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
 {
@@ -325,6 +315,7 @@ void shader_ssaodepthnormal_map::init_handle()
 	world_matrix_handle = fx_need->GetVariableByName("world_matrix")->AsMatrix();
 	normal_matrix_handle = fx_need->GetVariableByName("normal_matrix")->AsMatrix();
 	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();
+	texture_need = fx_need->GetVariableByName("texture_diffuse")->AsShaderResource();
 }
 HRESULT shader_ssaodepthnormal_map::set_trans_world(XMFLOAT4X4 *mat_world, XMFLOAT4X4 *mat_view)
 {
@@ -358,6 +349,17 @@ HRESULT shader_ssaodepthnormal_map::set_trans_all(XMFLOAT4X4 *mat_final)
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"set final matrix error in ssao depthnormal part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_ssaodepthnormal_map::set_texture(ID3D11ShaderResourceView *tex_in) 
+{
+	HRESULT hr;
+	hr = texture_need->SetResource(tex_in);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set tex_normaldepth error in ssao depth normal part", L"tip", MB_OK);
 		return hr;
 	}
 	return S_OK;
@@ -678,7 +680,7 @@ void compute_averagelight::init_handle()
 	buffer_output = fx_need->GetVariableByName("output_buffer")->AsUnorderedAccessView();
 	texture_range = fx_need->GetVariableByName("input_range");
 }
-void compute_averagelight::dispatch(int width_need,int height_need,int final_need)
+void compute_averagelight::dispatch(int width_need,int height_need,int final_need,int map_need)
 {
 	ID3DX11EffectTechnique* tech_need;
 	tech_need = fx_need->GetTechniqueByName("HDR_average_pass");
@@ -691,9 +693,13 @@ void compute_averagelight::dispatch(int width_need,int height_need,int final_nee
 		{
 			contex_pancy->Dispatch(width_need, height_need, 1);
 		}
-		else 
+		else if(i == 1)
 		{
 			contex_pancy->Dispatch(final_need, 1, 1);
+		}
+		else 
+		{
+			contex_pancy->Dispatch(map_need, 1, 1);
 		}
 	}
 	ID3D11ShaderResourceView* nullSRV[1] = { 0 };
@@ -706,9 +712,16 @@ void compute_averagelight::dispatch(int width_need,int height_need,int final_nee
 shader_HDRpreblur::shader_HDRpreblur(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
 {
 }
-HRESULT shader_HDRpreblur::set_buffer_input(ID3D11ShaderResourceView *buffer_need)
+HRESULT shader_HDRpreblur::set_buffer_input(ID3D11ShaderResourceView *buffer_need, ID3D11ShaderResourceView *tex_need)
 {
-	HRESULT hr = tex_input->SetResource(buffer_need);
+	HRESULT hr = tex_input->SetResource(tex_need);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting HDR preblur tex", L"tip", MB_OK);
+		return hr;
+	}
+
+	hr = buffer_input->SetResource(buffer_need);
 	if (hr != S_OK)
 	{
 		MessageBox(0, L"an error when setting HDR preblur buffer", L"tip", MB_OK);
@@ -748,12 +761,25 @@ HRESULT shader_HDRpreblur::set_lum_message(float average_lum, float HighLight_di
 	}
 	return S_OK;
 }
+HRESULT shader_HDRpreblur::set_piccturerange(int width_need, int height_need, int buffer_num, int bytewidth)
+{
+	XMUINT4 rec_float = XMUINT4(static_cast<unsigned int>(width_need), static_cast<unsigned int>(height_need), static_cast<unsigned int>(buffer_num), static_cast<unsigned int>(bytewidth));
+	HRESULT hr = texture_range->SetRawValue((void*)&rec_float, 0, sizeof(rec_float));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when setting HDR range", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 void shader_HDRpreblur::init_handle()
 {
 	matrix_YUV2RGB = fx_need->GetVariableByName("YUV2RGB")->AsMatrix();
 	matrix_RGB2YUV = fx_need->GetVariableByName("RGB2YUV")->AsMatrix();
 	tex_input = fx_need->GetVariableByName("input_tex")->AsShaderResource();
 	lum_message = fx_need->GetVariableByName("light_average");
+	texture_range = fx_need->GetVariableByName("input_range");
+	buffer_input = fx_need->GetVariableByName("input_buffer")->AsShaderResource();
 }
 void shader_HDRpreblur::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
 {
@@ -835,7 +861,7 @@ void shader_HDRblur::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point,
 shader_HDRfinal::shader_HDRfinal(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
 {
 }
-HRESULT shader_HDRfinal::set_tex_resource(ID3D11ShaderResourceView *tex_input_need, ID3D11ShaderResourceView *tex_bloom_need)
+HRESULT shader_HDRfinal::set_tex_resource(ID3D11ShaderResourceView *tex_input_need, ID3D11ShaderResourceView *tex_bloom_need, ID3D11ShaderResourceView *buffer_need)
 {
 	HRESULT hr;
 	hr = tex_input->SetResource(tex_input_need);
@@ -848,6 +874,12 @@ HRESULT shader_HDRfinal::set_tex_resource(ID3D11ShaderResourceView *tex_input_ne
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"set HDR blur texture error in HDR final mapping", L"tip", MB_OK);
+		return hr;
+	}
+	hr = buffer_input->SetResource(buffer_need);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting HDR preblur buffer", L"tip", MB_OK);
 		return hr;
 	}
 	XMFLOAT4X4 yuv_rgb = XMFLOAT4X4
@@ -884,6 +916,17 @@ HRESULT shader_HDRfinal::set_lum_message(float average_lum, float HighLight_divi
 	}
 	return S_OK;
 }
+HRESULT shader_HDRfinal::set_piccturerange(int width_need, int height_need, int buffer_num, int bytewidth)
+{
+	XMUINT4 rec_float = XMUINT4(static_cast<unsigned int>(width_need), static_cast<unsigned int>(height_need), static_cast<unsigned int>(buffer_num), static_cast<unsigned int>(bytewidth));
+	HRESULT hr = texture_range->SetRawValue((void*)&rec_float, 0, sizeof(rec_float));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when setting HDR range", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 void shader_HDRfinal::release()
 {
 	release_basic();
@@ -895,6 +938,8 @@ void shader_HDRfinal::init_handle()
 	matrix_RGB2YUV = fx_need->GetVariableByName("RGB2YUV")->AsMatrix();
 	tex_input = fx_need->GetVariableByName("input_tex")->AsShaderResource();
 	tex_bloom = fx_need->GetVariableByName("input_bloom")->AsShaderResource();
+	texture_range = fx_need->GetVariableByName("input_range");
+	buffer_input = fx_need->GetVariableByName("input_buffer")->AsShaderResource();
 }
 void shader_HDRfinal::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
 {
