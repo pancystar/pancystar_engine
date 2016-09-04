@@ -137,7 +137,7 @@ HRESULT d3d_pancy_1::init_create()
 }
 void d3d_pancy_1::update()
 {
-	float delta_time = time_need.get_delta() * 20;
+	float delta_time = time_need.get_delta();
 	time_game += delta_time;
 	delta_need += XM_PI*0.5f*delta_time;
 	time_need.refresh();

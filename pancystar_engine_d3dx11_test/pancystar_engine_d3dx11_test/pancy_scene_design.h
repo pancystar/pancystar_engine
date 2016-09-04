@@ -10,6 +10,7 @@
 #include"pancy_DXrenderstate.h"
 #include"pancy_ssao.h"
 #include"pancy_lighting.h"
+#include"particle_system.h"
 class scene_root
 {
 protected:
@@ -27,6 +28,7 @@ protected:
 	XMFLOAT4X4             proj_matrix;
 	int                    scene_window_width;
 	int                    scene_window_height;
+	float                  time_game;
 
 public:
 	scene_root(d3d_pancy_basic *engine_root,ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need,int width,int height);
@@ -43,6 +45,7 @@ class scene_engine_test : public scene_root
 {
 	vector<basic_lighting>                nonshadow_light_list;
 	vector<light_with_shadowmap>          shadowmap_light_list;
+	particle_system<fire_point>           *particle_fire;
 public:
 	scene_engine_test(d3d_pancy_basic *engine_root, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height);
 	HRESULT scene_create();
@@ -58,4 +61,5 @@ private:
 	void show_lightsource();
 	void draw_shadowmap();
 	void draw_ssaomap();
+	void show_fire_particle();
 };

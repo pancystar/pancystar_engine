@@ -956,6 +956,127 @@ void shader_HDRfinal::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point
 		member_point[i] = rec[i];
 	}
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~粒子着色~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_particle::shader_particle(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+{
+}
+void shader_particle::init_handle()
+{
+	//纹理信息句柄
+	texture_handle = fx_need->GetVariableByName("texture_first")->AsShaderResource();
+	RandomTex_handle = fx_need->GetVariableByName("texture_random")->AsShaderResource();
+	//几何变换信息句柄
+	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();
+	view_pos_handle = fx_need->GetVariableByName("position_view");
+	//粒子产生信息
+	start_position_handle = fx_need->GetVariableByName("position_start");
+	start_direction_handle = fx_need->GetVariableByName("direction_start");
+	//动画时间
+	time_game_handle = fx_need->GetVariableByName("game_time")->AsScalar();
+	time_delta_handle = fx_need->GetVariableByName("delta_time")->AsScalar();
+}
+HRESULT shader_particle::set_viewposition(XMFLOAT3 eye_pos)
+{
+	HRESULT hr = view_pos_handle->SetRawValue((void*)&eye_pos, 0, sizeof(eye_pos));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set particle view position error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_particle::set_startposition(XMFLOAT3 start_pos)
+{
+	HRESULT hr = start_position_handle->SetRawValue((void*)&start_pos, 0, sizeof(start_pos));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set particle position error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_particle::set_startdirection(XMFLOAT3 start_dir)
+{
+	HRESULT hr = start_direction_handle->SetRawValue((void*)&start_dir, 0, sizeof(start_dir));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set particle direction error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_particle::set_frametime(float game_time, float delta_time)
+{
+	HRESULT hr = time_game_handle->SetFloat(game_time);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set particle time error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = time_delta_handle->SetFloat(delta_time);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set particle time error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_particle::set_randomtex(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = RandomTex_handle->SetResource(tex_in);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set particle random matrix error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_particle::set_trans_all(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(project_matrix_handle, mat_need);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set particle matrix error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_particle::set_texture(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = texture_handle->SetResource(tex_in);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set particle texture error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_particle::release()
+{
+	release_basic();
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~火焰粒子~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_fire::shader_fire(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_particle(filename, device_need, contex_need)
+{
+}
+void shader_fire::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "VELOCITY", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "SIZE",     0, DXGI_FORMAT_R32G32_FLOAT,    0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "AGE",      0, DXGI_FORMAT_R32_FLOAT,       0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TYPE",     0, DXGI_FORMAT_R32_UINT,        0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全局shader管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_control::shader_control()
 {
@@ -966,8 +1087,7 @@ shader_control::shader_control()
 	shader_ssao_depthnormal = NULL;
 	shader_ssao_draw = NULL;
 	shader_ssao_blur = NULL;
-	particle_build = NULL;
-	particle_show = NULL;
+	particle_fire = NULL;
 	shader_HDR_average = NULL;
 	shader_HDR_preblur = NULL;
 	shader_HDR_blur = NULL;
@@ -1052,6 +1172,14 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 		MessageBox(0, L"an error when HDR final shader created", L"tip", MB_OK);
 		return hr;
 	}
+
+	particle_fire = new shader_fire(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\fire.cso", device_pancy, contex_pancy);
+	hr = particle_fire->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when fire particle shader created", L"tip", MB_OK);
+		return hr;
+	}
 	return S_OK;
 }
 void shader_control::release()
@@ -1066,4 +1194,5 @@ void shader_control::release()
 	shader_HDR_preblur->release();
 	shader_HDR_blur->release();
 	shader_HDR_final->release();
+	particle_fire->release();
 }

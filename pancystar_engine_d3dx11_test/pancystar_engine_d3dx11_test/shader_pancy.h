@@ -279,6 +279,38 @@ private:
 	void init_handle();//注册shader中所有全局变量的句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~particle_system~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_particle :public shader_basic//粒子着色器
+{
+	ID3DX11EffectVariable         *view_pos_handle;                //视点位置
+	ID3DX11EffectVariable         *start_position_handle;          //粒子产生源的位置
+	ID3DX11EffectVariable         *start_direction_handle;         //粒子产生的方向
+	ID3DX11EffectScalarVariable   *time_game_handle;               //粒子产生源的位置
+	ID3DX11EffectScalarVariable   *time_delta_handle;              //粒子产生的方向
+	ID3DX11EffectMatrixVariable   *project_matrix_handle;          //全套几何变换句柄
+	ID3DX11EffectShaderResourceVariable   *texture_handle;         //粒子贴图纹理
+	ID3DX11EffectShaderResourceVariable   *RandomTex_handle;       //随机数贴图纹理
+public:
+	shader_particle(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_viewposition(XMFLOAT3 eye_pos);
+	HRESULT set_startposition(XMFLOAT3 start_pos);
+	HRESULT set_startdirection(XMFLOAT3 start_dir);
+	HRESULT set_frametime(float game_time, float delta_time);
+	HRESULT set_randomtex(ID3D11ShaderResourceView *tex_in);
+	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);
+	HRESULT set_texture(ID3D11ShaderResourceView *tex_in);
+	void release();
+private:
+	void init_handle();//注册shader中所有全局变量的句柄
+	virtual void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member) = 0;
+};
+class shader_fire :public shader_particle 
+{
+public:
+	shader_fire(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+private:
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shader list~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_control
 {
@@ -292,9 +324,8 @@ class shader_control
 	shader_HDRpreblur          *shader_HDR_preblur;        //HDR高光提取
 	shader_HDRblur             *shader_HDR_blur;           //HDR高光模糊
 	shader_HDRfinal            *shader_HDR_final;          //HDR最终结果
+	shader_particle            *particle_fire;             //粒子系统着色器
 	shader_basic *shader_light_deferred;
-	shader_basic *particle_build;
-	shader_basic *particle_show;
 public:
 	shader_control();
 	HRESULT shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy);
@@ -308,6 +339,7 @@ public:
 	shader_HDRpreblur*          get_shader_HDRpreblur() { return shader_HDR_preblur; };
 	shader_HDRblur*             get_shader_HDRblur() { return shader_HDR_blur; };
 	shader_HDRfinal*            get_shader_HDRfinal() { return shader_HDR_final; };
+	shader_particle*            get_shader_fireparticle() { return particle_fire; };
 	void release();
 };
 

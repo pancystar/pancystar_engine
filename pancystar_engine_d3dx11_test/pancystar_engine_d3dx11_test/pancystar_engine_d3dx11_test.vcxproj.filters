@@ -54,6 +54,9 @@
     <ClInclude Include="pancy_lighting.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="particle_system.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="geometry.cpp">
@@ -137,6 +140,9 @@
       <Filter>源文件</Filter>
     </FxCompile>
     <FxCompile Include="light_defferd_darw.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
+    <FxCompile Include="fire.fx">
       <Filter>源文件</Filter>
     </FxCompile>
   </ItemGroup>

@@ -89,6 +89,7 @@ class geometry_control
 	ID3D11ShaderResourceView      *tex_skycube;         //天空盒
 	ID3D11ShaderResourceView      *tex_floor;           //地面纹理视图指针
 	ID3D11ShaderResourceView      *tex_normal;          //法线贴图
+
 public:
 	geometry_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	Geometry<point_with_tangent>  *get_floor_geometry() { return floor_need; };

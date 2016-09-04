@@ -11,6 +11,7 @@ scene_root::scene_root(d3d_pancy_basic *engine_root, ID3D11Device *device_need, 
 	engine_state = engine_root;
 	renderstate_lib = render_state;
 	geometry_lib = geometry_need;
+	time_game = 0.0f;
 	//初始化投影以及取景变换矩阵
 	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, scene_window_width*1.0f / scene_window_height*1.0f, 0.1f, 1000.f);
 	ssao_part = new ssao_pancy(device_need, contex_need, shader_lib, scene_window_width, scene_window_height, XM_PI*0.25f, 1000.0f);
@@ -64,11 +65,11 @@ HRESULT scene_root::camera_move()
 	return S_OK;
 }
 
-
 scene_engine_test::scene_engine_test(d3d_pancy_basic *engine_root, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height) : scene_root(engine_root, device_need, contex_need, render_state, input_need, camera_need, lib_need,geometry_need,width, height)
 {
 	nonshadow_light_list.clear();
 	shadowmap_light_list.clear();
+	particle_fire = new particle_system<fire_point>(device_need, contex_need, 1500, lib_need, PARTICLE_TYPE_FIRE);
 }
 HRESULT scene_engine_test::scene_create()
 {
@@ -89,6 +90,12 @@ HRESULT scene_engine_test::scene_create()
 		MessageBox(0, L"load ssao class error", L"tip", MB_OK);
 		return hr_need;
 	}
+	hr_need = particle_fire->create(L"flare0.dds");
+	if (hr_need != S_OK)
+	{
+		MessageBox(0, L"load fire particle error", L"tip", MB_OK);
+		return hr_need;
+	}
 	return S_OK;
 }
 HRESULT scene_engine_test::display()
@@ -103,7 +110,7 @@ HRESULT scene_engine_test::display()
 	show_aotestproj();
 	show_yuri();
 	draw_shadowmap();
-	
+	show_fire_particle();
 	return S_OK;
 }
 void scene_engine_test::show_yuri()
@@ -729,6 +736,17 @@ void scene_engine_test::draw_ssaomap()
 	//ssao_part->check_ssaomap();
 	//engine_state->set_posttreatment_rendertarget();
 }
+void scene_engine_test::show_fire_particle()
+{
+	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	XMFLOAT3 st_pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 st_dir = XMFLOAT3(0.0f, 1.0f, 0.0f);
+	particle_fire->set_particle_direct(&st_pos, &st_dir);
+	particle_fire->draw_particle();
+	contex_pancy->RSSetState(0);
+	contex_pancy->OMSetDepthStencilState(0, 0);
+	contex_pancy->OMSetBlendState(0, blendFactor, 0xffffffff);
+}
 HRESULT scene_engine_test::update(float delta_time)
 {
 	HRESULT hr = camera_move();
@@ -754,12 +772,16 @@ HRESULT scene_engine_test::update(float delta_time)
 	{
 		rec_non_light._Ptr->set_frontlight(count++);
 	}
-	
+	XMFLOAT4X4 view_proj;
+	XMStoreFloat4x4(&view_proj, XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
+	time_game += delta_time;
+	particle_fire->update(delta_time, time_game,&view_proj,&eyePos_rec);
 	return S_OK;
 }
 HRESULT scene_engine_test::release()
 {
 	ssao_part->release();
+	particle_fire->release();
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
 		rec_shadow_light._Ptr->release();
