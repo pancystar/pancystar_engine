@@ -17,11 +17,17 @@ HRESULT pancy_renderstate::create()
 	{
 		return hr;
 	}
+	hr = init_CULL_none();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
 	return S_OK;
 }
 void pancy_renderstate::release()
 {
 	CULL_front->Release();
+	CULL_none->Release();
 	blend_common->Release();
 	CULL_front = NULL;
 }
@@ -61,6 +67,22 @@ HRESULT pancy_renderstate::init_common_blend()
 	if (FAILED(hr)) 
 	{
 		MessageBox(NULL,L"create commom blend state error",L"tip",MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT pancy_renderstate::init_CULL_none() 
+{
+	D3D11_RASTERIZER_DESC cull_none_Desc;
+	ZeroMemory(&cull_none_Desc, sizeof(D3D11_RASTERIZER_DESC));
+	cull_none_Desc.FillMode = D3D11_FILL_SOLID;
+	cull_none_Desc.CullMode = D3D11_CULL_NONE;
+	cull_none_Desc.FrontCounterClockwise = false;
+	cull_none_Desc.DepthClipEnable = true;
+	HRESULT hr = device_pancy->CreateRasterizerState(&cull_none_Desc, &CULL_none);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"CULL_fnone mode init fail", L"tip", MB_OK);
 		return hr;
 	}
 	return S_OK;

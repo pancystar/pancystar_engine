@@ -51,6 +51,9 @@
     <ClInclude Include="pancy_posttreatment.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="pancy_lighting.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="geometry.cpp">
@@ -90,6 +93,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="pancy_posttreatment.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="pancy_lighting.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

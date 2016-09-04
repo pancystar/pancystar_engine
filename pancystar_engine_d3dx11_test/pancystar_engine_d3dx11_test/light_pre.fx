@@ -361,7 +361,7 @@ float4 PS_withshadowssao(VertexOut pin) :SV_TARGET
 			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
 		}
 		//环境光
-		ambient += A*(0.8f*rec_ssao + 0.2f);
+		ambient += A*(0.3f*rec_ssao + 0.7f);
 		//无阴影光
 		if (light_need[i].type.y == 0) 
 		{
@@ -392,6 +392,7 @@ float4 PS_withshadowssaonormal(VertexOut pin) :SV_TARGET
 	pin.normal = normalize(pin.normal);
 	pin.tangent = normalize(pin.tangent);
 	//求解图片所在自空间->模型所在统一世界空间的变换矩阵
+
 	float3 N = pin.normal;
 	float3 T = normalize(pin.tangent - N * pin.tangent * N);
 	float3 B = cross(N, T);
@@ -432,7 +433,7 @@ float4 PS_withshadowssaonormal(VertexOut pin) :SV_TARGET
 			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
 		}
 		//环境光
-		ambient += A*(0.8f*rec_ssao + 0.2f);
+		ambient += A*(0.3f*rec_ssao + 0.7f);
 		//无阴影光
 		if (light_need[i].type.y == 0)
 		{
@@ -453,6 +454,7 @@ float4 PS_withshadowssaonormal(VertexOut pin) :SV_TARGET
 		}
 	}
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
+	//float4 tex_color = texture_diffuse.SampleLevel(samTex_liner, pin.tex,15);
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
 	final_color.a = tex_color.a;
 	return final_color;

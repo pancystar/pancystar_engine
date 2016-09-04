@@ -76,6 +76,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>F:\vs2015_lib\assimp\include;F:\vs2015_lib\dx11\include;$(IncludePath)</IncludePath>
+    <LibraryPath>F:\vs2015_lib\assimp\lib32;F:\vs2015_lib\dx11\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -117,7 +119,14 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>assimp.lib;DirectXTK.lib;Effects11.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <FxCompile>
+      <ShaderType>Effect</ShaderType>
+    </FxCompile>
+    <FxCompile>
+      <ShaderModel>5.0</ShaderModel>
+    </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -167,6 +176,7 @@
     <ClInclude Include="PancyInput.h" />
     <ClInclude Include="pancy_d3d11_basic.h" />
     <ClInclude Include="pancy_DXrenderstate.h" />
+    <ClInclude Include="pancy_lighting.h" />
     <ClInclude Include="pancy_model_import.h" />
     <ClInclude Include="pancy_posttreatment.h" />
     <ClInclude Include="pancy_scene_design.h" />
@@ -182,6 +192,7 @@
     <ClCompile Include="PancyInput.cpp" />
     <ClCompile Include="pancy_d3d11_basic.cpp" />
     <ClCompile Include="pancy_DXrenderstate.cpp" />
+    <ClCompile Include="pancy_lighting.cpp" />
     <ClCompile Include="pancy_model_import.cpp" />
     <ClCompile Include="pancy_posttreatment.cpp" />
     <ClCompile Include="pancy_scene_design.cpp" />

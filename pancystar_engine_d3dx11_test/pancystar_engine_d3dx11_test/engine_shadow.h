@@ -45,3 +45,8 @@ public:
 	XMFLOAT4X4 get_ViewProjTex_matrix() {return shadow_rebuild;};
 	void release();
 };
+
+class shadow_volume 
+{
+
+};

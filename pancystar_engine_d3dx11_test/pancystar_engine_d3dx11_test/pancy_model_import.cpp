@@ -204,7 +204,8 @@ HRESULT model_reader_assimp::init_texture()
 			texture_name = (wchar_t*)malloc(len*sizeof(wchar_t));
 			mbstowcs_s(&converted, texture_name, len, matlist_need[i].texture_diffuse, _TRUNCATE);
 			//根据文件名创建纹理资源
-			hr_need = CreateDDSTextureFromFile(device_pancy, texture_name, 0, &matlist_need[i].tex_diffuse_resource, 0, 0);
+			//hr_need = CreateDDSTextureFromFile(device_pancy, texture_name, 0, &matlist_need[i].tex_diffuse_resource, 0, 0);
+			hr_need = CreateDDSTextureFromFileEx(device_pancy, contex_pancy, texture_name, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0., false, NULL, &matlist_need[i].tex_diffuse_resource);
 			if (FAILED(hr_need))
 			{
 				MessageBox(0, L"create texture error", L"tip", MB_OK);
@@ -224,7 +225,12 @@ HRESULT model_reader_assimp::init_texture()
 			texture_name = (wchar_t*)malloc(len*sizeof(wchar_t));
 			mbstowcs_s(&converted, texture_name, len, matlist_need[i].texture_normal, _TRUNCATE);
 			//根据文件名创建纹理资源
-			hr_need = CreateDDSTextureFromFile(device_pancy, texture_name, 0, &matlist_need[i].texture_normal_resource, 0, 0);
+
+			ID3D11Resource* Texture = NULL;
+			//hr_need = CreateDDSTextureFromFile(device_pancy, texture_name, &Texture, &matlist_need[i].texture_normal_resource, 0, 0);
+			hr_need = CreateDDSTextureFromFileEx(device_pancy,contex_pancy, texture_name,0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0,0.,false,NULL,&matlist_need[i].texture_normal_resource);
+
+			//contex_pancy->GenerateMips();
 			if (FAILED(hr_need))
 			{
 				MessageBox(0, L"create texture error", L"tip", MB_OK);
@@ -497,4 +503,102 @@ HRESULT model_reader_assimp::optimization_mesh()
 		mesh_need[i] = rec_optisave[i];
 	}
 	return S_OK;
+}
+
+geometry_shadow::geometry_shadow(model_reader_assimp *model_input, bool if_trans, int trans_part, XMFLOAT4X4 matrix_need, ID3D11ShaderResourceView *tex_need)
+{
+	model_data = model_input;
+	if_transparent = if_trans;
+	if (if_trans == true)
+	{
+		transparent_part = trans_part;
+	}
+	world_matrix = matrix_need;
+	transparent_resource = tex_need;
+}
+void geometry_shadow::draw_full_geometry(ID3DX11EffectTechnique *tech_common)
+{
+	model_data->get_technique(tech_common);
+	model_data->draw_mesh();
+}
+void geometry_shadow::draw_transparent_part(ID3DX11EffectTechnique *tech_transparent)
+{
+	model_data->get_technique(tech_transparent);
+	model_data->draw_part(transparent_part);
+}
+
+geometry_control::geometry_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need)
+{
+	device_pancy = device_need;
+	contex_pancy = contex_need;
+	floor_need = new mesh_cubewithtargent(device_need, contex_need);
+	sky_need = new mesh_ball(device_need, contex_need, 50, 50);
+	yuri_model = new model_reader_assimp(device_need, contex_need, "yurimodel\\yuri.obj", "yurimodel\\");
+	castel_model = new model_reader_assimp(device_need, contex_need, "castelmodel\\castel.obj", "castelmodel\\");
+	tex_floor = NULL;
+	tex_normal = NULL;
+	tex_skycube = NULL;
+}
+HRESULT geometry_control::create()
+{
+	HRESULT hr_need;
+	//盒子模型(地面)
+	hr_need = floor_need->create_object();
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load object error", L"tip", MB_OK);
+		return hr_need;
+	}
+	//球体模型(天空)
+	hr_need = sky_need->create_object();
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load object error", L"tip", MB_OK);
+		return hr_need;
+	}
+	//不来方夕莉模型
+	int alpha_yuri[] = { 3 };
+	hr_need = yuri_model->model_create(false, 1, alpha_yuri);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model file error", L"tip", MB_OK);
+		return hr_need;
+	}
+	//城堡模型
+	hr_need = castel_model->model_create(true, 0, NULL);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model file error", L"tip", MB_OK);
+		return hr_need;
+	}
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~纹理注册~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	hr_need = CreateDDSTextureFromFile(device_pancy, L"floor.dds", 0, &tex_floor, 0, 0);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load texture file error", L"tip", MB_OK);
+		return hr_need;
+	}
+	hr_need = CreateDDSTextureFromFile(device_pancy, L"floor_n.dds", 0, &tex_normal, 0, 0);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load texture file error", L"tip", MB_OK);
+		return hr_need;
+	}
+	hr_need = CreateDDSTextureFromFile(device_pancy, L"Texture_cube.dds", 0, &tex_skycube, 0, 0);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load texture file error", L"tip", MB_OK);
+		return hr_need;
+	}
+	return S_OK;
+}
+void geometry_control::release() 
+{
+	floor_need->release();
+	tex_floor->Release();
+	tex_normal->Release();
+	tex_skycube->Release();
+	yuri_model->release();
+	castel_model->release();
+	sky_need->release();
 }

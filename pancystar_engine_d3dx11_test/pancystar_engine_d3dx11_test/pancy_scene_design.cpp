@@ -1,111 +1,5 @@
 #include"pancy_scene_design.h"
-class basic_lighting
-{
-	light_type light_source_type;
-	shadow_type shadow_source_type;
-	pancy_light_basic light_data;
-	shader_control   *shader_lib;       //shader资源
-public:
-	basic_lighting(light_type type_need_light, shadow_type type_need_shadow,shader_control *lib_need);
-	//前向光渲染
-	void set_frontlight(int light_num);
-	void set_light_ambient(float red, float green, float blue,float alpha);
-	void set_light_diffuse(float red, float green, float blue, float alpha);
-	void set_light_specular(float red, float green, float blue, float alpha);
-private:
-	void init_comman_dirlight(shadow_type type_need_shadow);
-	void init_comman_pointlight(shadow_type type_need_shadow);
-	void init_comman_spotlight(shadow_type type_need_shadow);
-};
-void basic_lighting::set_light_ambient(float red, float green, float blue, float alpha) 
-{
-	light_data.ambient = XMFLOAT4(red, green, green, alpha);
-}
-void basic_lighting::set_light_diffuse(float red, float green, float blue, float alpha)
-{
-	light_data.diffuse = XMFLOAT4(red, green, green, alpha);
-}
-void basic_lighting::set_light_specular(float red, float green, float blue, float alpha)
-{
-	light_data.specular = XMFLOAT4(red, green, green, alpha);
-}
-basic_lighting::basic_lighting(light_type type_need_light, shadow_type type_need_shadow, shader_control *lib_need)
-{
-	light_source_type = type_need_light;
-	shadow_source_type = type_need_shadow;
-	shader_lib = lib_need;
-	if (type_need_light == direction_light) 
-	{
-		init_comman_dirlight(type_need_shadow);
-	}
-	else if (type_need_light == point_light) 
-	{
-		init_comman_pointlight(type_need_shadow);
-	}
-	else if (type_need_light == spot_light)
-	{
-		init_comman_spotlight(type_need_shadow);
-	}
-}
-void basic_lighting::init_comman_dirlight(shadow_type type_need_shadow)
-{
-	XMFLOAT4 rec_ambient(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_diffuse(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_specular(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT3 rec_dir(0.0f, -1.0f, 0.0f);
-	light_data.ambient = rec_ambient;
-	light_data.diffuse = rec_diffuse;
-	light_data.specular = rec_specular;
-	light_data.dir = rec_dir;
-	light_data.range = 10.0f;
-	light_data.light_type.x = direction_light;
-	light_data.light_type.y = type_need_shadow;
-}
-void basic_lighting::init_comman_pointlight(shadow_type type_need_shadow)
-{
-	XMFLOAT4 rec_ambient1(0.3f, 0.3f, 0.3f, 1.0f);
-	XMFLOAT4 rec_diffuse1(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_specular1(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT3 rec_decay(0.0f, 0.6f, 0.0f);
-
-	light_data.ambient = rec_ambient1;
-	light_data.diffuse = rec_diffuse1;
-	light_data.specular = rec_specular1;
-	light_data.decay = rec_decay;
-	light_data.range = 100.0f;
-	light_data.position = XMFLOAT3(0.0f, 15.0f, 0.0f);
-	light_data.light_type.x = point_light;
-	light_data.light_type.y = type_need_shadow;
-}
-void basic_lighting::init_comman_spotlight(shadow_type type_need_shadow)
-{
-	XMFLOAT4 rec_ambient1(0.3f, 0.3f, 0.3f, 1.0f);
-	XMFLOAT4 rec_diffuse1(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_specular1(1.0f, 1.0f, 1.0f, 1.0f);
-
-	XMFLOAT3 rec_decay1(0.0f, 0.3f, 0.0f);
-
-	light_data.ambient = rec_ambient1;
-	light_data.diffuse = rec_diffuse1;
-	light_data.specular = rec_specular1;
-	light_data.decay = rec_decay1;
-	light_data.range = 100.0f;
-	light_data.position = XMFLOAT3(0.0f, 5.0f, 5.0f);
-	light_data.dir = XMFLOAT3(0.0f, -1.0f, -1.0f);
-	light_data.spot = 12.0f;
-	light_data.theta = 3.141592653f / 5.0f;
-	light_data.light_type.x = spot_light;
-	light_data.light_type.y = type_need_shadow;
-}
-void basic_lighting::set_frontlight(int light_num) 
-{
-	auto* shader_test = shader_lib->get_shader_prelight();
-	shader_test->set_light(light_data, light_num);
-}
-
-
-
-scene_root::scene_root(d3d_pancy_basic *engine_root, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, int width, int height)
+scene_root::scene_root(d3d_pancy_basic *engine_root, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height)
 {
 	user_input = input_need;
 	scene_camera = camera_need;
@@ -116,8 +10,10 @@ scene_root::scene_root(d3d_pancy_basic *engine_root, ID3D11Device *device_need, 
 	scene_window_height = height;
 	engine_state = engine_root;
 	renderstate_lib = render_state;
+	geometry_lib = geometry_need;
 	//初始化投影以及取景变换矩阵
-	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, scene_window_width*1.0f / scene_window_height, 0.1f, 1000.f);
+	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, scene_window_width*1.0f / scene_window_height*1.0f, 0.1f, 1000.f);
+	ssao_part = new ssao_pancy(device_need, contex_need, shader_lib, scene_window_width, scene_window_height, XM_PI*0.25f, 1000.0f);
 	XMStoreFloat4x4(&proj_matrix, proj);
 	XMMATRIX iden = XMMatrixIdentity();
 	XMStoreFloat4x4(&view_matrix, iden);
@@ -168,123 +64,25 @@ HRESULT scene_root::camera_move()
 	return S_OK;
 }
 
-scene_engine_test::scene_engine_test(d3d_pancy_basic *engine_root, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, int width, int height) : scene_root(engine_root, device_need, contex_need, render_state, input_need, camera_need, lib_need, width, height)
+
+scene_engine_test::scene_engine_test(d3d_pancy_basic *engine_root, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height) : scene_root(engine_root, device_need, contex_need, render_state, input_need, camera_need, lib_need,geometry_need,width, height)
 {
-	floor_need = new mesh_cubewithtargent(device_need, contex_need);
-	ball_need = new mesh_ball(device_need, contex_need, 50, 50);
-	model_yuri = new model_reader_assimp(device_need, contex_need, "yurimodel\\yuri.obj", "yurimodel\\");
-	model_castel = new model_reader_assimp(device_need, contex_need, "castelmodel\\castel.obj", "castelmodel\\");
-	shadowmap_part = new shadow_basic(device_need, contex_need, shader_lib);
-	ssao_part = new ssao_pancy(device_need, contex_need, shader_lib, scene_window_width, scene_window_height, XM_PI*0.25f, 1000.0f);
-	tex_floor = NULL;
-	tex_normal = NULL;
-	tex_skycube = NULL;
+	nonshadow_light_list.clear();
+	shadowmap_light_list.clear();
 }
 HRESULT scene_engine_test::scene_create()
 {
-	auto* shader_test = shader_lib->get_shader_prelight();
-	/*
-	pancy_light_basic test_pointL;
-	XMFLOAT4 rec_ambient(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_diffuse(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_specular(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT3 rec_dir(0.0f, -1.0f, 0.0f);
-	test_pointL.ambient = rec_ambient;
-	test_pointL.diffuse = rec_diffuse;
-	test_pointL.specular = rec_specular;
-	test_pointL.dir = rec_dir;
-	test_pointL.range = 10.0f;
-	test_pointL.light_type.x = 0;
-	test_pointL.light_type.y = 0;
-	shader_test->set_light(test_pointL, 0);
-	*/
-	pancy_light_basic test_point2;
-	XMFLOAT4 rec_ambient1(0.3f, 0.3f, 0.3f, 1.0f);
-	XMFLOAT4 rec_diffuse1(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_specular1(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT3 rec_decay(0.0f, 0.6f, 0.0f);
-
-	test_point2.ambient = rec_ambient1;
-	test_point2.diffuse = rec_diffuse1;
-	test_point2.specular = rec_specular1;
-	test_point2.decay = rec_decay;
-	test_point2.range = 100.0f;
-	test_point2.position = XMFLOAT3(0.0f, 15.0f, 0.0f);
-	test_point2.light_type.x = point_light;
-	test_point2.light_type.y = shadow_none;
-
-	shader_test->set_light(test_point2, 0);
-
-	pancy_light_basic test_point3;
-	XMFLOAT4 rec_ambient2(0.6f, 0.6f, 0.6f, 1.0f);
-	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_specular2(1.0f, 1.0f, 1.0f, 1.0f);
-
-	XMFLOAT3 rec_decay1(0.0f, 0.3f, 0.0f);
-
-	test_point3.ambient = rec_ambient1;
-	test_point3.diffuse = rec_diffuse1;
-	test_point3.specular = rec_specular1;
-	test_point3.decay = rec_decay1;
-	test_point3.range = 100.0f;
-	test_point3.position = XMFLOAT3(0.0f, 5.0f, 5.0f);
-	test_point3.dir = XMFLOAT3(0.0f, -1.0f, -1.0f);
-	test_point3.spot = 12.0f;
-	test_point3.theta = 3.141592653f / 5.0f;
-	test_point3.light_type.x = spot_light;
-	test_point3.light_type.y = shadow_map;
-	shader_test->set_light(test_point3, 1);
-
 	HRESULT hr_need;
-	hr_need = floor_need->create_object();
-	if (hr_need != S_OK)
+	basic_lighting rec_need(point_light,shadow_none,shader_lib,device_pancy,contex_pancy,renderstate_lib);
+	nonshadow_light_list.push_back(rec_need);
+
+	light_with_shadowmap rec_shadow(spot_light, shadow_map, shader_lib, device_pancy, contex_pancy, renderstate_lib);
+	hr_need = rec_shadow.create(1024, 1024);
+	if (FAILED(hr_need))
 	{
-		MessageBox(0, L"load object error", L"tip", MB_OK);
 		return hr_need;
 	}
-	hr_need = ball_need->create_object();
-	if (hr_need != S_OK)
-	{
-		MessageBox(0, L"load object error", L"tip", MB_OK);
-		return hr_need;
-	}
-	hr_need = CreateDDSTextureFromFile(device_pancy, L"floor.dds", 0, &tex_floor, 0, 0);
-	if (hr_need != S_OK)
-	{
-		MessageBox(0, L"load texture file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	hr_need = CreateDDSTextureFromFile(device_pancy, L"floor_n.dds", 0, &tex_normal, 0, 0);
-	if (hr_need != S_OK)
-	{
-		MessageBox(0, L"load texture file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	hr_need = CreateDDSTextureFromFile(device_pancy, L"Texture_cube.dds", 0, &tex_skycube, 0, 0);
-	if (hr_need != S_OK)
-	{
-		MessageBox(0, L"load texture file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	int alpha_yuri[] = { 3 };
-	hr_need = model_yuri->model_create(false,1, alpha_yuri);
-	if (hr_need != S_OK)
-	{
-		MessageBox(0, L"load model file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	hr_need = model_castel->model_create(true,0,NULL);
-	if (hr_need != S_OK)
-	{
-		MessageBox(0, L"load model file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	hr_need = shadowmap_part->create(1024, 1024);
-	if (hr_need != S_OK)
-	{
-		MessageBox(0, L"load shadowmmap class error", L"tip", MB_OK);
-		return hr_need;
-	}
+	shadowmap_light_list.push_back(rec_shadow);
 	hr_need = ssao_part->basic_create();
 	if (hr_need != S_OK)
 	{
@@ -295,20 +93,24 @@ HRESULT scene_engine_test::scene_create()
 }
 HRESULT scene_engine_test::display()
 {
-	draw_shadowmap();
-	draw_ssaomap();
 	
 	show_ball();
+	draw_ssaomap();
+	
 	show_lightsource();
 	show_floor();
 	show_castel();
 	show_aotestproj();
 	show_yuri();
+	draw_shadowmap();
+	
 	return S_OK;
 }
 void scene_engine_test::show_yuri()
 {
+
 	auto* shader_test = shader_lib->get_shader_prelight();
+	auto* model_yuri = geometry_lib->get_yuri();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need, *teque_normal,*teque_hair;
 	shader_test->get_technique(&teque_need, "draw_withshadowssao");
@@ -338,13 +140,27 @@ void scene_engine_test::show_yuri()
 	XMStoreFloat4x4(&world_matrix, rec_world);
 	shader_test->set_trans_world(&world_matrix);
 
+	
 	//设定阴影变换以及阴影贴图
+	
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		XMFLOAT4X4 shadow_matrix_pre = rec_shadow_light._Ptr->get_ViewProjTex_matrix();
+
+		XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
+		shadow_matrix = rec_world * shadow_matrix;
+		XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
+		shader_test->set_trans_shadow(&shadow_matrix_pre);
+		shader_test->set_shadowtex(rec_shadow_light._Ptr->get_mapresource());
+	}
+	/*
 	XMFLOAT4X4 shadow_matrix_pre = shadowmap_part->get_ViewProjTex_matrix();
 	XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
 	shadow_matrix = rec_world * shadow_matrix;
 	XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
 	shader_test->set_trans_shadow(&shadow_matrix_pre);
 	shader_test->set_shadowtex(shadowmap_part->get_mapresource());
+	*/
 	//设定总变换
 	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
 	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
@@ -417,14 +233,20 @@ void scene_engine_test::show_yuri()
 	shader_test->set_normaltex(rec_need.texture_normal_resource);
 	model_yuri->draw_part(yuri_render_order[7]);
 	contex_pancy->OMSetDepthStencilState(NULL,0);
-
-
 	contex_pancy->OMSetBlendState(0, blendFactor, 0xffffffff);
-	
+	//设置阴影部分
+	geometry_shadow rec_mesh_need(model_yuri,false,-1, world_matrix,NULL);
+	geometry_shadow rec_mesh_need_trans(model_yuri, true, yuri_render_order[7], world_matrix, rec_need.tex_diffuse_resource);
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		rec_shadow_light._Ptr->add_mesh(rec_mesh_need);
+		rec_shadow_light._Ptr->add_mesh(rec_mesh_need_trans);
+	}
 }
 void scene_engine_test::show_castel()
 {
 	auto* shader_test = shader_lib->get_shader_prelight();
+	auto* model_castel = geometry_lib->get_castel();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need,*teque_normal;
 	shader_test->get_technique(&teque_need, "draw_withshadowssao");
@@ -454,12 +276,24 @@ void scene_engine_test::show_castel()
 	shader_test->set_trans_world(&world_matrix);
 
 	//设定阴影变换以及阴影贴图
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		XMFLOAT4X4 shadow_matrix_pre = rec_shadow_light._Ptr->get_ViewProjTex_matrix();
+
+		XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
+		shadow_matrix = rec_world * shadow_matrix;
+		XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
+		shader_test->set_trans_shadow(&shadow_matrix_pre);
+		shader_test->set_shadowtex(rec_shadow_light._Ptr->get_mapresource());
+	}
+	/*
 	XMFLOAT4X4 shadow_matrix_pre = shadowmap_part->get_ViewProjTex_matrix();
 	XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
 	shadow_matrix = rec_world * shadow_matrix;
 	XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
 	shader_test->set_trans_shadow(&shadow_matrix_pre);
 	shader_test->set_shadowtex(shadowmap_part->get_mapresource());
+	*/
 	//设定总变换
 	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
 	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
@@ -484,7 +318,7 @@ void scene_engine_test::show_castel()
 	//获取渲染路径并渲染
 	//model_castel->get_technique(teque_need);
 	//model_castel->draw_mesh();
-	
+	//alpha混合设定
 	for (int i = 0; i < model_castel->get_meshnum(); ++i)
 	{
 		//纹理设定
@@ -503,11 +337,19 @@ void scene_engine_test::show_castel()
 		//shader_test->set_normaltex(tex_normal);
 		model_castel->draw_part(i);
 	}
+	//设置阴影部分
+	geometry_shadow rec_mesh_need(model_castel, false, -1, world_matrix, NULL);
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		//rec_shadow_light._Ptr->add_mesh(rec_mesh_need);
+	}
 }
 void scene_engine_test::show_ball()
 {
 	contex_pancy->RSSetState(renderstate_lib->get_CULL_front_rs());
 	auto* shader_test = shader_lib->get_shader_reflect();
+	auto* ball_need = geometry_lib->get_sky_geometry();
+	auto* tex_skycube = geometry_lib->get_sky_cube_tex();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
 	shader_test->get_technique(&teque_need, "draw_inside");
@@ -542,6 +384,9 @@ void scene_engine_test::show_ball()
 void scene_engine_test::show_lightsource()
 {
 	auto* shader_test = shader_lib->get_shader_prelight();
+	auto* floor_need = geometry_lib->get_floor_geometry();
+	auto* tex_floor = geometry_lib->get_basic_floor_tex();
+	auto* tex_normal = geometry_lib->get_floor_normal_tex();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
 	shader_test->get_technique(&teque_need, "LightTech");
@@ -565,8 +410,8 @@ void scene_engine_test::show_lightsource()
 	XMMATRIX rotation_world;
 	XMMATRIX rec_world;
 	XMFLOAT4X4 world_matrix;
-	trans_world = XMMatrixTranslation(0.0, 5.0, 5.0);
-	scal_world = XMMatrixScaling(0.2f, 0.2f, 0.2f);
+	trans_world = XMMatrixTranslation(0.0, 2.5, 2.5);
+	scal_world = XMMatrixScaling(0.1f, 0.1f, 0.1f);
 
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
@@ -587,8 +432,10 @@ void scene_engine_test::show_lightsource()
 }
 void scene_engine_test::show_floor()
 {
-
 	auto* shader_test = shader_lib->get_shader_prelight();
+	auto* floor_need = geometry_lib->get_floor_geometry();
+	auto* tex_floor = geometry_lib->get_basic_floor_tex();
+	auto* tex_normal = geometry_lib->get_floor_normal_tex();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
 	shader_test->get_technique(&teque_need, "draw_withshadownormal");
@@ -620,13 +467,24 @@ void scene_engine_test::show_floor()
 	shader_test->set_trans_world(&world_matrix);
 
 	//设定阴影变换以及阴影贴图
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		XMFLOAT4X4 shadow_matrix_pre = rec_shadow_light._Ptr->get_ViewProjTex_matrix();
+
+		XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
+		shadow_matrix = rec_world * shadow_matrix;
+		XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
+		shader_test->set_trans_shadow(&shadow_matrix_pre);
+		shader_test->set_shadowtex(rec_shadow_light._Ptr->get_mapresource());
+	}
+	/*
 	XMFLOAT4X4 shadow_matrix_pre = shadowmap_part->get_ViewProjTex_matrix();
 	XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
 	shadow_matrix = rec_world * shadow_matrix;
 	XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
 	shader_test->set_trans_shadow(&shadow_matrix_pre);
 	shader_test->set_shadowtex(shadowmap_part->get_mapresource());
-
+	*/
 
 	//设定总变换
 	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
@@ -645,6 +503,9 @@ void scene_engine_test::show_floor()
 void scene_engine_test::show_aotestproj()
 {
 	auto* shader_test = shader_lib->get_shader_prelight();
+	auto* floor_need = geometry_lib->get_floor_geometry();
+	auto* tex_floor = geometry_lib->get_basic_floor_tex();
+	auto* tex_normal = geometry_lib->get_floor_normal_tex();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
 	shader_test->get_technique(&teque_need, "draw_withshadowssao");
@@ -676,13 +537,24 @@ void scene_engine_test::show_aotestproj()
 	shader_test->set_trans_world(&world_matrix);
 
 	//设定阴影变换以及阴影贴图
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		XMFLOAT4X4 shadow_matrix_pre = rec_shadow_light._Ptr->get_ViewProjTex_matrix();
+
+		XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
+		shadow_matrix = rec_world * shadow_matrix;
+		XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
+		shader_test->set_trans_shadow(&shadow_matrix_pre);
+		shader_test->set_shadowtex(rec_shadow_light._Ptr->get_mapresource());
+	}
+	/*
 	XMFLOAT4X4 shadow_matrix_pre = shadowmap_part->get_ViewProjTex_matrix();
 	XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
 	shadow_matrix = rec_world * shadow_matrix;
 	XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
 	shader_test->set_trans_shadow(&shadow_matrix_pre);
 	shader_test->set_shadowtex(shadowmap_part->get_mapresource());
-
+	*/
 
 	//设定总变换
 	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
@@ -710,6 +582,7 @@ void scene_engine_test::show_aotestproj()
 }
 void scene_engine_test::draw_shadowmap()
 {
+	/*
 	contex_pancy->RSSetState(renderstate_lib->get_CULL_front_rs());
 	XMFLOAT3 position = XMFLOAT3(0.0, 5.0, 5.0);
 	XMFLOAT3 dir = XMFLOAT3(0.0, -1.0, -1.0);
@@ -717,7 +590,7 @@ void scene_engine_test::draw_shadowmap()
 	BoundingSphere  cube_range;
 	cube_range.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	cube_range.Radius = sqrtf(1.0f*1.0f + 1.0f*1.0f);
-	shadowmap_part->set_renderstate(position, dir, cube_range, spot_light);
+	//shadowmap_part->set_renderstate(position, dir, cube_range, spot_light);
 	//engine_state->set_posttreatment_rendertarget();
 	//设定球体世界变换
 	XMMATRIX trans_world;
@@ -731,22 +604,22 @@ void scene_engine_test::draw_shadowmap()
 	rotation_world = XMMatrixRotationY(3.141592653f);
 	rec_world = scal_world * rotation_world* trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
-	shadowmap_part->set_shaderresource(world_matrix);
-	model_yuri->get_technique(shadowmap_part->get_technique());
-	model_yuri->draw_mesh();
+	//shadowmap_part->set_shaderresource(world_matrix);
+	//model_yuri->get_technique(shadowmap_part->get_technique());
+	//model_yuri->draw_mesh();
 	material_list rec_need;
 	model_yuri->get_texture(&rec_need, 3);
-	shadowmap_part->set_transparent_tex(rec_need.tex_diffuse_resource);
-	model_yuri->draw_part(3);
+	//shadowmap_part->set_transparent_tex(rec_need.tex_diffuse_resource);
+	//model_yuri->draw_part(3);
 	//设定ao测试板世界变换
 	trans_world = XMMatrixTranslation(0.0f, 0.0f, -1.1f);
 	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
 
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
-	shadowmap_part->set_shaderresource(world_matrix);
-	floor_need->get_teque(shadowmap_part->get_technique());
-	floor_need->show_mesh();
+//	shadowmap_part->set_shaderresource(world_matrix);
+	//floor_need->get_teque(shadowmap_part->get_technique());
+	//floor_need->show_mesh();
 
 	
 	//设定地面世界变换
@@ -755,16 +628,23 @@ void scene_engine_test::draw_shadowmap()
 
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
-	shadowmap_part->set_shaderresource(world_matrix);
-	floor_need->get_teque(shadowmap_part->get_technique());
-	floor_need->show_mesh();
+	//shadowmap_part->set_shaderresource(world_matrix);
+	//floor_need->get_teque(shadowmap_part->get_technique());
+	//floor_need->show_mesh();
+	*/
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		rec_shadow_light._Ptr->draw_shadow();
+	}
 	engine_state->set_posttreatment_rendertarget();
-
-	contex_pancy->RSSetState(0);
 }
 void scene_engine_test::draw_ssaomap()
 {
+	auto* model_yuri = geometry_lib->get_yuri();
+	auto* floor_need = geometry_lib->get_floor_geometry();
+	auto* model_castel = geometry_lib->get_castel();
 	ssao_part->set_normaldepth_target(NULL);
+
 	//设定球体世界变换
 	XMMATRIX trans_world;
 	XMMATRIX scal_world;
@@ -861,19 +741,28 @@ HRESULT scene_engine_test::update(float delta_time)
 	scene_camera->get_view_position(&eyePos_rec);
 	auto* shader_test = shader_lib->get_shader_prelight();
 	shader_test->set_view_pos(eyePos_rec);
-
+	int count = 0;
+	
+	//设置shadowmap光源
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		rec_shadow_light._Ptr->set_frontlight(count++);
+		rec_shadow_light._Ptr->clear_mesh();
+	}
+	//设置无影光源
+	for (auto rec_non_light = nonshadow_light_list.begin(); rec_non_light != nonshadow_light_list.end(); ++rec_non_light) 
+	{
+		rec_non_light._Ptr->set_frontlight(count++);
+	}
+	
 	return S_OK;
 }
 HRESULT scene_engine_test::release()
 {
-	floor_need->release();
-	tex_floor->Release();
-	tex_normal->Release();
-	tex_skycube->Release();
-	model_yuri->release();
-	model_castel->release();
-	ball_need->release();
-	shadowmap_part->release();
 	ssao_part->release();
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		rec_shadow_light._Ptr->release();
+	}
 	return S_OK;
 }

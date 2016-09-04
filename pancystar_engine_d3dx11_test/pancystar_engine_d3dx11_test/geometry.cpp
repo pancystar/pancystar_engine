@@ -83,6 +83,7 @@ double mesh_heart::find_st(double x,double st,double ed,int type,bool if_ans,dou
 	{
 		return find_st(x,mid,ed,type+1,if_ans,ans_check);
 	}
+	return 0;
 }
 bool mesh_heart::check_range(double x,double &st,double &ed)//检测函数的定义域
 {	

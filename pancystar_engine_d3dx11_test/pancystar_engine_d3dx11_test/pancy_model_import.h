@@ -63,3 +63,41 @@ protected:
 	HRESULT combine_vertex_array(int alpha_partnum, int* alpha_part);
 	HRESULT optimization_mesh();//网格优化
 };
+class geometry_shadow
+{
+	model_reader_assimp *model_data;
+	ID3D11ShaderResourceView *transparent_resource;
+	XMFLOAT4X4 world_matrix;
+	bool if_transparent;
+	int transparent_part;
+public:
+	geometry_shadow(model_reader_assimp *model_input, bool if_trans, int trans_part, XMFLOAT4X4 matrix_need, ID3D11ShaderResourceView *tex_need);
+	void draw_full_geometry(ID3DX11EffectTechnique *tech_common);
+	void draw_transparent_part(ID3DX11EffectTechnique *tech_transparent);
+	bool check_if_trans() { return if_transparent; };
+	XMFLOAT4X4 get_world_matrix() { return world_matrix; };
+	ID3D11ShaderResourceView *get_transparent_tex() { return transparent_resource; };
+};
+class geometry_control
+{
+	ID3D11Device        *device_pancy;     //d3d设备
+	ID3D11DeviceContext *contex_pancy;     //设备描述表
+	model_reader_assimp *yuri_model;
+	model_reader_assimp *castel_model;
+	Geometry<point_with_tangent>  *floor_need;          //盒子模型
+	Geometry<point_with_tangent>  *sky_need;            //球体模型
+	ID3D11ShaderResourceView      *tex_skycube;         //天空盒
+	ID3D11ShaderResourceView      *tex_floor;           //地面纹理视图指针
+	ID3D11ShaderResourceView      *tex_normal;          //法线贴图
+public:
+	geometry_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	Geometry<point_with_tangent>  *get_floor_geometry() { return floor_need; };
+	Geometry<point_with_tangent>  *get_sky_geometry() { return sky_need; };
+	ID3D11ShaderResourceView      *get_basic_floor_tex() { return tex_floor; };
+	ID3D11ShaderResourceView      *get_floor_normal_tex() { return tex_normal; };
+	ID3D11ShaderResourceView      *get_sky_cube_tex() { return tex_skycube; };
+	model_reader_assimp           *get_yuri() { return yuri_model; }
+	model_reader_assimp           *get_castel() { return castel_model; }
+	HRESULT create();
+	void release();
+};

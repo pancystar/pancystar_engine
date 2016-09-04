@@ -34,6 +34,7 @@
 class d3d_pancy_1 :public d3d_pancy_basic
 {
 	scene_root               *first_scene_test;
+	geometry_control         *geometry_list;       //几何体表
 	shader_control           *shader_list;         //shader表
 	time_count               time_need;            //时钟控制
 	pancy_input              *test_input;          //输入输出控制
@@ -52,6 +53,7 @@ public:
 };
 void d3d_pancy_1::release()
 {
+	geometry_list->release();
 	render_state->release();
 	shader_list->release();
 	first_scene_test->release();
@@ -97,6 +99,7 @@ HRESULT d3d_pancy_1::init_create()
 	test_camera = new pancy_camera(device_pancy, window_width, window_hight);
 	test_input = new pancy_input(wind_hwnd, device_pancy, hInstance);
 	render_state = new pancy_renderstate(device_pancy,contex_pancy);
+	geometry_list = new geometry_control(device_pancy, contex_pancy);
 	hr = shader_list->shader_init(device_pancy, contex_pancy);
 	if (FAILED(hr)) 
 	{
@@ -109,8 +112,14 @@ HRESULT d3d_pancy_1::init_create()
 		MessageBox(0, L"create render state failed", L"tip", MB_OK);
 		return hr;
 	}
+	hr = geometry_list->create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create geometry list failed", L"tip", MB_OK);
+		return hr;
+	}
 
-	first_scene_test = new scene_engine_test(this,device_pancy,contex_pancy, render_state,test_input, test_camera, shader_list, wind_width, wind_hight);
+	first_scene_test = new scene_engine_test(this,device_pancy,contex_pancy, render_state,test_input, test_camera, shader_list, geometry_list,wind_width, wind_hight);
 	hr = first_scene_test->scene_create();
 	if (FAILED(hr))
 	{

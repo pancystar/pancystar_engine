@@ -132,6 +132,7 @@ HRESULT ssao_pancy::set_transparent_tex(ID3D11ShaderResourceView *tex_in)
 		MessageBox(0, L"set normal depth texture error", L"tip", MB_OK);
 		return hr;
 	}
+	return S_OK;
 }
 HRESULT ssao_pancy::build_texture()
 {

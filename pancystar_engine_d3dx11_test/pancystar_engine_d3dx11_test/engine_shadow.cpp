@@ -48,15 +48,15 @@ HRESULT shadow_basic::set_renderstate(XMFLOAT3 light_position, XMFLOAT3 light_di
 	else if (check == spot_light) 
 	{
 		//光源视角取景变换
-		XMVECTOR lightDir = XMLoadFloat3(&light_dir);
+		XMVECTOR lightPos = XMLoadFloat3(&light_position);
 
-		XMVECTOR lightPos = -2.0f*shadow_range.Radius*lightDir;
+		//XMVECTOR lightPos = -2.0f*shadow_range.Radius*lightDir;
 		XMVECTOR targetPos = XMLoadFloat3(&shadow_range.Center);
-		XMVECTOR up = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+		XMVECTOR up = XMVectorSet(0.0f, -1.0f, 1.0f, 0.0f);
 		XMMATRIX viewmat = XMMatrixLookAtLH(lightPos, targetPos, up);
 
 		//透视投影
-		XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, shadowmap_width*1.0f / shadowmap_height*1.0f, 0.1f, 1000.f);
+		XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, shadowmap_width*1.0f / shadowmap_height*1.0f, 0.1f, 1000.0f);
 
 		//正投影矩阵
 		XMMATRIX final_matrix = viewmat * proj;
@@ -176,6 +176,7 @@ HRESULT shadow_basic::set_transparent_tex(ID3D11ShaderResourceView *tex_in)
 		MessageBox(0, L"set normal depth texture error", L"tip", MB_OK);
 		return hr;
 	}
+	return S_OK;
 }
 HRESULT shadow_basic::set_shaderresource(XMFLOAT4X4 word_matrix) 
 {
