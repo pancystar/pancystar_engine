@@ -23,7 +23,7 @@ protected:
 	pancy_camera           *scene_camera;     //ÐéÄâÉãÏñ»ú
 	//shadow_basic           *shadowmap_part;
 	ssao_pancy             *ssao_part;
-	d3d_pancy_basic        *engine_state;
+	//d3d_pancy_basic        *engine_state;
 	XMFLOAT4X4             view_matrix;
 	XMFLOAT4X4             proj_matrix;
 	int                    scene_window_width;
@@ -31,9 +31,10 @@ protected:
 	float                  time_game;
 
 public:
-	scene_root(d3d_pancy_basic *engine_root,ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need,int width,int height);
+	scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need,int width,int height);
 	virtual HRESULT scene_create() = 0;
 	virtual HRESULT display() = 0;
+	virtual HRESULT display_nopost() = 0;
 	virtual HRESULT update(float delta_time) = 0;
 	virtual HRESULT release() = 0;
 protected:
@@ -45,11 +46,13 @@ class scene_engine_test : public scene_root
 {
 	vector<basic_lighting>                nonshadow_light_list;
 	vector<light_with_shadowmap>          shadowmap_light_list;
+	vector<light_with_shadowvolume>       shadowvalume_light_list;
 	particle_system<fire_point>           *particle_fire;
 public:
-	scene_engine_test(d3d_pancy_basic *engine_root, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height);
+	scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height);
 	HRESULT scene_create();
 	HRESULT display();
+	HRESULT display_nopost();
 	HRESULT update(float delta_time);
 	HRESULT release();
 private:

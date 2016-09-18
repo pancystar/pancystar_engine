@@ -6,6 +6,7 @@
 #include <assimp/postprocess.h>     // 该头文件中包含后处理的标志位定义
 #include <assimp/matrix4x4.h>
 #include <assimp/matrix3x3.h>
+#include<assimp/Exporter.hpp>
 struct material_list
 {
 	char                       texture_diffuse[128];     //漫反射纹理地址
@@ -49,19 +50,20 @@ protected:
 	bool if_alpha_array[10000];    //用于判断是否是透明部分
 public:
 	model_reader_assimp(ID3D11Device *device_need, ID3D11DeviceContext *contex_need,char* filename, char* texture_path);
-	HRESULT model_create(bool if_optimize,int alpha_partnum,int* alpha_part);
+	HRESULT model_create(bool if_adj, bool if_optimize,int alpha_partnum,int* alpha_part);
 	int get_meshnum();
 	void get_texture(material_list *texture_need, int i);
 	void release();
 	void draw_part(int i);
 	void draw_mesh();
+	void draw_mesh_adj();
 	HRESULT get_technique(ID3DX11EffectTechnique *teque_need);
 protected:
-	virtual HRESULT init_mesh();
+	virtual HRESULT init_mesh(bool if_adj);
 	HRESULT init_texture();
 	void remove_texture_path(char rec[]);
-	HRESULT combine_vertex_array(int alpha_partnum, int* alpha_part);
-	HRESULT optimization_mesh();//网格优化
+	HRESULT combine_vertex_array(int alpha_partnum, int* alpha_part, bool if_adj);
+	HRESULT optimization_mesh(bool if_adj);//网格优化
 };
 class geometry_shadow
 {
@@ -73,6 +75,7 @@ class geometry_shadow
 public:
 	geometry_shadow(model_reader_assimp *model_input, bool if_trans, int trans_part, XMFLOAT4X4 matrix_need, ID3D11ShaderResourceView *tex_need);
 	void draw_full_geometry(ID3DX11EffectTechnique *tech_common);
+	void draw_full_geometry_adj(ID3DX11EffectTechnique *tech_common);
 	void draw_transparent_part(ID3DX11EffectTechnique *tech_transparent);
 	bool check_if_trans() { return if_transparent; };
 	XMFLOAT4X4 get_world_matrix() { return world_matrix; };

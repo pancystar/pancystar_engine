@@ -59,6 +59,7 @@ technique11 draw_reflect
 	Pass p0
 	{
 		SetVertexShader(CompileShader(vs_5_0,VS()));
+		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS_reflect()));
 	}
 }
@@ -67,6 +68,7 @@ technique11 draw_inside
 	Pass p0
 	{
 		SetVertexShader(CompileShader(vs_5_0,VS()));
+		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS_inside()));
 	}
 }

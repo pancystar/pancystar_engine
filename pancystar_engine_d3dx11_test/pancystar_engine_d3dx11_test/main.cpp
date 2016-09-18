@@ -27,9 +27,10 @@
 #include"shader_pancy.h"
 #include"pancy_model_import.h"
 #include"pancy_scene_design.h"
-#include"pancy_DXrenderstate.h"
 #include"pancy_ssao.h"
 #include"pancy_posttreatment.h"
+#include<ShellScalingAPI.h>
+#pragma comment ( lib, "Shcore.lib")
 //继承的d3d注册类
 class d3d_pancy_1 :public d3d_pancy_basic
 {
@@ -39,7 +40,6 @@ class d3d_pancy_1 :public d3d_pancy_basic
 	time_count               time_need;            //时钟控制
 	pancy_input              *test_input;          //输入输出控制
     pancy_camera             *test_camera;         //虚拟摄像机
-	pancy_renderstate        *render_state;        //渲染格式
 	float                    time_game;            //游戏时间
 	float                    delta_need;
 	HINSTANCE                hInstance;
@@ -57,13 +57,9 @@ void d3d_pancy_1::release()
 	render_state->release();
 	shader_list->release();
 	first_scene_test->release();
-	m_renderTargetView->Release();
 	swapchain->Release();
-	depthStencilView->Release();
 	contex_pancy->Release();
 	posttreat_scene->release();
-	safe_release(posttreatment_RTV);
-	//device_pancy->Release();
 #if defined(DEBUG) || defined(_DEBUG)
 	ID3D11Debug *d3dDebug;
 	HRESULT hr = device_pancy->QueryInterface(__uuidof(ID3D11Debug), reinterpret_cast<void**>(&d3dDebug));
@@ -91,6 +87,7 @@ HRESULT d3d_pancy_1::init_create()
 {
 	HRESULT hr;
 	hr = init(wind_hwnd, wind_width, wind_hight);
+	
 	if (FAILED(hr)) 
 	{
 		MessageBox(0, L"create d3dx11 failed", L"tip", MB_OK);
@@ -98,18 +95,11 @@ HRESULT d3d_pancy_1::init_create()
 	}
 	test_camera = new pancy_camera(device_pancy, window_width, window_hight);
 	test_input = new pancy_input(wind_hwnd, device_pancy, hInstance);
-	render_state = new pancy_renderstate(device_pancy,contex_pancy);
 	geometry_list = new geometry_control(device_pancy, contex_pancy);
 	hr = shader_list->shader_init(device_pancy, contex_pancy);
 	if (FAILED(hr)) 
 	{
 		MessageBox(0,L"create shader failed",L"tip",MB_OK);
-		return hr;
-	}
-	hr = render_state->create();
-	if (FAILED(hr))
-	{
-		MessageBox(0, L"create render state failed", L"tip", MB_OK);
 		return hr;
 	}
 	hr = geometry_list->create();
@@ -118,15 +108,14 @@ HRESULT d3d_pancy_1::init_create()
 		MessageBox(0, L"create geometry list failed", L"tip", MB_OK);
 		return hr;
 	}
-
-	first_scene_test = new scene_engine_test(this,device_pancy,contex_pancy, render_state,test_input, test_camera, shader_list, geometry_list,wind_width, wind_hight);
+	first_scene_test = new scene_engine_test(device_pancy,contex_pancy, render_state,test_input, test_camera, shader_list, geometry_list,wind_width, wind_hight);
 	hr = first_scene_test->scene_create();
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create scene failed", L"tip", MB_OK);
 		return hr;
 	}
-	posttreat_scene = new render_posttreatment_HDR(device_pancy, contex_pancy, posttreatment_RTV, shader_list, wind_width, wind_hight,this);
+	posttreat_scene = new render_posttreatment_HDR(device_pancy, contex_pancy,render_state->get_postrendertarget(), shader_list, wind_width, wind_hight,render_state);
 	hr = posttreat_scene->create();
 	if (FAILED(hr))
 	{
@@ -147,13 +136,16 @@ void d3d_pancy_1::update()
 void d3d_pancy_1::display()
 {
 	//初始化
-	XMVECTORF32 color = { 0.75f,0.75f,0.75f,1.0f };
-	contex_pancy->ClearRenderTargetView(m_renderTargetView, reinterpret_cast<float*>(&color));
-	contex_pancy->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
-	set_posttreatment_rendertarget();
+	render_state->clear_basicrendertarget();
+	render_state->clear_posttreatmentcrendertarget();
+	//render_state->set_posttreatment_rendertarget();
 	first_scene_test->display();
-	restore_rendertarget();
+
+	render_state->restore_rendertarget();
 	posttreat_scene->display();
+	first_scene_test->display_nopost();
+	contex_pancy->RSSetState(0);
+	contex_pancy->OMSetDepthStencilState(0, 0);
 	//交换到屏幕
 	HRESULT hr = swapchain->Present(0, 0);
 	int a = 0;
@@ -280,9 +272,13 @@ WPARAM engine_windows_main::game_end()
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	PSTR szCmdLine, int iCmdShow)
 {
+	//unsigned int x, y;
+	//GetDpiForMonitor(NULL, MDT_EFFECTIVE_DPI,&x,&y);
+	
 	engine_windows_main *engine_main = new engine_windows_main(hInstance, hPrevInstance, szCmdLine, iCmdShow, window_width, window_hight);
 	engine_main->game_create();
 	engine_main->game_loop();
 	return engine_main->game_end();
+	
 }
 

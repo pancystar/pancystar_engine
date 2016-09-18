@@ -32,10 +32,10 @@ class render_posttreatment_HDR
 	ID3D11Buffer*               CPU_read_buffer;
 	float                       average_light;
 	float                       average_light_last;
-	d3d_pancy_basic             *root_state_need;
+	pancy_renderstate           *root_state_need;
 	int width_rec, height_rec, buffer_num, map_num;
 public:
-	render_posttreatment_HDR(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, ID3D11RenderTargetView *rendertarget_need, shader_control *shaderlist_need, int width_need, int height_need, d3d_pancy_basic *rec_rootstate);
+	render_posttreatment_HDR(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, ID3D11RenderTargetView *rendertarget_need, shader_control *shaderlist_need, int width_need, int height_need, pancy_renderstate *rec_rootstate);
 	HRESULT create();
 	void release();
 	HRESULT display();

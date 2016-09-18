@@ -8,6 +8,7 @@
 #include<d3dx11effect.h>
 #include<DDSTextureLoader.h>
 #include"shader_pancy.h"
+#include"geometry.h"
 using namespace DirectX;
 struct BoundingSphere
 {
@@ -46,7 +47,24 @@ public:
 	void release();
 };
 
-class shadow_volume 
+class pancy_shadow_volume 
 {
-
+	ID3D11Device             *device_pancy;
+	ID3D11DeviceContext      *contex_pancy;
+	shader_control           *shader_list;
+	ID3D11Buffer             *vertex_need;       //顶点产出缓冲区
+	ID3DX11EffectTechnique   *teque_need;       //渲染路径
+	ID3DX11EffectTechnique   *teque_transparent;//渲染路径
+public:
+	pancy_shadow_volume(ID3D11Device *device_need, ID3D11DeviceContext* contex_need, shader_control *shader_list_need);
+	HRESULT set_renderstate(ID3D11DepthStencilView* depth_input, XMFLOAT3 light_position, XMFLOAT3 light_dir, light_type check);
+	HRESULT set_view_projmat(XMFLOAT4X4 mat_need);
+	HRESULT set_shaderresource(XMFLOAT4X4 word_matrix);
+	ID3DX11EffectTechnique* get_technique() { return teque_need; };
+	ID3DX11EffectTechnique* get_technique_transparent() { return teque_transparent; };
+	HRESULT create(int buffer_num);
+	void draw_SOvertex();
+	void release();
+private:
+	HRESULT init_buffer(int buffer_num);
 };

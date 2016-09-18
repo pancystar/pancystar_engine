@@ -69,7 +69,7 @@ float CalcShadowFactor(SamplerComparisonState samShadow, Texture2D shadowMap, fl
 	shadowPosH.xyz /= shadowPosH.w;
 
 	//采集光源投影后的深度
-	float depth = shadowPosH.z - 0.0001f;
+	float depth = shadowPosH.z;
 
 	//阴影贴图的步长
 	const float dx = 1.0f / 1024.0f;
@@ -361,7 +361,7 @@ float4 PS_withshadowssao(VertexOut pin) :SV_TARGET
 			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
 		}
 		//环境光
-		ambient += A*(0.3f*rec_ssao + 0.7f);
+		ambient += A*(0.4f*rec_ssao + 0.6f);
 		//无阴影光
 		if (light_need[i].type.y == 0) 
 		{
@@ -433,7 +433,7 @@ float4 PS_withshadowssaonormal(VertexOut pin) :SV_TARGET
 			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
 		}
 		//环境光
-		ambient += A*(0.3f*rec_ssao + 0.7f);
+		ambient += A*(0.4f*rec_ssao + 0.6f);
 		//无阴影光
 		if (light_need[i].type.y == 0)
 		{

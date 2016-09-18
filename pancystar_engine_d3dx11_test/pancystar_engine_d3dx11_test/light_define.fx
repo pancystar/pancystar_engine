@@ -1,22 +1,4 @@
-struct pancy_light_basic//聚光灯结构
-{
-	//光照强度
-	float4    ambient;
-	float4    diffuse;
-	float4    specular;
-	//光照位置，方向及衰减
-	float3    dir;
-	float     spot;
 
-	//聚光灯属性
-	float3    position;
-	float     theta;
-
-	float3    decay;
-	float     range;
-	//光照类型
-	uint4   type;
-};
 /*
 struct pancy_light_dir//方向光结构
 {
@@ -60,6 +42,25 @@ struct pancy_light_spot//聚光灯结构
 	float     range;
 };
 */
+struct pancy_light_basic//聚光灯结构
+{
+	//光照强度
+	float4    ambient;
+	float4    diffuse;
+	float4    specular;
+	//光照位置，方向及衰减
+	float3    dir;
+	float     spot;
+
+	//聚光灯属性
+	float3    position;
+	float     theta;
+
+	float3    decay;
+	float     range;
+	//光照类型
+	uint4   type;
+};
 struct pancy_material
 {
 	float4   ambient;   //材质的环境光反射系数

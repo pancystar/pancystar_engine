@@ -57,6 +57,48 @@ void pancy_camera::count_view_matrix(XMMATRIX* view_matrix)
 	view_matrix->r[3].m128_f32[2] = z;
 	view_matrix->r[3].m128_f32[3] = 1.0f;
 }
+void pancy_camera::count_view_matrix(XMFLOAT3 rec_look, XMFLOAT3 rec_up, XMFLOAT3 rec_pos,XMFLOAT4X4 *view_matrix)
+{
+	XMVECTOR rec_camera_look = XMLoadFloat3(&rec_look);
+	XMVECTOR rec_camera_up = XMLoadFloat3(&rec_up);
+	XMVECTOR rec_camera_position = XMLoadFloat3(&rec_pos);
+	//求叉积
+	XMVECTOR rec_camera_right = XMVector3Normalize(XMVector3Cross(rec_camera_up, rec_camera_look));
+	rec_camera_up = XMVector3Normalize(XMVector3Cross(rec_camera_look, rec_camera_right));
+	rec_camera_look = XMVector3Normalize(rec_camera_look);
+	float x = -XMVectorGetX(XMVector3Dot(rec_camera_right, rec_camera_position));
+	float y = -XMVectorGetX(XMVector3Dot(rec_camera_up, rec_camera_position));
+	float z = -XMVectorGetX(XMVector3Dot(rec_camera_look, rec_camera_position));
+	/*
+	填充观察矩阵
+	V =
+
+	Rx     Ux     Dx     0
+	Ry     Uy     Dy     0
+	Rz     Uz     Dz     0
+	-p▪R   -p▪R   -p▪R    1
+
+	*/
+	view_matrix->_11 = camera_right.x;
+	view_matrix->_12 = camera_up.x;
+	view_matrix->_13 = camera_look.x;
+	view_matrix->_14 = 0.0f;
+
+	view_matrix->_21 = camera_right.y;
+	view_matrix->_22 = camera_up.y;
+	view_matrix->_23 = camera_look.y;
+	view_matrix->_24 = 0.0f;
+
+	view_matrix->_31 = camera_right.z;
+	view_matrix->_32 = camera_up.z;
+	view_matrix->_33 = camera_look.z;
+	view_matrix->_34 = 0.0f;
+
+	view_matrix->_41 = x;
+	view_matrix->_42 = y;
+	view_matrix->_43 = z;
+	view_matrix->_44 = 1.0f;
+}
 void pancy_camera::rotation_right(float angle)
 {
 	XMVECTOR rec_camera_look;

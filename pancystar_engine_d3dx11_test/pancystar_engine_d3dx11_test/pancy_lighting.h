@@ -43,5 +43,19 @@ public:
 	ID3D11ShaderResourceView* get_mapresource() { return shadowmap_deal->get_mapresource(); };
 	XMFLOAT4X4 get_ViewProjTex_matrix() { return shadowmap_deal->get_ViewProjTex_matrix(); };
 	void release();
-
 };
+class light_with_shadowvolume : public basic_lighting
+{
+	pancy_shadow_volume *shadowvolume_deal;
+	std::vector<geometry_shadow> shadowmesh_list;
+public:
+	light_with_shadowvolume(light_type type_need_light, shadow_type type_need_shadow, shader_control *lib_need, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state);
+	HRESULT create(int vertex_num);
+	void build_shadow(ID3D11DepthStencilView* depth_input);
+	void draw_shadow_volume();
+	void clear_mesh();
+	void update_view_proj_matrix(XMFLOAT4X4 mat_need);
+	void add_mesh(geometry_shadow mesh_input);
+	void release();
+};
+

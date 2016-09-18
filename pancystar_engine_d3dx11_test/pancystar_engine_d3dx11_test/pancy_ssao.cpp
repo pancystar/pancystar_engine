@@ -1,10 +1,11 @@
 #include"pancy_ssao.h"
-ssao_pancy::ssao_pancy(ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, int width, int height, float fovy, float farZ)
+ssao_pancy::ssao_pancy(pancy_renderstate *renderstate_need,ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, int width, int height, float fovy, float farZ)
 {
 	device_pancy = device;
 	contex_pancy = dc;
 	set_size(width, height, fovy, farZ);
 	shader_list = shader_need;
+	renderstate_lib = renderstate_need;
 	teque_need = NULL;
 }
 HRESULT ssao_pancy::basic_create()
@@ -60,7 +61,7 @@ void ssao_pancy::compute_ssaomap()
 		0.0f, 0.0f, 1.0f, 0.0f,
 		0.5f, 0.5f, 0.0f, 1.0f);
 
-	XMMATRIX P = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, map_width*1.0f / map_height*1.0f, 0.1f, 1000.0f);
+	XMMATRIX P = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, map_width*1.0f / map_height*1.0f, 0.1f, 300.0f);
 	XMFLOAT4X4 PT;
 	XMStoreFloat4x4(&PT, P*T);
 	auto *shader_aopass = shader_list->get_shader_ssaodraw();
@@ -190,8 +191,8 @@ HRESULT ssao_pancy::build_texture()
 
 
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~°ëÆÁÄ»ÎÆÀí~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	texDesc.Width = map_width;
-	texDesc.Height = map_height;
+	texDesc.Width = render_viewport.Width;
+	texDesc.Height = render_viewport.Height;
 	texDesc.Format = DXGI_FORMAT_R16_FLOAT;
 	ID3D11Texture2D* ambientTex0 = 0;
 	device_pancy->CreateTexture2D(&texDesc, 0, &ambientTex0);
@@ -232,8 +233,6 @@ HRESULT ssao_pancy::build_texture()
 		MessageBox(0, L"create ambient map texture2 error", L"tip", MB_OK);
 		return hr;
 	}
-
-
 	D3D11_TEXTURE2D_DESC texDesc2;
 	texDesc2.Width = map_width;
 	texDesc2.Height = map_height;
@@ -254,15 +253,18 @@ HRESULT ssao_pancy::build_texture()
 		MessageBox(0, L"create depth buffer texture2 error", L"tip", MB_OK);
 		return hr;
 	}
+	D3D11_DEPTH_STENCIL_DESC rec_depth_need;
+	rec_depth_need.DepthFunc;
 	hr = device_pancy->CreateDepthStencilView(depthMap, 0, &depthmap_target);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create depth buffer texture2 error", L"tip", MB_OK);
 		return hr;
 	}
+	depthMap->Release();
 	ambientTex0->Release();
 	ambientTex1->Release();
-	depthMap->Release();
+	//depthmap_target = renderstate_lib->get_basicrendertarget();
 	return S_OK;
 }
 void ssao_pancy::BuildFrustumFarCorners(float fovy, float farZ)
@@ -509,7 +511,7 @@ void ssao_pancy::release()
 	safe_release(randomtex);
 	safe_release(normaldepth_target);
 	safe_release(normaldepth_tex);
-	safe_release(depthmap_target);
+	//safe_release(depthmap_target);
 	safe_release(ambient_target0);
 	safe_release(ambient_tex0);
 	safe_release(ambient_target1);

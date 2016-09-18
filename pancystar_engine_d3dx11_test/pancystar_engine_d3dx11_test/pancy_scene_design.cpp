@@ -1,5 +1,5 @@
 #include"pancy_scene_design.h"
-scene_root::scene_root(d3d_pancy_basic *engine_root, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height)
+scene_root::scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height)
 {
 	user_input = input_need;
 	scene_camera = camera_need;
@@ -8,13 +8,13 @@ scene_root::scene_root(d3d_pancy_basic *engine_root, ID3D11Device *device_need, 
 	contex_pancy = contex_need;
 	scene_window_width = width;
 	scene_window_height = height;
-	engine_state = engine_root;
+	//engine_state = engine_root;
 	renderstate_lib = render_state;
 	geometry_lib = geometry_need;
 	time_game = 0.0f;
 	//初始化投影以及取景变换矩阵
-	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, scene_window_width*1.0f / scene_window_height*1.0f, 0.1f, 1000.f);
-	ssao_part = new ssao_pancy(device_need, contex_need, shader_lib, scene_window_width, scene_window_height, XM_PI*0.25f, 1000.0f);
+	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, scene_window_width*1.0f / scene_window_height*1.0f, 0.1f, 300.f);
+	ssao_part = new ssao_pancy(render_state,device_need, contex_need, shader_lib, scene_window_width, scene_window_height, XM_PI*0.25f, 300.0f);
 	XMStoreFloat4x4(&proj_matrix, proj);
 	XMMATRIX iden = XMMatrixIdentity();
 	XMStoreFloat4x4(&view_matrix, iden);
@@ -65,7 +65,7 @@ HRESULT scene_root::camera_move()
 	return S_OK;
 }
 
-scene_engine_test::scene_engine_test(d3d_pancy_basic *engine_root, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height) : scene_root(engine_root, device_need, contex_need, render_state, input_need, camera_need, lib_need,geometry_need,width, height)
+scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need,geometry_need,width, height)
 {
 	nonshadow_light_list.clear();
 	shadowmap_light_list.clear();
@@ -85,6 +85,15 @@ HRESULT scene_engine_test::scene_create()
 	}
 	shadowmap_light_list.push_back(rec_shadow);
 	hr_need = ssao_part->basic_create();
+	/*
+	light_with_shadowvolume rec_shadowvalum(spot_light, shadow_volume, shader_lib, device_pancy, contex_pancy, renderstate_lib);
+	hr_need = rec_shadowvalum.create(1000000);
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	shadowvalume_light_list.push_back(rec_shadowvalum);
+	*/
 	if (hr_need != S_OK)
 	{
 		MessageBox(0, L"load ssao class error", L"tip", MB_OK);
@@ -100,16 +109,28 @@ HRESULT scene_engine_test::scene_create()
 }
 HRESULT scene_engine_test::display()
 {
-	
+	contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH, 1.f, 0);
+	renderstate_lib->set_posttreatment_rendertarget(ssao_part->get_depthstencilmap());
 	show_ball();
-	draw_ssaomap();
+	
 	
 	show_lightsource();
 	show_floor();
 	show_castel();
 	show_aotestproj();
 	show_yuri();
+	//清空深度模板缓冲，在AO绘制阶段记录下深度信息
+	contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
+	draw_ssaomap();
 	draw_shadowmap();
+	
+
+	//show_fire_particle();
+	return S_OK;
+}
+HRESULT scene_engine_test::display_nopost()
+{
+	renderstate_lib->restore_rendertarget(ssao_part->get_depthstencilmap());
 	show_fire_particle();
 	return S_OK;
 }
@@ -174,7 +195,6 @@ void scene_engine_test::show_yuri()
 	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
 
 	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
-
 	XMFLOAT4X4 world_viewrec;
 	XMStoreFloat4x4(&world_viewrec, worldViewProj);
 	shader_test->set_trans_all(&world_viewrec);
@@ -249,6 +269,12 @@ void scene_engine_test::show_yuri()
 		rec_shadow_light._Ptr->add_mesh(rec_mesh_need);
 		rec_shadow_light._Ptr->add_mesh(rec_mesh_need_trans);
 	}
+	//设置阴影体
+	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
+	{
+		rec_shadow_volume._Ptr->add_mesh(rec_mesh_need);
+	}
+	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
 }
 void scene_engine_test::show_castel()
 {
@@ -643,7 +669,13 @@ void scene_engine_test::draw_shadowmap()
 	{
 		rec_shadow_light._Ptr->draw_shadow();
 	}
-	engine_state->set_posttreatment_rendertarget();
+	//renderstate_lib->set_posttreatment_rendertarget();
+	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
+	{
+		rec_shadow_volume._Ptr->build_shadow(ssao_part->get_depthstencilmap());
+		//rec_shadow_volume._Ptr->draw_shadow_volume();
+	}
+	contex_pancy->RSSetState(NULL);
 }
 void scene_engine_test::draw_ssaomap()
 {
@@ -651,7 +683,8 @@ void scene_engine_test::draw_ssaomap()
 	auto* floor_need = geometry_lib->get_floor_geometry();
 	auto* model_castel = geometry_lib->get_castel();
 	ssao_part->set_normaldepth_target(NULL);
-
+	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
 	//设定球体世界变换
 	XMMATRIX trans_world;
 	XMMATRIX scal_world;
@@ -732,14 +765,14 @@ void scene_engine_test::draw_ssaomap()
 
 	ssao_part->compute_ssaomap();
 	ssao_part->blur_ssaomap();
-	engine_state->set_posttreatment_rendertarget();
+	renderstate_lib->set_posttreatment_rendertarget();
 	//ssao_part->check_ssaomap();
 	//engine_state->set_posttreatment_rendertarget();
 }
 void scene_engine_test::show_fire_particle()
 {
 	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-	XMFLOAT3 st_pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 st_pos = XMFLOAT3(0.0f, 0.2f, 2.0f);
 	XMFLOAT3 st_dir = XMFLOAT3(0.0f, 1.0f, 0.0f);
 	particle_fire->set_particle_direct(&st_pos, &st_dir);
 	particle_fire->draw_particle();
@@ -767,15 +800,25 @@ HRESULT scene_engine_test::update(float delta_time)
 		rec_shadow_light._Ptr->set_frontlight(count++);
 		rec_shadow_light._Ptr->clear_mesh();
 	}
+	
 	//设置无影光源
 	for (auto rec_non_light = nonshadow_light_list.begin(); rec_non_light != nonshadow_light_list.end(); ++rec_non_light) 
 	{
 		rec_non_light._Ptr->set_frontlight(count++);
 	}
+
 	XMFLOAT4X4 view_proj;
 	XMStoreFloat4x4(&view_proj, XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
 	time_game += delta_time;
 	particle_fire->update(delta_time, time_game,&view_proj,&eyePos_rec);
+	
+	//设置shadowvolume光源
+	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
+	{
+		rec_shadow_volume._Ptr->set_frontlight(count++);
+		rec_shadow_volume._Ptr->clear_mesh();
+		rec_shadow_volume._Ptr->update_view_proj_matrix(view_proj);
+	}
 	return S_OK;
 }
 HRESULT scene_engine_test::release()
@@ -785,6 +828,10 @@ HRESULT scene_engine_test::release()
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
 		rec_shadow_light._Ptr->release();
+	}
+	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
+	{
+		rec_shadow_volume._Ptr->release();
 	}
 	return S_OK;
 }

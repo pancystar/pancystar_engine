@@ -6,6 +6,12 @@ SamplerState samTex_liner
 	AddressU = WRAP;
 	AddressV = WRAP;
 };
+RasterizerState Depth
+{
+	DepthBias = 1000;
+	DepthBiasClamp = 0.0f;
+	SlopeScaledDepthBias = 1.0f;
+};
 struct Vertex_IN//含法线贴图顶点
 {
 	float3	pos 	: POSITION;     //顶点位置
@@ -42,6 +48,7 @@ technique11 ShadowTech
 		SetVertexShader(CompileShader(vs_5_0, VS()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS()));
+		SetRasterizerState(Depth);
 	}
 }
 technique11 ShadowTech_transparent
@@ -51,5 +58,6 @@ technique11 ShadowTech_transparent
 		SetVertexShader(CompileShader(vs_5_0, VS()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS_withalpha()));
+		SetRasterizerState(Depth);
 	}
 }

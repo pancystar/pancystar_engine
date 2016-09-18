@@ -311,11 +311,44 @@ public:
 private:
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shadow volume~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_shadow_volume : public shader_basic
+{
+	ID3DX11EffectMatrixVariable *world_matrix_handle; //世界变换句柄
+	ID3DX11EffectMatrixVariable *normal_matrix_handle; //法线变换句柄
+	ID3DX11EffectMatrixVariable *project_matrix_handle;//全套几何变换句柄
+	ID3DX11EffectVariable   *position_light_handle;   //光源位置
+	ID3DX11EffectVariable   *direction_light_handle;  //光源方向
+public:
+	shader_shadow_volume(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_trans_world(XMFLOAT4X4 *mat_need);      //设置世界变换
+	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);
+	HRESULT set_light_pos(XMFLOAT3 light_pos);
+	HRESULT set_light_dir(XMFLOAT3 light_dir);
+	void release();
+private:
+	void init_handle();                 //注册全局变量句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shadow volume draw~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_shadow_volume_draw : public shader_basic
+{
+	ID3DX11EffectMatrixVariable           *project_matrix_handle;      //全套几何变换句柄
+public:
+	shader_shadow_volume_draw(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	void release();
+	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);                            //设置总变换
+private:
+	void init_handle();                 //注册全局变量句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shader list~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_control
 {
 	light_pre                  *shader_light_pre;          //前向光照着色器
-	light_shadow               *shader_shadowmap;          //阴影着色器
+	light_shadow               *shader_shadowmap;          //阴影图着色器
+	shader_shadow_volume       *shader_shadowvolume;       //阴影体着色器
+	shader_shadow_volume_draw  *shader_shadowvolume_draw;  //阴影体绘制
 	shader_ssaodepthnormal_map *shader_ssao_depthnormal;   //ssao深度纹理着色器
 	shader_ssaomap             *shader_ssao_draw;          //ssao遮蔽图渲染着色器
 	shader_ssaoblur            *shader_ssao_blur;          //ssao模糊着色器
@@ -331,6 +364,8 @@ public:
 	HRESULT shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy);
 	light_pre*                  get_shader_prelight() { return shader_light_pre; };
 	light_shadow*               get_shader_shadowmap() { return shader_shadowmap; };
+	shader_shadow_volume*       get_shader_shadowvolume() { return shader_shadowvolume; };
+	shader_shadow_volume_draw*  get_shader_shadowvolume_draw() { return shader_shadowvolume_draw; };
 	shader_ssaodepthnormal_map* get_shader_ssaodepthnormal() {return shader_ssao_depthnormal;};
 	shader_ssaomap*             get_shader_ssaodraw() { return shader_ssao_draw; };
 	shader_ssaoblur*            get_shader_ssaoblur() { return shader_ssao_blur; };
@@ -340,6 +375,7 @@ public:
 	shader_HDRblur*             get_shader_HDRblur() { return shader_HDR_blur; };
 	shader_HDRfinal*            get_shader_HDRfinal() { return shader_HDR_final; };
 	shader_particle*            get_shader_fireparticle() { return particle_fire; };
+	
 	void release();
 };
 

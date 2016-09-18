@@ -1077,6 +1077,131 @@ void shader_fire::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UI
 		member_point[i] = rec[i];
 	}
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~阴影体~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_shadow_volume::shader_shadow_volume(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT shader_shadow_volume::set_trans_world(XMFLOAT4X4 *mat_need)
+{
+	XMMATRIX rec_mat = XMLoadFloat4x4(mat_need);
+	XMVECTOR x_delta;
+	XMMATRIX check = rec_mat;
+	//法线变换
+	XMMATRIX normal_need = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&x_delta, check));
+	normal_need.r[0].m128_f32[3] = 0.0f;
+	normal_need.r[1].m128_f32[3] = 0.0f;
+	normal_need.r[2].m128_f32[3] = 0.0f;
+	normal_need.r[3].m128_f32[3] = 1.0f;
+	HRESULT hr;
+	hr = set_matrix(world_matrix_handle, mat_need);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting world matrix", L"tip", MB_OK);
+		return hr;
+	}
+	hr = normal_matrix_handle->SetMatrix(reinterpret_cast<float*>(&normal_need));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting normal matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_shadow_volume::set_trans_all(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(project_matrix_handle, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting project matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_shadow_volume::set_light_pos(XMFLOAT3 light_pos)
+{
+	HRESULT hr = position_light_handle->SetRawValue((void*)&light_pos, 0, sizeof(light_pos));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting view position", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_shadow_volume::set_light_dir(XMFLOAT3 light_dir)
+{
+	HRESULT hr = direction_light_handle->SetRawValue((void*)&light_dir, 0, sizeof(light_dir));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting view position", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_shadow_volume::release()
+{
+	release_basic();
+}
+void shader_shadow_volume::init_handle()
+{
+	world_matrix_handle = fx_need->GetVariableByName("world_matrix")->AsMatrix();  //世界变换句柄
+	normal_matrix_handle = fx_need->GetVariableByName("normal_matrix")->AsMatrix();//法线变换句柄
+	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();//全局变换句柄
+	position_light_handle = fx_need->GetVariableByName("position_light");
+	direction_light_handle = fx_need->GetVariableByName("direction_light");
+}
+void shader_shadow_volume::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT" ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~阴影体绘制~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_shadow_volume_draw::shader_shadow_volume_draw(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT shader_shadow_volume_draw::set_trans_all(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(project_matrix_handle, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting project matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_shadow_volume_draw::release()
+{
+	release_basic();
+}
+void shader_shadow_volume_draw::init_handle()
+{
+	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();           //世界变换句柄
+}
+void shader_shadow_volume_draw::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全局shader管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_control::shader_control()
 {
@@ -1092,6 +1217,8 @@ shader_control::shader_control()
 	shader_HDR_preblur = NULL;
 	shader_HDR_blur = NULL;
 	shader_HDR_final = NULL;
+	shader_shadowvolume = NULL;
+	shader_shadowvolume_draw = NULL;
 }
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
@@ -1180,12 +1307,29 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 		MessageBox(0, L"an error when fire particle shader created", L"tip", MB_OK);
 		return hr;
 	}
+
+	shader_shadowvolume = new shader_shadow_volume(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\shadow_volume.cso", device_pancy, contex_pancy);
+	hr = shader_shadowvolume->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when shadow volume shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_shadowvolume_draw = new shader_shadow_volume_draw(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\shadow_volume_draw.cso", device_pancy, contex_pancy);
+	hr = shader_shadowvolume_draw->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when shadow volume shader created", L"tip", MB_OK);
+		return hr;
+	}
 	return S_OK;
 }
 void shader_control::release()
 {
 	shader_light_pre->release();
 	shader_shadowmap->release();
+	shader_shadowvolume->release();
+	shader_shadowvolume_draw->release();
 	shader_ssao_depthnormal->release();
 	shader_ssao_draw->release();
 	shader_ssao_blur->release();

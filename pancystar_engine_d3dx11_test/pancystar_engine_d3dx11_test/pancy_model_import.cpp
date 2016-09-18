@@ -32,7 +32,7 @@ void model_reader_assimp::remove_texture_path(char rec[])
 	}
 	strcpy(rec, &rec[start]);
 }
-HRESULT model_reader_assimp::model_create(bool if_optimize, int alpha_partnum, int* alpha_part)
+HRESULT model_reader_assimp::model_create(bool if_adj,bool if_optimize, int alpha_partnum, int* alpha_part)
 {
 	for (int i = 0; i < 10000; ++i)
 	{
@@ -84,7 +84,7 @@ HRESULT model_reader_assimp::model_create(bool if_optimize, int alpha_partnum, i
 		}
 	}
 	HRESULT hr;
-	hr = init_mesh();
+	hr = init_mesh(if_adj);
 	if (hr != S_OK)
 	{
 		MessageBox(0, L"create model error when init mesh", L"tip", MB_OK);
@@ -96,7 +96,7 @@ HRESULT model_reader_assimp::model_create(bool if_optimize, int alpha_partnum, i
 		MessageBox(0, L"create model error when init texture", L"tip", MB_OK);
 		return hr;
 	}
-	hr = combine_vertex_array(alpha_partnum, alpha_part);
+	hr = combine_vertex_array(alpha_partnum, alpha_part,if_adj);
 	if (hr != S_OK)
 	{
 		MessageBox(0, L"create model error when combine scene mesh", L"tip", MB_OK);
@@ -104,11 +104,11 @@ HRESULT model_reader_assimp::model_create(bool if_optimize, int alpha_partnum, i
 	}
 	if (if_optimize == true)
 	{
-		optimization_mesh();
+		optimization_mesh(if_adj);
 	}
 	return S_OK;
 }
-HRESULT model_reader_assimp::init_mesh()
+HRESULT model_reader_assimp::init_mesh(bool if_adj)
 {
 	point_with_tangent *point_need;
 	unsigned int *index_need;
@@ -175,7 +175,7 @@ HRESULT model_reader_assimp::init_mesh()
 			}
 		}
 		//根据内存信息创建显存区
-		HRESULT hr = mesh_need[i].point_buffer->create_object(point_need, index_need);
+		HRESULT hr = mesh_need[i].point_buffer->create_object(point_need, index_need,if_adj);
 		if (FAILED(hr))
 		{
 			MessageBox(0, L"create model mesh error", L"tip", MB_OK);
@@ -254,7 +254,7 @@ HRESULT model_reader_assimp::get_technique(ID3DX11EffectTechnique *teque_need)
 	teque_pancy = teque_need;
 	return S_OK;
 }
-HRESULT model_reader_assimp::combine_vertex_array(int alpha_partnum, int* alpha_part)
+HRESULT model_reader_assimp::combine_vertex_array(int alpha_partnum, int* alpha_part, bool if_adj)
 {
 	point_with_tangent *vertex_out;
 	UINT *index_out;
@@ -318,7 +318,7 @@ HRESULT model_reader_assimp::combine_vertex_array(int alpha_partnum, int* alpha_
 		}
 	}
 	mesh_scene = new mesh_comman(device_pancy, contex_pancy, all_vertex, all_index);
-	HRESULT hr = mesh_scene->create_object(vertex_out, index_out);
+	HRESULT hr = mesh_scene->create_object(vertex_out, index_out,if_adj);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"combine scene error", L"tip", MB_OK);
@@ -373,7 +373,12 @@ void model_reader_assimp::draw_mesh()
 	mesh_scene->get_teque(teque_pancy);
 	mesh_scene->show_mesh();
 }
-HRESULT model_reader_assimp::optimization_mesh()
+void model_reader_assimp::draw_mesh_adj()
+{
+	mesh_scene->get_teque(teque_pancy);
+	mesh_scene->show_mesh_adj();
+}
+HRESULT model_reader_assimp::optimization_mesh(bool if_adj)
 {
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~先合并材质~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	int hash_UnionFind[1000];
@@ -485,7 +490,7 @@ HRESULT model_reader_assimp::optimization_mesh()
 		}
 		rec_optisave[i].point_buffer = new mesh_comman(device_pancy, contex_pancy, now_count_vertex, now_count_index);
 		rec_optisave[i].material_use = i + 1;
-		HRESULT hr = rec_optisave[i].point_buffer->create_object(vertex_rec, index_rec);
+		HRESULT hr = rec_optisave[i].point_buffer->create_object(vertex_rec, index_rec,if_adj);
 		if (FAILED(hr))
 		{
 			MessageBox(0, L"combine scene error", L"tip", MB_OK);
@@ -520,6 +525,11 @@ void geometry_shadow::draw_full_geometry(ID3DX11EffectTechnique *tech_common)
 {
 	model_data->get_technique(tech_common);
 	model_data->draw_mesh();
+}
+void geometry_shadow::draw_full_geometry_adj(ID3DX11EffectTechnique *tech_common)
+{
+	model_data->get_technique(tech_common);
+	model_data->draw_mesh_adj();
 }
 void geometry_shadow::draw_transparent_part(ID3DX11EffectTechnique *tech_transparent)
 {
@@ -558,14 +568,14 @@ HRESULT geometry_control::create()
 	}
 	//不来方夕莉模型
 	int alpha_yuri[] = { 3 };
-	hr_need = yuri_model->model_create(false, 1, alpha_yuri);
+	hr_need = yuri_model->model_create(false,false, 1, alpha_yuri);
 	if (FAILED(hr_need))
 	{
 		MessageBox(0, L"load model file error", L"tip", MB_OK);
 		return hr_need;
 	}
 	//城堡模型
-	hr_need = castel_model->model_create(true, 0, NULL);
+	hr_need = castel_model->model_create(false,true, 0, NULL);
 	if (FAILED(hr_need))
 	{
 		MessageBox(0, L"load model file error", L"tip", MB_OK);

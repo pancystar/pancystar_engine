@@ -81,13 +81,14 @@ float4 PS(VertexOut pin, uniform bool gHorizontalBlur) : SV_Target
 		float4 neighborcolor = gInputImage.SampleLevel(samInputImage, tex, 0.0);
 		//计算当前点的遮蔽情况
 		float weight = gWeights[i + gBlurRadius];
-		
+		/*
 		if (abs(center_color.r - neighborcolor.r) > 0.4f)
 		{
 			//与中心点颜色差异过大的部分将被舍弃
 			color += weight*center_color;
 			totalWeight += weight;
 		}
+		*/
 		if (abs(dot(neighborNormalDepth.xyz, centerNormalDepth.xyz)) >= 0.8f &&abs(neighborNormalDepth.a - centerNormalDepth.a) <= 0.2f)
 		{
 			//发现当前点与中心点属于可混合的部分(首先是颜色差不大，然后就是深度差很小说明是同一物体，向量差也小说明是同一面，这种情况下才能够混合)

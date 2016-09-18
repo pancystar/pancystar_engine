@@ -98,8 +98,10 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>DirectXTK.lib;Effects11.lib;assimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DirectXTK.lib;Effects11.lib;assimp.lib;DirectXMeshd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <StackReserveSize>20000000</StackReserveSize>
+      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
     <FxCompile>
       <ShaderType>Effect</ShaderType>
@@ -143,7 +145,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>DirectXTKR.lib;Effects11R.lib;assimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DirectXTKR.lib;Effects11R.lib;assimp.lib;DirectXMesh.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>
       <ShaderType>Effect</ShaderType>
@@ -213,6 +215,8 @@
     <FxCompile Include="light_pre.fx" />
     <FxCompile Include="light_reflect.fx" />
     <FxCompile Include="shadowmap.fx" />
+    <FxCompile Include="shadow_volume.fx" />
+    <FxCompile Include="shadow_volume_draw.fx" />
     <FxCompile Include="ssao_blur_map.fx" />
     <FxCompile Include="ssao_draw_aomap.fx" />
     <FxCompile Include="ssao_normaldepth_map.fx" />

@@ -11,6 +11,11 @@ cbuffer always
 Texture2D               input_tex;
 Texture2D               input_bloom;
 StructuredBuffer<float> input_buffer;
+DepthStencilState NoDepthWrites
+{
+	DepthEnable = TRUE;
+	DepthWriteMask = ZERO;
+};
 SamplerState samInputImage
 {
 	Filter = MIN_MAG_LINEAR_MIP_POINT;
@@ -80,5 +85,6 @@ technique11 draw_HDRfinal
 		SetVertexShader(CompileShader(vs_5_0, VS()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS()));
+		SetDepthStencilState(NoDepthWrites, 0);
 	}
 }

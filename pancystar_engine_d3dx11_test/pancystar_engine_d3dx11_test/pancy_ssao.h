@@ -2,12 +2,14 @@
 //ssao
 #include"shader_pancy.h"
 #include"geometry.h"
+#include"pancy_DXrenderstate.h"
 class ssao_pancy
 {
 	int                      map_width;
 	int                      map_height;
 	ID3D11Device             *device_pancy;
 	ID3D11DeviceContext      *contex_pancy;
+	pancy_renderstate        *renderstate_lib;
 	ID3D11Buffer             *AoMap_VB;            //ao图片顶点缓冲区
 	ID3D11Buffer             *AoMap_IB;            //ao图片索引缓冲区
 	ID3D11ShaderResourceView *randomtex;           //随机纹理资源
@@ -31,7 +33,7 @@ class ssao_pancy
 	ID3DX11EffectTechnique   *teque_need;          //通用渲染路径
 	ID3DX11EffectTechnique   *teque_transparent;   //半透明渲染路径
 public:
-	ssao_pancy(ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, int width, int height, float fovy, float farZ);
+	ssao_pancy(pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, int width, int height, float fovy, float farZ);
 	HRESULT basic_create();
 	void set_normaldepth_target(ID3D11DepthStencilView* dsv);
 	HRESULT set_normaldepth_mat(XMFLOAT4X4 world_mat, XMFLOAT4X4 view_mat, XMFLOAT4X4 final_mat);
@@ -40,6 +42,7 @@ public:
 	ID3DX11EffectTechnique* get_technique_transparent() { return teque_transparent; };
 	void compute_ssaomap();
 	ID3D11ShaderResourceView* get_aomap();
+	ID3D11DepthStencilView* get_depthstencilmap() { return depthmap_target; };
 	void blur_ssaomap();
 	void check_ssaomap();
 	void release();
