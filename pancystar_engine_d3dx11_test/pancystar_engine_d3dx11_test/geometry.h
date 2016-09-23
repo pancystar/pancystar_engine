@@ -33,6 +33,16 @@ struct point_with_tangent
 	XMFLOAT3 tangent;
 	XMFLOAT2 tex;
 };
+//骨骼动画顶点格式(顶点坐标 + 法线 + 纹理 + 切线 + 骨骼id + 蒙皮权重)
+struct point_withskin
+{
+	XMFLOAT3 position;
+	XMFLOAT3 normal;
+	XMFLOAT3 tangent;
+	XMUINT4  bone_id;
+	XMFLOAT4 bone_weight;
+	XMFLOAT2 tex;
+};
 struct fire_point
 {
 	XMFLOAT3 position;
@@ -331,15 +341,26 @@ ID3D11Buffer* Geometry<T>::CreateAndCopyToDebugBuf(ID3D11Buffer* pGBuffer)
 	}
 	return pDebugBuffer;
 }
-
-class mesh_comman : public Geometry<point_with_tangent>
+template<typename T>
+class mesh_comman : public Geometry<T>
 {
 public:
 	mesh_comman(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, int vertexnum_need, int indexnum_need);
 private:
-	HRESULT find_point(point_with_tangent *vertex, UINT *index, int &num_vertex, int &num_index);
+	HRESULT find_point(T *vertex, UINT *index, int &num_vertex, int &num_index);
 };
-
+//空几何体
+template<typename T>
+mesh_comman<T>::mesh_comman(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, int vertexnum_need, int indexnum_need) : Geometry(device_need, contex_need)
+{
+	all_vertex = vertexnum_need;
+	all_index = indexnum_need;
+}
+template<typename T>
+HRESULT mesh_comman<T>::find_point(T *vertex, UINT *index, int &num_vertex, int &num_index)
+{
+	return S_OK;
+}
 class mesh_mountain : public Geometry<pancy_point>
 {
 	int width_rec;

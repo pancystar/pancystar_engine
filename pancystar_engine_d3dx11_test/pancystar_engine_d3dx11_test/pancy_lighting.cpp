@@ -118,15 +118,31 @@ void light_with_shadowmap::draw_shadow()
 			shadowmap_deal->set_shaderresource(now_rec._Ptr->get_world_matrix());
 			//设置半透明纹理
 			shadowmap_deal->set_transparent_tex(now_rec._Ptr->get_transparent_tex());
-			now_rec._Ptr->draw_transparent_part(shadowmap_deal->get_technique_transparent());
+			if (now_rec._Ptr->check_if_skin() == true) 
+			{
+				shadowmap_deal->set_bone_matrix(now_rec._Ptr->get_bone_matrix(), now_rec._Ptr->get_bone_num());
+				now_rec._Ptr->draw_transparent_part(shadowmap_deal->get_technique_skin_transparent());
+			}
+			else 
+			{
+				now_rec._Ptr->draw_transparent_part(shadowmap_deal->get_technique_transparent());
+			}
 		}
 		//全部几何体的阴影
 		else
 		{
 			//设置世界变换矩阵
 			shadowmap_deal->set_shaderresource(now_rec._Ptr->get_world_matrix());
+			if (now_rec._Ptr->check_if_skin() == true)
+			{
+				shadowmap_deal->set_bone_matrix(now_rec._Ptr->get_bone_matrix(), now_rec._Ptr->get_bone_num());
+				now_rec._Ptr->draw_full_geometry(shadowmap_deal->get_technique_skin());
+			}
+			else
+			{
+				now_rec._Ptr->draw_full_geometry(shadowmap_deal->get_technique());
+			}
 			
-			now_rec._Ptr->draw_full_geometry(shadowmap_deal->get_technique());
 		}
 	}
 	//还原渲染状态

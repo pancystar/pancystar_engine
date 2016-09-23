@@ -167,6 +167,7 @@ HRESULT particle_system<T>::init_vertex_buff()
 		return hr;
 	}
 	//运行中交换的顶点缓存
+	//VB_desc.Usage = D3D11_USAGE_DYNAMIC;
 	VB_desc.ByteWidth = sizeof(T) * particle_num;
 	VB_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER | D3D11_BIND_STREAM_OUTPUT;
 	device_pancy->CreateBuffer(&VB_desc, 0, &auto_Vinput_need);

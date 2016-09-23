@@ -118,7 +118,8 @@ HRESULT scene_engine_test::display()
 	show_floor();
 	show_castel();
 	show_aotestproj();
-	show_yuri();
+	//show_yuri();
+	show_yuri_animation();
 	//清空深度模板缓冲，在AO绘制阶段记录下深度信息
 	contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 	draw_ssaomap();
@@ -262,8 +263,179 @@ void scene_engine_test::show_yuri()
 	contex_pancy->OMSetDepthStencilState(NULL,0);
 	contex_pancy->OMSetBlendState(0, blendFactor, 0xffffffff);
 	//设置阴影部分
-	geometry_shadow rec_mesh_need(model_yuri,false,-1, world_matrix,NULL);
-	geometry_shadow rec_mesh_need_trans(model_yuri, true, yuri_render_order[7], world_matrix, rec_need.tex_diffuse_resource);
+	geometry_shadow rec_mesh_need(model_yuri,false,false,-1, world_matrix,0,NULL,NULL);
+	geometry_shadow rec_mesh_need_trans(model_yuri, false, true, yuri_render_order[7], world_matrix,NULL,0, rec_need.tex_diffuse_resource);
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		rec_shadow_light._Ptr->add_mesh(rec_mesh_need);
+		rec_shadow_light._Ptr->add_mesh(rec_mesh_need_trans);
+	}
+	//设置阴影体
+	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
+	{
+		rec_shadow_volume._Ptr->add_mesh(rec_mesh_need);
+	}
+	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
+}
+void scene_engine_test::show_yuri_animation() 
+{
+	auto* shader_test = shader_lib->get_shader_prelight();
+	auto* model_yuri = geometry_lib->get_yuri_animation();
+	//选定绘制路径
+	ID3DX11EffectTechnique *teque_need, *teque_normal, *teque_hair;
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec_point[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION"    ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"      ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT"     ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "BONEINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "WEIGHTS"     ,0  ,DXGI_FORMAT_R32G32B32A32_FLOAT ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,68 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+
+	shader_test->get_technique(rec_point, num_member ,&teque_need, "drawskin_withshadowssao");
+	shader_test->get_technique(rec_point, num_member, &teque_normal, "drawskin_withshadowssaonormal");
+	shader_test->get_technique(rec_point, num_member, &teque_hair, "drawskin_hair");
+	//地面的材质
+	pancy_material test_Mt;
+	XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_specular2(0.0f, 0.0f, 0.0f, 1.0f);
+	test_Mt.ambient = rec_ambient2;
+	test_Mt.diffuse = rec_diffuse2;
+	test_Mt.specular = rec_specular2;
+	shader_test->set_material(test_Mt);
+
+
+	//设定世界变换
+	XMMATRIX trans_world;
+	XMMATRIX scal_world;
+	XMMATRIX rotation_world;
+	XMMATRIX rec_world;
+	XMFLOAT4X4 world_matrix;
+	trans_world = XMMatrixTranslation(0.0, 0.0, 0.5);
+	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
+	rotation_world = XMMatrixRotationY(3.141592653f);
+	rec_world = scal_world * rotation_world * trans_world;
+	XMStoreFloat4x4(&world_matrix, rec_world);
+	shader_test->set_trans_world(&world_matrix);
+
+
+	//设定阴影变换以及阴影贴图
+
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		XMFLOAT4X4 shadow_matrix_pre = rec_shadow_light._Ptr->get_ViewProjTex_matrix();
+
+		XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
+		shadow_matrix = rec_world * shadow_matrix;
+		XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
+		shader_test->set_trans_shadow(&shadow_matrix_pre);
+		shader_test->set_shadowtex(rec_shadow_light._Ptr->get_mapresource());
+	}
+	/*
+	XMFLOAT4X4 shadow_matrix_pre = shadowmap_part->get_ViewProjTex_matrix();
+	XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
+	shadow_matrix = rec_world * shadow_matrix;
+	XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
+	shader_test->set_trans_shadow(&shadow_matrix_pre);
+	shader_test->set_shadowtex(shadowmap_part->get_mapresource());
+	*/
+	//设定总变换
+	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
+	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+
+	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
+	XMFLOAT4X4 world_viewrec;
+	XMStoreFloat4x4(&world_viewrec, worldViewProj);
+	shader_test->set_trans_all(&world_viewrec);
+	//设定ssao变换及贴图
+	XMMATRIX T_need(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f
+		);
+	XMFLOAT4X4 ssao_matrix;
+	XMStoreFloat4x4(&ssao_matrix, worldViewProj*T_need);
+	shader_test->set_trans_ssao(&ssao_matrix);
+	shader_test->set_ssaotex(ssao_part->get_aomap());
+	//获取渲染路径并渲染
+	//model_yuri->get_technique(teque_need);
+	//model_yuri->draw_mesh();
+	int yuri_render_order[11] = { 4,5,6,7,8,9,10,3,0,2,1 };
+	model_yuri->update_mesh_offset();
+	XMFLOAT4X4 *rec_bonematrix = model_yuri->get_bone_matrix();
+	shader_test->set_bone_matrix(rec_bonematrix, 100);
+	for (int i = 0; i < 7; ++i)
+	{
+		//int num_bone;
+		//model_yuri->update_mesh_offset(yuri_render_order[i]);
+		//XMFLOAT4X4 *rec_bonematrix = model_yuri->get_bone_matrix(yuri_render_order[i], num_bone);
+		//shader_test->set_bone_matrix(rec_bonematrix, 100);
+		
+		//纹理设定
+		material_list rec_need;
+		model_yuri->get_texture(&rec_need, yuri_render_order[i]);
+		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
+		if (rec_need.texture_normal_resource != NULL)
+		{
+			model_yuri->get_technique(teque_normal);
+			shader_test->set_normaltex(rec_need.texture_normal_resource);
+		}
+		else
+		{
+			model_yuri->get_technique(teque_need);
+		}
+		//shader_test->set_normaltex(tex_normal);
+		model_yuri->draw_part(yuri_render_order[i]);
+	}
+	//alpha混合设定
+	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	contex_pancy->OMSetBlendState(renderstate_lib->get_blend_common(), blendFactor, 0xffffffff);
+	for (int i = 8; i < model_yuri->get_meshnum(); ++i)
+	{
+		//int num_bone;	
+		//model_yuri->update_mesh_offset(yuri_render_order[i]);
+		//XMFLOAT4X4 *rec_bonematrix = model_yuri->get_bone_matrix(yuri_render_order[i], num_bone);
+		//shader_test->set_bone_matrix(rec_bonematrix, 100);
+	
+		//纹理设定
+		material_list rec_need;
+		model_yuri->get_texture(&rec_need, yuri_render_order[i]);
+		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
+		if (rec_need.texture_normal_resource != NULL)
+		{
+			model_yuri->get_technique(teque_normal);
+			shader_test->set_normaltex(rec_need.texture_normal_resource);
+		}
+		else
+		{
+			model_yuri->get_technique(teque_need);
+		}
+		model_yuri->draw_part(yuri_render_order[i]);
+	}
+	//绘制头发
+	//int num_bone;
+	//model_yuri->update_mesh_offset(yuri_render_order[7]);
+	//XMFLOAT4X4 *rec_bonematrix = model_yuri->get_bone_matrix(yuri_render_order[7], num_bone);
+	//shader_test->set_bone_matrix(rec_bonematrix, 100);
+	
+	model_yuri->get_technique(teque_hair);
+	material_list rec_need;
+	model_yuri->get_texture(&rec_need, yuri_render_order[7]);
+	shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
+	shader_test->set_normaltex(rec_need.texture_normal_resource);
+	model_yuri->draw_part(yuri_render_order[7]);
+	contex_pancy->OMSetDepthStencilState(NULL, 0);
+	contex_pancy->OMSetBlendState(0, blendFactor, 0xffffffff);
+	//设置阴影部分
+	geometry_shadow rec_mesh_need(model_yuri,true, false, -1, world_matrix, rec_bonematrix,100, NULL);
+	geometry_shadow rec_mesh_need_trans(model_yuri, true, true, yuri_render_order[7], world_matrix, rec_bonematrix, 100, rec_need.tex_diffuse_resource);
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
 		rec_shadow_light._Ptr->add_mesh(rec_mesh_need);
@@ -371,7 +543,7 @@ void scene_engine_test::show_castel()
 		model_castel->draw_part(i);
 	}
 	//设置阴影部分
-	geometry_shadow rec_mesh_need(model_castel, false, -1, world_matrix, NULL);
+	geometry_shadow rec_mesh_need(model_castel, false, false, -1, world_matrix,0,NULL, NULL);
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
 		//rec_shadow_light._Ptr->add_mesh(rec_mesh_need);
@@ -679,7 +851,7 @@ void scene_engine_test::draw_shadowmap()
 }
 void scene_engine_test::draw_ssaomap()
 {
-	auto* model_yuri = geometry_lib->get_yuri();
+	auto* model_yuri = geometry_lib->get_yuri_animation();
 	auto* floor_need = geometry_lib->get_floor_geometry();
 	auto* model_castel = geometry_lib->get_castel();
 	ssao_part->set_normaldepth_target(NULL);
@@ -709,10 +881,13 @@ void scene_engine_test::draw_ssaomap()
 	worldViewProj = world_matrix_rec*view*proj;
 	XMStoreFloat4x4(&final_matrix, worldViewProj);
 	ssao_part->set_normaldepth_mat(world_matrix, view_matrix, final_matrix);
-	model_yuri->get_technique(ssao_part->get_technique());
+
+	XMFLOAT4X4 *rec_bonematrix = model_yuri->get_bone_matrix();
+	ssao_part->set_bone_matrix(rec_bonematrix, 100);
+	model_yuri->get_technique(ssao_part->get_technique_skin());
 	model_yuri->draw_mesh();
 
-	model_yuri->get_technique(ssao_part->get_technique_transparent());
+	model_yuri->get_technique(ssao_part->get_technique_skin_transparent());
 	material_list rec_need;
 	model_yuri->get_texture(&rec_need, 3);
 	ssao_part->set_transparent_tex(rec_need.tex_diffuse_resource);
@@ -819,6 +994,8 @@ HRESULT scene_engine_test::update(float delta_time)
 		rec_shadow_volume._Ptr->clear_mesh();
 		rec_shadow_volume._Ptr->update_view_proj_matrix(view_proj);
 	}
+	auto* model_yuri = geometry_lib->get_yuri_animation();
+	model_yuri->update_animation(delta_time * 20);
 	return S_OK;
 }
 HRESULT scene_engine_test::release()

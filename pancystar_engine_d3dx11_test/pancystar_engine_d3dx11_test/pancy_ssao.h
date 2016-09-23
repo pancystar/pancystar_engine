@@ -30,16 +30,19 @@ class ssao_pancy
 	D3D11_VIEWPORT           render_viewport;      //视口信息
 
 	shader_control           *shader_list;         //shader表
-	ID3DX11EffectTechnique   *teque_need;          //通用渲染路径
-	ID3DX11EffectTechnique   *teque_transparent;   //半透明渲染路径
+	//ID3DX11EffectTechnique   *teque_need;          //通用渲染路径
+	//ID3DX11EffectTechnique   *teque_transparent;   //半透明渲染路径
 public:
 	ssao_pancy(pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, int width, int height, float fovy, float farZ);
 	HRESULT basic_create();
 	void set_normaldepth_target(ID3D11DepthStencilView* dsv);
 	HRESULT set_normaldepth_mat(XMFLOAT4X4 world_mat, XMFLOAT4X4 view_mat, XMFLOAT4X4 final_mat);
+	HRESULT set_bone_matrix(XMFLOAT4X4 *bone_matrix, int cnt_need);
 	HRESULT set_transparent_tex(ID3D11ShaderResourceView *tex_in);
-	ID3DX11EffectTechnique* get_technique() { return teque_need; };
-	ID3DX11EffectTechnique* get_technique_transparent() { return teque_transparent; };
+	ID3DX11EffectTechnique* get_technique();
+	ID3DX11EffectTechnique* get_technique_transparent();
+	ID3DX11EffectTechnique* get_technique_skin();
+	ID3DX11EffectTechnique* get_technique_skin_transparent();
 	void compute_ssaomap();
 	ID3D11ShaderResourceView* get_aomap();
 	ID3D11DepthStencilView* get_depthstencilmap() { return depthmap_target; };

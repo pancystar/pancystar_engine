@@ -5,6 +5,7 @@ cbuffer perframe
 	pancy_light_basic   light_need[15];   //聚光灯光源
 	float3             position_view;         //视点位置
 	int4 num_dir;
+	float4x4 gBoneTransforms[100];//骨骼变换矩阵
 };
 cbuffer perobject
 {
@@ -103,6 +104,15 @@ struct Vertex_IN//含法线贴图顶点
 	float3	tangent : TANGENT;      //顶点切向量
 	float2  tex1    : TEXCOORD;     //顶点纹理坐标
 };
+struct Vertex_IN_bone//含法线贴图顶点
+{
+	float3	pos 	    : POSITION;     //顶点位置
+	float3	normal 	    : NORMAL;       //顶点法向量
+	float3	tangent     : TANGENT;      //顶点切向量
+	uint4   bone_id     : BONEINDICES;  //骨骼ID号
+	float4  bone_weight : WEIGHTS;      //骨骼权重
+	float2  tex1        : TEXCOORD;     //顶点纹理坐标
+};
 struct VertexOut
 {
 	float4 position      : SV_POSITION;    //变换后的顶点坐标
@@ -123,6 +133,37 @@ VertexOut VS(Vertex_IN vin)
 	vout.position_bef = mul(float4(vin.pos, 0.0f), world_matrix).xyz;
 	vout.pos_shadow = mul(float4(vin.pos, 1.0f), shadowmap_matrix);
 	vout.pos_ssao = mul(float4(vin.pos, 1.0f), ssao_matrix);
+	return vout;
+}
+VertexOut VS_bone(Vertex_IN_bone vin)
+{
+	VertexOut vout;
+	float3 posL = float3(0.0f, 0.0f, 0.0f);
+	float3 normalL = float3(0.0f, 0.0f, 0.0f);
+	float3 tangentL = float3(0.0f, 0.0f, 0.0f);
+	
+	float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	weights[0] = vin.bone_weight.x;
+	weights[1] = vin.bone_weight.y;
+	weights[2] = vin.bone_weight.z;
+	weights[3] = vin.bone_weight.w;
+	for (int i = 0; i < 4; ++i)
+	{
+		// 骨骼变换一般不存在不等缩放的情况，所以可以不做法线的逆转置操作
+		posL += weights[i] * mul(float4(vin.pos, 1.0f), gBoneTransforms[vin.bone_id[i]]).xyz;
+		normalL += weights[i] * mul(vin.normal, (float3x3)gBoneTransforms[vin.bone_id[i]]);
+		tangentL += weights[i] * mul(vin.tangent.xyz, (float3x3)gBoneTransforms[vin.bone_id[i]]);
+	}
+	//posL = vin.pos;
+	//normalL = vin.normal;
+	//tangentL = vin.tangent;
+	vout.position = mul(float4(posL, 1.0f), final_matrix);
+	vout.normal = mul(float4(normalL, 0.0f), normal_matrix).xyz;
+	vout.tangent = mul(float4(tangentL, 0.0f), normal_matrix).xyz;
+	vout.tex = vin.tex1;
+	vout.position_bef = mul(float4(posL, 0.0f), world_matrix).xyz;
+	vout.pos_shadow = mul(float4(posL, 1.0f), shadowmap_matrix);
+	vout.pos_ssao = mul(float4(posL, 1.0f), ssao_matrix);
 	return vout;
 }
 float4 PS(VertexOut pin) :SV_TARGET
@@ -657,6 +698,24 @@ technique11 draw_withshadowssaonormal
 		SetPixelShader(CompileShader(ps_5_0, PS_withshadowssaonormal()));
 	}
 }
+technique11 drawskin_withshadowssao
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_5_0, VS_bone()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_5_0, PS_withshadowssao()));
+	}
+}
+technique11 drawskin_withshadowssaonormal
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_5_0, VS_bone()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_5_0, PS_withshadowssaonormal()));
+	}
+}
 
 technique11 draw_hair
 {
@@ -688,4 +747,20 @@ technique11 draw_hair
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS_withshadowssaonormal()));
 	}*/
+}
+technique11 drawskin_hair
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_5_0, VS_bone()));
+		SetPixelShader(CompileShader(ps_5_0, PS_alphasave()));
+	}
+	pass P1
+	{
+		SetDepthStencilState(NoDepthWrites, 0);
+		SetVertexShader(CompileShader(vs_5_0, VS_bone()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_5_0, PS_alphatest()));
+		SetBlendState(alpha_blend, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xffffffff);
+	}
 }

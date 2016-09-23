@@ -1,15 +1,6 @@
 #include<math.h>
 #include"geometry.h"
-//空几何体
-mesh_comman::mesh_comman(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, int vertexnum_need, int indexnum_need) : Geometry(device_need, contex_need) 
-{
-	all_vertex = vertexnum_need;
-	all_index = indexnum_need;
-}
-HRESULT mesh_comman::find_point(point_with_tangent *vertex, UINT *index, int &num_vertex, int &num_index)
-{
-	return S_OK;
-}
+
 //心形
 mesh_heart::mesh_heart(ID3D11Device *device_need,ID3D11DeviceContext *contex_need,int circle_num_need,int vertex_percircle_need):Geometry(device_need,contex_need)
 {

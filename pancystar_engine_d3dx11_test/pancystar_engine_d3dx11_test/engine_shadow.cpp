@@ -177,32 +177,103 @@ HRESULT shadow_basic::set_transparent_tex(ID3D11ShaderResourceView *tex_in)
 	}
 	return S_OK;
 }
-HRESULT shadow_basic::set_shaderresource(XMFLOAT4X4 word_matrix)
+ID3DX11EffectTechnique* shadow_basic::get_technique()
 {
+	ID3DX11EffectTechnique   *teque_need;       //渲染路径
 	auto* shader_test = shader_list->get_shader_shadowmap();
-	//选定绘制路径
 	HRESULT hr = shader_test->get_technique(&teque_need, "ShadowTech");
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"get technique error when create shadowmap resource", L"tip", MB_OK);
-		return hr;
+		return NULL;
 	}
-	hr = shader_test->get_technique(&teque_transparent, "ShadowTech_transparent");
+	return teque_need;
+}
+ID3DX11EffectTechnique* shadow_basic::get_technique_transparent()
+{
+	ID3DX11EffectTechnique   *teque_need;       //渲染路径
+	auto* shader_test = shader_list->get_shader_shadowmap();
+	HRESULT hr = shader_test->get_technique(&teque_need, "ShadowTech_transparent");
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"get technique error when create shadowmap resource", L"tip", MB_OK);
-		return hr;
+		return NULL;
 	}
+	return teque_need;
+}
+ID3DX11EffectTechnique* shadow_basic::get_technique_skin()
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec_point[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION"    ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"      ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT"     ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "BONEINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "WEIGHTS"     ,0  ,DXGI_FORMAT_R32G32B32A32_FLOAT ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,68 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+
+	ID3DX11EffectTechnique   *teque_need;       //渲染路径
+	auto* shader_test = shader_list->get_shader_shadowmap();
+	HRESULT hr = shader_test->get_technique(rec_point, num_member,&teque_need, "Shadow_skinTech");
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"get technique error when create shadowmap resource", L"tip", MB_OK);
+		return NULL;
+	}
+	return teque_need;
+}
+ID3DX11EffectTechnique* shadow_basic::get_technique_skin_transparent()
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec_point[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION"    ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"      ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT"     ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "BONEINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "WEIGHTS"     ,0  ,DXGI_FORMAT_R32G32B32A32_FLOAT ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,68 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+
+	ID3DX11EffectTechnique   *teque_need;       //渲染路径
+	auto* shader_test = shader_list->get_shader_shadowmap();
+	HRESULT hr = shader_test->get_technique(rec_point, num_member,&teque_need, "Shadow_skinTech_transparent");
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"get technique error when create shadowmap resource", L"tip", MB_OK);
+		return NULL;
+	}
+	return teque_need;
+}
+HRESULT shadow_basic::set_shaderresource(XMFLOAT4X4 word_matrix)
+{
+	auto* shader_test = shader_list->get_shader_shadowmap();
 	XMMATRIX rec_final, rec_world;
 	XMFLOAT4X4 rec_mat;
 	rec_final = XMLoadFloat4x4(&shadow_build);
 	rec_world = XMLoadFloat4x4(&word_matrix);
 	rec_final = rec_world*rec_final;
 	XMStoreFloat4x4(&rec_mat, rec_final);
-	hr = shader_test->set_trans_all(&rec_mat);
+	HRESULT hr = shader_test->set_trans_all(&rec_mat);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"set shader matrix error when create shadowmap resource", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shadow_basic::set_bone_matrix(XMFLOAT4X4 *bone_matrix,int cnt_need) 
+{
+	auto* shader_test = shader_list->get_shader_shadowmap();
+	HRESULT hr = shader_test->set_bone_matrix(bone_matrix,cnt_need);
+	if (FAILED(hr)) 
+	{
 		return hr;
 	}
 	return S_OK;

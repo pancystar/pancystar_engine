@@ -6,21 +6,13 @@ ssao_pancy::ssao_pancy(pancy_renderstate *renderstate_need,ID3D11Device* device,
 	set_size(width, height, fovy, farZ);
 	shader_list = shader_need;
 	renderstate_lib = renderstate_need;
-	teque_need = NULL;
+	//teque_need = NULL;
 }
 HRESULT ssao_pancy::basic_create()
 {
 	build_fullscreen_picturebuff();
 	build_offset_vector();
 	HRESULT hr;
-	//选定绘制路径
-	hr = shader_list->get_shader_ssaodepthnormal()->get_technique(&teque_need, "NormalDepth");
-	hr = shader_list->get_shader_ssaodepthnormal()->get_technique(&teque_transparent, "NormalDepth_withalpha");
-	if (FAILED(hr))
-	{
-		MessageBox(0, L"get technique error when create ssao resource", L"tip", MB_OK);
-		return hr;
-	}
 	//创建纹理
 	hr = build_randomtex();
 	if (FAILED(hr))
@@ -34,7 +26,81 @@ HRESULT ssao_pancy::basic_create()
 	}
 	return S_OK;
 }
-
+ID3DX11EffectTechnique* ssao_pancy::get_technique() 
+{
+	HRESULT hr;
+	//选定绘制路径
+	ID3DX11EffectTechnique   *teque_need;          //通用渲染路径
+	hr = shader_list->get_shader_ssaodepthnormal()->get_technique(&teque_need, "NormalDepth");
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"get technique error when create ssao resource", L"tip", MB_OK);
+		return NULL;
+	}
+	return teque_need;
+}
+ID3DX11EffectTechnique* ssao_pancy::get_technique_transparent()
+{
+	HRESULT hr;
+	ID3DX11EffectTechnique   *teque_transparent;          //通用渲染路径
+	//选定绘制路径
+	hr = shader_list->get_shader_ssaodepthnormal()->get_technique(&teque_transparent, "NormalDepth_withalpha");
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"get technique error when create ssao resource", L"tip", MB_OK);
+		return NULL;
+	}
+	return teque_transparent;
+}
+ID3DX11EffectTechnique* ssao_pancy::get_technique_skin()
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec_point[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION"    ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"      ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT"     ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "BONEINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "WEIGHTS"     ,0  ,DXGI_FORMAT_R32G32B32A32_FLOAT ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,68 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	HRESULT hr;
+	//选定绘制路径
+	ID3DX11EffectTechnique   *teque_need;          //通用渲染路径
+	hr = shader_list->get_shader_ssaodepthnormal()->get_technique(rec_point, num_member,&teque_need, "NormalDepth_skin");
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"get technique error when create ssao resource", L"tip", MB_OK);
+		return NULL;
+	}
+	return teque_need;
+}
+ID3DX11EffectTechnique* ssao_pancy::get_technique_skin_transparent() 
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec_point[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION"    ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"      ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT"     ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "BONEINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "WEIGHTS"     ,0  ,DXGI_FORMAT_R32G32B32A32_FLOAT ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,68 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	HRESULT hr;
+	ID3DX11EffectTechnique   *teque_transparent;          //通用渲染路径
+	hr = shader_list->get_shader_ssaodepthnormal()->get_technique(rec_point, num_member,&teque_transparent, "NormalDepth_skin_withalpha");
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"get technique error when create ssao resource", L"tip", MB_OK);
+		return NULL;
+	}
+	return teque_transparent;
+}
 void ssao_pancy::compute_ssaomap()
 {
 	ID3D11Resource * normalDepthTex = 0;
@@ -120,6 +186,16 @@ HRESULT ssao_pancy::set_normaldepth_mat(XMFLOAT4X4 world_mat, XMFLOAT4X4 view_ma
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"set normal depth matrix error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT ssao_pancy::set_bone_matrix(XMFLOAT4X4 *bone_matrix, int cnt_need)
+{
+	auto* shader_test = shader_list->get_shader_ssaodepthnormal();
+	HRESULT hr = shader_test->set_bone_matrix(bone_matrix, cnt_need);
+	if (FAILED(hr))
+	{
 		return hr;
 	}
 	return S_OK;
@@ -511,7 +587,7 @@ void ssao_pancy::release()
 	safe_release(randomtex);
 	safe_release(normaldepth_target);
 	safe_release(normaldepth_tex);
-	//safe_release(depthmap_target);
+	safe_release(depthmap_target);
 	safe_release(ambient_target0);
 	safe_release(ambient_tex0);
 	safe_release(ambient_target1);

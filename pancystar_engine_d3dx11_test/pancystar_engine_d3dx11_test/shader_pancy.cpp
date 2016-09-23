@@ -42,6 +42,22 @@ HRESULT shader_basic::get_technique(ID3DX11EffectTechnique** tech_need,LPCSTR te
 	input_need = NULL;
 	return S_OK;
 }
+HRESULT shader_basic::get_technique(D3D11_INPUT_ELEMENT_DESC member_point[], UINT num_member, ID3DX11EffectTechnique** tech_need, LPCSTR tech_name)
+{
+	*tech_need = fx_need->GetTechniqueByName(tech_name);
+	D3DX11_PASS_DESC pass_shade;
+	HRESULT hr2;
+	hr2 = (*tech_need)->GetPassByIndex(0)->GetDesc(&pass_shade);
+	HRESULT hr = device_pancy->CreateInputLayout(member_point, num_member, pass_shade.pIAInputSignature, pass_shade.IAInputSignatureSize, &input_need);
+	if (FAILED(hr))
+	{
+		return E_FAIL;
+	}
+	contex_pancy->IASetInputLayout(input_need);
+	input_need->Release();
+	input_need = NULL;
+	return S_OK;
+}
 HRESULT shader_basic::combile_shader(LPCWSTR filename)
 {
 	//创建shader
@@ -103,6 +119,7 @@ void light_pre::init_handle()
 	shadowmap_matrix_handle = fx_need->GetVariableByName("shadowmap_matrix")->AsMatrix();   //shadowmap矩阵变换句柄
 	ssao_matrix_handle = fx_need->GetVariableByName("ssao_matrix")->AsMatrix();             //ssao矩阵变换句柄
 																							//视点及材质
+	BoneTransforms = fx_need->GetVariableByName("gBoneTransforms")->AsMatrix();
 	view_pos_handle = fx_need->GetVariableByName("position_view");
 	material_need = fx_need->GetVariableByName("material_need");
 	//光照句柄
@@ -191,6 +208,15 @@ HRESULT light_pre::set_trans_ssao(XMFLOAT4X4 *mat_need)
 	}
 	return S_OK;
 }
+HRESULT light_pre::set_bone_matrix(const XMFLOAT4X4* M, int cnt)
+{
+	HRESULT hr = BoneTransforms->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
+	if (FAILED(hr)) 
+	{
+		return hr;
+	}
+	return S_OK;
+}
 HRESULT light_pre::set_material(pancy_material material_in)
 {
 	HRESULT hr = material_need->SetRawValue(&material_in, 0, sizeof(material_in));
@@ -269,6 +295,15 @@ HRESULT light_shadow::set_trans_all(XMFLOAT4X4 *mat_need)
 	}
 	return S_OK;
 }
+HRESULT light_shadow::set_bone_matrix(const XMFLOAT4X4* M, int cnt)
+{
+	HRESULT hr = BoneTransforms->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
 HRESULT light_shadow::set_texture(ID3D11ShaderResourceView *tex_in)
 {
 	HRESULT hr;
@@ -284,6 +319,7 @@ void light_shadow::init_handle()
 {
 	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();         //全套几何变换句柄
 	texture_need = fx_need->GetVariableByName("texture_diffuse")->AsShaderResource();
+	BoneTransforms = fx_need->GetVariableByName("gBoneTransforms")->AsMatrix();
 }
 void light_shadow::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
 {
@@ -315,6 +351,7 @@ void shader_ssaodepthnormal_map::init_handle()
 	world_matrix_handle = fx_need->GetVariableByName("world_matrix")->AsMatrix();
 	normal_matrix_handle = fx_need->GetVariableByName("normal_matrix")->AsMatrix();
 	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();
+	BoneTransforms = fx_need->GetVariableByName("gBoneTransforms")->AsMatrix();
 	texture_need = fx_need->GetVariableByName("texture_diffuse")->AsShaderResource();
 }
 HRESULT shader_ssaodepthnormal_map::set_trans_world(XMFLOAT4X4 *mat_world, XMFLOAT4X4 *mat_view)
@@ -360,6 +397,15 @@ HRESULT shader_ssaodepthnormal_map::set_texture(ID3D11ShaderResourceView *tex_in
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"set tex_normaldepth error in ssao depth normal part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_ssaodepthnormal_map::set_bone_matrix(const XMFLOAT4X4* M, int cnt)
+{
+	HRESULT hr = BoneTransforms->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
+	if (FAILED(hr))
+	{
 		return hr;
 	}
 	return S_OK;

@@ -52,6 +52,7 @@ public:
 	scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height);
 	HRESULT scene_create();
 	HRESULT display();
+	
 	HRESULT display_nopost();
 	HRESULT update(float delta_time);
 	HRESULT release();
@@ -65,4 +66,5 @@ private:
 	void draw_shadowmap();
 	void draw_ssaomap();
 	void show_fire_particle();
+	void show_yuri_animation();
 };
