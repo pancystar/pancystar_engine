@@ -26,6 +26,67 @@ HRESULT ssao_pancy::basic_create()
 	}
 	return S_OK;
 }
+void ssao_pancy::draw_ao(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix)
+{
+	//关闭alpha混合
+	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
+	set_normaldepth_target(NULL);
+	//绘制环境光遮蔽
+	for (auto now_rec = ssaomesh_list.begin(); now_rec != ssaomesh_list.end(); ++now_rec)
+	{
+		//半透明部分环境光遮蔽
+		if (now_rec._Ptr->check_if_trans() == true)
+		{
+			//设置世界变换矩阵
+			//shadowmap_deal->set_shaderresource(now_rec._Ptr->get_world_matrix());
+			//设置半透明纹理
+			//shadowmap_deal->set_transparent_tex(now_rec._Ptr->get_transparent_tex());
+			XMFLOAT4X4 final_matrix;
+			XMStoreFloat4x4(&final_matrix,XMLoadFloat4x4(&now_rec._Ptr->get_world_matrix()) * XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
+			set_normaldepth_mat(now_rec._Ptr->get_world_matrix(), view_matrix, final_matrix);
+			if (now_rec._Ptr->check_if_skin() == true)
+			{
+				set_bone_matrix(now_rec._Ptr->get_bone_matrix(), now_rec._Ptr->get_bone_num());
+				now_rec._Ptr->draw_transparent_part(get_technique_skin_transparent());
+			}
+			else
+			{
+				now_rec._Ptr->draw_transparent_part(get_technique_transparent());
+			}
+		}
+		//全部几何体的环境光遮蔽
+		else
+		{
+			//设置世界变换矩阵
+			XMFLOAT4X4 final_matrix;
+			XMStoreFloat4x4(&final_matrix, XMLoadFloat4x4(&now_rec._Ptr->get_world_matrix()) * XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
+			set_normaldepth_mat(now_rec._Ptr->get_world_matrix(), view_matrix, final_matrix);
+			if (now_rec._Ptr->check_if_skin() == true)
+			{
+				set_bone_matrix(now_rec._Ptr->get_bone_matrix(), now_rec._Ptr->get_bone_num());
+				now_rec._Ptr->draw_full_geometry(get_technique_skin());
+			}
+			else
+			{
+				now_rec._Ptr->draw_full_geometry(get_technique());
+			}
+
+		}
+	}
+	//还原渲染状态
+	contex_pancy->RSSetState(0);
+	//renderstate_lib->set_posttreatment_rendertarget();
+}
+void ssao_pancy::clear_mesh()
+{
+	ssaomesh_list.clear();
+}
+void ssao_pancy::add_mesh(geometry_shadow mesh_input)
+{
+	ssaomesh_list.push_back(mesh_input);
+}
+
 ID3DX11EffectTechnique* ssao_pancy::get_technique() 
 {
 	HRESULT hr;

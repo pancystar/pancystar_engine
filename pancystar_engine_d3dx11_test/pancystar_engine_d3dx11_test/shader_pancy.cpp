@@ -1248,6 +1248,78 @@ void shader_shadow_volume_draw::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *me
 		member_point[i] = rec[i];
 	}
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~草地公告板~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_grass::shader_grass(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT shader_grass::set_trans_all(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(project_matrix_handle, mat_need);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set particle matrix error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_grass::set_texture_diffuse(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = texture_need->SetResource(tex_in);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set billboard texture error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_grass::set_texture_normal(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = texture_normal->SetResource(tex_in);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set billboard texture error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_grass::set_texture_specular(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = texture_specular->SetResource(tex_in);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set billboard texture error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_grass::release()
+{
+	release_basic();
+}
+void shader_grass::init_handle()
+{
+	//纹理信息句柄
+	texture_need = fx_need->GetVariableByName("texture_first")->AsShaderResource();
+	texture_normal = fx_need->GetVariableByName("texture_normal")->AsShaderResource();
+	texture_specular = fx_need->GetVariableByName("texture_specular")->AsShaderResource();
+	//几何变换信息句柄
+	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();
+}
+void shader_grass::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "SIZE",     0, DXGI_FORMAT_R32G32_FLOAT,    0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全局shader管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_control::shader_control()
 {
@@ -1265,6 +1337,7 @@ shader_control::shader_control()
 	shader_HDR_final = NULL;
 	shader_shadowvolume = NULL;
 	shader_shadowvolume_draw = NULL;
+	shader_grass_billboard = NULL;
 }
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
@@ -1368,6 +1441,13 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 		MessageBox(0, L"an error when shadow volume shader created", L"tip", MB_OK);
 		return hr;
 	}
+	shader_grass_billboard = new shader_grass(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\cross_grass.cso", device_pancy, contex_pancy);
+	hr = shader_grass_billboard->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when grass billboard shader created", L"tip", MB_OK);
+		return hr;
+	}
 	return S_OK;
 }
 void shader_control::release()
@@ -1385,4 +1465,5 @@ void shader_control::release()
 	shader_HDR_blur->release();
 	shader_HDR_final->release();
 	particle_fire->release();
+	shader_grass_billboard->release();
 }

@@ -511,19 +511,23 @@ HRESULT mesh_mountain::find_point(pancy_point *vertex,UINT *index,int &num_verte
 //公告板
 mesh_billboard::mesh_billboard(ID3D11Device *device_need,ID3D11DeviceContext *contex_need):Geometry(device_need,contex_need)
 {
-	spirit_point  vertex_need[10];//顶点数据
-	find_point(vertex_need, NULL,all_vertex,all_index);
-	init_point(vertex_need, NULL);
+	all_vertex = 500;
 }
 HRESULT mesh_billboard::find_point(spirit_point *vertex,UINT *index,int &num_vertex,int &num_index)
 {
 	num_index = 0;
-	num_vertex = 1;
-	vertex[0].position.x = 0.0f;
-	vertex[0].position.y = -2.3f;
-	vertex[0].position.z = 2.0f;
-	vertex[0].size.x = 2.0f;
-	vertex[0].size.y = 2.0f;
+	num_vertex = 256;
+	for (int i = 0; i < 16; ++i) 
+	{
+		for (int j = 0; j < 16; ++j) 
+		{
+			vertex[i * 16 + j].position.x = 0.0f+ 0.5f*j;
+			vertex[i * 16 + j].position.y = 0.3f;
+			vertex[i * 16 + j].position.z = 4.0f - 0.5f*i;
+			vertex[i * 16 + j].size.x = 0.5f;
+			vertex[i * 16 + j].size.y = 0.5f;
+		}
+	}
 	return S_OK;
 }
 void mesh_billboard::show_mesh() 
@@ -539,7 +543,7 @@ void mesh_billboard::show_mesh()
 	for (UINT i = 0; i<techDesc.Passes; ++i)
 	{
 		teque_pancy->GetPassByIndex(i)->Apply(0, contex_pancy);
-		contex_pancy->Draw(1, 0);
+		contex_pancy->Draw(all_vertex, 0);
 	}
 }
 HRESULT mesh_billboard::init_point(spirit_point *vertex,UINT *index)
@@ -565,9 +569,6 @@ HRESULT mesh_billboard::init_point(spirit_point *vertex,UINT *index)
 //细分曲面(四边形测试)
 mesh_square_tessellation::mesh_square_tessellation(ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :Geometry(device_need, contex_need)
 {
-	point_with_tangent  vertex_need[10];//顶点数据
-	find_point(vertex_need, NULL, all_vertex, all_index);
-	init_point(vertex_need, NULL);
 }
 HRESULT mesh_square_tessellation::find_point(point_with_tangent *vertex, UINT *index, int &num_vertex, int &num_index)
 {

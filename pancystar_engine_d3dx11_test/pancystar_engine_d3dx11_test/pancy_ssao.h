@@ -3,6 +3,7 @@
 #include"shader_pancy.h"
 #include"geometry.h"
 #include"pancy_DXrenderstate.h"
+#include"pancy_model_import.h"
 class ssao_pancy
 {
 	int                      map_width;
@@ -30,11 +31,15 @@ class ssao_pancy
 	D3D11_VIEWPORT           render_viewport;      //视口信息
 
 	shader_control           *shader_list;         //shader表
-	//ID3DX11EffectTechnique   *teque_need;          //通用渲染路径
-	//ID3DX11EffectTechnique   *teque_transparent;   //半透明渲染路径
+	std::vector<geometry_shadow> ssaomesh_list;    //深度模板渲染表
+	//ID3DX11EffectTechnique   *teque_need;        //通用渲染路径
+	//ID3DX11EffectTechnique   *teque_transparent; //半透明渲染路径
 public:
 	ssao_pancy(pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, int width, int height, float fovy, float farZ);
 	HRESULT basic_create();
+	void draw_ao(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix);
+	void clear_mesh();
+	void add_mesh(geometry_shadow mesh_input);
 	void set_normaldepth_target(ID3D11DepthStencilView* dsv);
 	HRESULT set_normaldepth_mat(XMFLOAT4X4 world_mat, XMFLOAT4X4 view_mat, XMFLOAT4X4 final_mat);
 	HRESULT set_bone_matrix(XMFLOAT4X4 *bone_matrix, int cnt_need);

@@ -348,6 +348,24 @@ private:
 	void init_handle();                 //注册全局变量句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~grass_billboard~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_grass : public shader_basic
+{
+	ID3DX11EffectMatrixVariable *project_matrix_handle; //全套几何变换句柄
+	ID3DX11EffectShaderResourceVariable   *texture_need;
+	ID3DX11EffectShaderResourceVariable   *texture_normal;
+	ID3DX11EffectShaderResourceVariable   *texture_specular;
+public:
+	shader_grass(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);        //设置总变换
+	HRESULT set_texture_diffuse(ID3D11ShaderResourceView *tex_in);
+	HRESULT set_texture_normal(ID3D11ShaderResourceView *tex_in);
+	HRESULT set_texture_specular(ID3D11ShaderResourceView *tex_in);
+	void release();
+private:
+	void init_handle();                 //注册全局变量句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shader list~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_control
 {
@@ -364,6 +382,7 @@ class shader_control
 	shader_HDRblur             *shader_HDR_blur;           //HDR高光模糊
 	shader_HDRfinal            *shader_HDR_final;          //HDR最终结果
 	shader_particle            *particle_fire;             //粒子系统着色器
+	shader_grass               *shader_grass_billboard;    //草地公告板
 	shader_basic *shader_light_deferred;
 public:
 	shader_control();
@@ -381,6 +400,7 @@ public:
 	shader_HDRblur*             get_shader_HDRblur() { return shader_HDR_blur; };
 	shader_HDRfinal*            get_shader_HDRfinal() { return shader_HDR_final; };
 	shader_particle*            get_shader_fireparticle() { return particle_fire; };
+	shader_grass*               get_shader_grass_billboard() { return shader_grass_billboard; };
 	
 	void release();
 };

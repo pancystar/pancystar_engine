@@ -151,9 +151,11 @@
     <FxCompile Include="shadow_volume_draw.fx">
       <Filter>源文件</Filter>
     </FxCompile>
+    <FxCompile Include="cross_grass.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="ClassDiagram.cd" />
-    <None Include="ClassDiagram1.cd" />
+    <None Include="ClassDiagram2.cd" />
   </ItemGroup>
 </Project>

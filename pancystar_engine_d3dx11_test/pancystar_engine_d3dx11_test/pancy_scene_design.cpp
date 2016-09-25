@@ -112,14 +112,13 @@ HRESULT scene_engine_test::display()
 	contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH, 1.f, 0);
 	renderstate_lib->set_posttreatment_rendertarget(ssao_part->get_depthstencilmap());
 	show_ball();
-	
-	
 	show_lightsource();
 	show_floor();
 	show_castel();
-	show_aotestproj();
+	//show_aotestproj();
 	//show_yuri();
 	show_yuri_animation();
+	show_billboard();
 	//清空深度模板缓冲，在AO绘制阶段记录下深度信息
 	contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 	draw_ssaomap();
@@ -441,6 +440,9 @@ void scene_engine_test::show_yuri_animation()
 		rec_shadow_light._Ptr->add_mesh(rec_mesh_need);
 		rec_shadow_light._Ptr->add_mesh(rec_mesh_need_trans);
 	}
+	//设置ssao
+	ssao_part->add_mesh(rec_mesh_need);
+	ssao_part->add_mesh(rec_mesh_need_trans);
 	//设置阴影体
 	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
 	{
@@ -548,6 +550,8 @@ void scene_engine_test::show_castel()
 	{
 		//rec_shadow_light._Ptr->add_mesh(rec_mesh_need);
 	}
+	//设置ssao
+	ssao_part->add_mesh(rec_mesh_need);
 }
 void scene_engine_test::show_ball()
 {
@@ -665,7 +669,7 @@ void scene_engine_test::show_floor()
 	XMMATRIX rec_world;
 	XMFLOAT4X4 world_matrix;
 	trans_world = XMMatrixTranslation(0.0f, -1.2f, 0.0f);
-	scal_world = XMMatrixScaling(15.0f, 0.55f, 15.0f);
+	scal_world = XMMatrixScaling(35.0f, 0.55f, 35.0f);
 
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
@@ -787,61 +791,10 @@ void scene_engine_test::show_aotestproj()
 }
 void scene_engine_test::draw_shadowmap()
 {
-	/*
-	contex_pancy->RSSetState(renderstate_lib->get_CULL_front_rs());
-	XMFLOAT3 position = XMFLOAT3(0.0, 5.0, 5.0);
-	XMFLOAT3 dir = XMFLOAT3(0.0, -1.0, -1.0);
-
-	BoundingSphere  cube_range;
-	cube_range.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	cube_range.Radius = sqrtf(1.0f*1.0f + 1.0f*1.0f);
-	//shadowmap_part->set_renderstate(position, dir, cube_range, spot_light);
-	//engine_state->set_posttreatment_rendertarget();
-	//设定球体世界变换
-	XMMATRIX trans_world;
-	XMMATRIX scal_world;
-	XMMATRIX rec_world;
-	XMFLOAT4X4 world_matrix;
-	XMMATRIX rotation_world;
-	//设定yuri世界变换
-	trans_world = XMMatrixTranslation(0.0, 0.0, 0.5);
-	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-	rotation_world = XMMatrixRotationY(3.141592653f);
-	rec_world = scal_world * rotation_world* trans_world;
-	XMStoreFloat4x4(&world_matrix, rec_world);
-	//shadowmap_part->set_shaderresource(world_matrix);
-	//model_yuri->get_technique(shadowmap_part->get_technique());
-	//model_yuri->draw_mesh();
-	material_list rec_need;
-	model_yuri->get_texture(&rec_need, 3);
-	//shadowmap_part->set_transparent_tex(rec_need.tex_diffuse_resource);
-	//model_yuri->draw_part(3);
-	//设定ao测试板世界变换
-	trans_world = XMMatrixTranslation(0.0f, 0.0f, -1.1f);
-	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-
-	rec_world = scal_world * trans_world;
-	XMStoreFloat4x4(&world_matrix, rec_world);
-//	shadowmap_part->set_shaderresource(world_matrix);
-	//floor_need->get_teque(shadowmap_part->get_technique());
-	//floor_need->show_mesh();
-
-	
-	//设定地面世界变换
-	trans_world = XMMatrixTranslation(0.0f, -1.2f, 0.0f);
-	scal_world = XMMatrixScaling(15.0f, 0.55f, 15.0f);
-
-	rec_world = scal_world * trans_world;
-	XMStoreFloat4x4(&world_matrix, rec_world);
-	//shadowmap_part->set_shaderresource(world_matrix);
-	//floor_need->get_teque(shadowmap_part->get_technique());
-	//floor_need->show_mesh();
-	*/
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
 		rec_shadow_light._Ptr->draw_shadow();
 	}
-	//renderstate_lib->set_posttreatment_rendertarget();
 	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
 	{
 		rec_shadow_volume._Ptr->build_shadow(ssao_part->get_depthstencilmap());
@@ -851,98 +804,10 @@ void scene_engine_test::draw_shadowmap()
 }
 void scene_engine_test::draw_ssaomap()
 {
-	auto* model_yuri = geometry_lib->get_yuri_animation();
-	auto* floor_need = geometry_lib->get_floor_geometry();
-	auto* model_castel = geometry_lib->get_castel();
-	ssao_part->set_normaldepth_target(NULL);
-	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
-	//设定球体世界变换
-	XMMATRIX trans_world;
-	XMMATRIX scal_world;
-	XMMATRIX rotation_world;
-	XMMATRIX rec_world;
-	XMFLOAT4X4 world_matrix;
-	XMFLOAT4X4 final_matrix;
-	//设定总变换
-	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
-	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
-	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
-	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
-
-	//设定yuri世界变换
-	trans_world = XMMatrixTranslation(0.0, 0.0, 0.5);
-	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-	rotation_world = XMMatrixRotationY(3.141592653f);
-	rec_world = scal_world * rotation_world* trans_world;
-	XMStoreFloat4x4(&world_matrix, rec_world);
-	//设定总变换
-	world_matrix_rec = XMLoadFloat4x4(&world_matrix);
-	worldViewProj = world_matrix_rec*view*proj;
-	XMStoreFloat4x4(&final_matrix, worldViewProj);
-	ssao_part->set_normaldepth_mat(world_matrix, view_matrix, final_matrix);
-
-	XMFLOAT4X4 *rec_bonematrix = model_yuri->get_bone_matrix();
-	ssao_part->set_bone_matrix(rec_bonematrix, 100);
-	model_yuri->get_technique(ssao_part->get_technique_skin());
-	model_yuri->draw_mesh();
-
-	model_yuri->get_technique(ssao_part->get_technique_skin_transparent());
-	material_list rec_need;
-	model_yuri->get_texture(&rec_need, 3);
-	ssao_part->set_transparent_tex(rec_need.tex_diffuse_resource);
-	model_yuri->draw_part(3);
-	//model_yuri->get_technique();
-	//设定地面世界变换
-	trans_world = XMMatrixTranslation(0.0f, -1.2f, 0.0f);
-	scal_world = XMMatrixScaling(15.0f, 0.55f, 15.0f);
-
-	rec_world = scal_world * trans_world;
-	XMStoreFloat4x4(&world_matrix, rec_world);
-	//设定总变换
-	world_matrix_rec = XMLoadFloat4x4(&world_matrix);
-	worldViewProj = world_matrix_rec*view*proj;
-	XMStoreFloat4x4(&final_matrix, worldViewProj);
-	ssao_part->set_normaldepth_mat(world_matrix, view_matrix, final_matrix);
-	floor_need->get_teque(ssao_part->get_technique());
-	floor_need->show_mesh();
-
-	//设定ao测试板世界变换
-	trans_world = XMMatrixTranslation(0.0f, 0.0f, -1.1f);
-	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-
-	rec_world = scal_world * trans_world;
-	XMStoreFloat4x4(&world_matrix, rec_world);
-	//设定总变换
-	world_matrix_rec = XMLoadFloat4x4(&world_matrix);
-	worldViewProj = world_matrix_rec*view*proj;
-	XMStoreFloat4x4(&final_matrix, worldViewProj);
-	ssao_part->set_normaldepth_mat(world_matrix, view_matrix, final_matrix);
-	floor_need->get_teque(ssao_part->get_technique());
-	floor_need->show_mesh();
-
-
-
-	//设定世界变换
-	trans_world = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
-	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-
-	rec_world = scal_world * trans_world;
-	XMStoreFloat4x4(&world_matrix, rec_world);
-	//设定总变换
-	world_matrix_rec = XMLoadFloat4x4(&world_matrix);
-	worldViewProj = world_matrix_rec*view*proj;
-	XMStoreFloat4x4(&final_matrix, worldViewProj);
-	ssao_part->set_normaldepth_mat(world_matrix, view_matrix, final_matrix);
-	model_castel->get_technique(ssao_part->get_technique());
-	model_castel->draw_mesh();
-
-
+	ssao_part->draw_ao(view_matrix,proj_matrix);
 	ssao_part->compute_ssaomap();
 	ssao_part->blur_ssaomap();
 	renderstate_lib->set_posttreatment_rendertarget();
-	//ssao_part->check_ssaomap();
-	//engine_state->set_posttreatment_rendertarget();
 }
 void scene_engine_test::show_fire_particle()
 {
@@ -954,6 +819,23 @@ void scene_engine_test::show_fire_particle()
 	contex_pancy->RSSetState(0);
 	contex_pancy->OMSetDepthStencilState(0, 0);
 	contex_pancy->OMSetBlendState(0, blendFactor, 0xffffffff);
+}
+void scene_engine_test::show_billboard() 
+{
+	contex_pancy->RSSetState(renderstate_lib->get_CULL_none_rs());
+	auto* shader_test = shader_lib->get_shader_grass_billboard();
+	auto* floor_need = geometry_lib->get_grass_common();
+	shader_test->set_texture_diffuse(geometry_lib->get_grass_tex());
+	shader_test->set_texture_normal(geometry_lib->get_grassnormal_tex());
+	shader_test->set_texture_specular(geometry_lib->get_grassspec_tex());
+	XMFLOAT4X4 rec_mat;
+	XMStoreFloat4x4(&rec_mat,XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
+	shader_test->set_trans_all(&rec_mat);
+	ID3DX11EffectTechnique *teque_need;
+	shader_test->get_technique(&teque_need, "draw_with_tex");
+	floor_need->get_teque(teque_need);
+	floor_need->show_mesh();
+	contex_pancy->RSSetState(NULL);
 }
 HRESULT scene_engine_test::update(float delta_time)
 {
@@ -994,6 +876,8 @@ HRESULT scene_engine_test::update(float delta_time)
 		rec_shadow_volume._Ptr->clear_mesh();
 		rec_shadow_volume._Ptr->update_view_proj_matrix(view_proj);
 	}
+	//性能隐患！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+	ssao_part->clear_mesh();
 	auto* model_yuri = geometry_lib->get_yuri_animation();
 	model_yuri->update_animation(delta_time * 20);
 	return S_OK;

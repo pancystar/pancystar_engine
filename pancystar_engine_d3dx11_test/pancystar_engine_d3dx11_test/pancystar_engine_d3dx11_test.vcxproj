@@ -204,6 +204,7 @@
     <ClCompile Include="shader_pancy.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="cross_grass.fx" />
     <FxCompile Include="fire.fx" />
     <FxCompile Include="HDR_average_pass.fx" />
     <FxCompile Include="HDR_blur_pass.fx" />
@@ -222,8 +223,7 @@
     <FxCompile Include="ssao_normaldepth_map.fx" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="ClassDiagram.cd" />
-    <None Include="ClassDiagram1.cd" />
+    <None Include="ClassDiagram2.cd" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

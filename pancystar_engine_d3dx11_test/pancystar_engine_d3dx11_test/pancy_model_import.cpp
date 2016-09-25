@@ -252,18 +252,31 @@ geometry_control::geometry_control(ID3D11Device *device_need, ID3D11DeviceContex
 	contex_pancy = contex_need;
 	floor_need = new mesh_cubewithtargent(device_need, contex_need);
 	sky_need = new mesh_ball(device_need, contex_need, 50, 50);
+	grass_billboard = new mesh_billboard(device_need, contex_need);
 	yuri_model = new model_reader_assimp<point_with_tangent>(device_need, contex_need, "yurimodel\\yuri.obj", "yurimodel\\");
 	castel_model = new model_reader_assimp<point_with_tangent>(device_need, contex_need, "castelmodel\\castel.obj", "castelmodel\\");
 	yuri_animation_model = new skin_mesh(device_need, contex_need, "yurimodel_skin\\yuri.FBX", "yurimodel_skin\\");
+
 	tex_floor = NULL;
 	tex_normal = NULL;
 	tex_skycube = NULL;
+
+	tex_grass = NULL;
+	tex_grassnormal = NULL;
+	tex_grassspec = NULL;
 }
 HRESULT geometry_control::create()
 {
 	HRESULT hr_need;
 	//盒子模型(地面)
 	hr_need = floor_need->create_object();
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load object error", L"tip", MB_OK);
+		return hr_need;
+	}
+	//草地模型
+	hr_need = grass_billboard->create_object();
 	if (FAILED(hr_need))
 	{
 		MessageBox(0, L"load object error", L"tip", MB_OK);
@@ -316,6 +329,25 @@ HRESULT geometry_control::create()
 		MessageBox(0, L"load texture file error", L"tip", MB_OK);
 		return hr_need;
 	}
+
+	hr_need = CreateDDSTextureFromFile(device_pancy, L"RoughBlades.dds", 0, &tex_grass, 0, 0);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load texture file error", L"tip", MB_OK);
+		return hr_need;
+	}
+	hr_need = CreateDDSTextureFromFile(device_pancy, L"RoughBlades_Normal.dds", 0, &tex_grassnormal, 0, 0);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load texture file error", L"tip", MB_OK);
+		return hr_need;
+	}
+	hr_need = CreateDDSTextureFromFile(device_pancy, L"RoughBlades_Spec.dds", 0, &tex_grassspec, 0, 0);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load texture file error", L"tip", MB_OK);
+		return hr_need;
+	}
 	return S_OK;
 }
 void geometry_control::release()
@@ -328,6 +360,10 @@ void geometry_control::release()
 	yuri_animation_model->release();
 	castel_model->release();
 	sky_need->release();
+	grass_billboard->release();
+	tex_grass->Release();
+	tex_grassnormal->Release();
+	tex_grassspec->Release();
 }
 
 
