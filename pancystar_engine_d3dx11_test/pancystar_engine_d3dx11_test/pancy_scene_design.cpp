@@ -14,7 +14,7 @@ scene_root::scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_ne
 	time_game = 0.0f;
 	//初始化投影以及取景变换矩阵
 	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, scene_window_width*1.0f / scene_window_height*1.0f, 0.1f, 300.f);
-	ssao_part = new ssao_pancy(render_state,device_need, contex_need, shader_lib, scene_window_width, scene_window_height, XM_PI*0.25f, 300.0f);
+	ssao_part = new ssao_pancy(render_state,device_need, contex_need, shader_lib,geometry_lib,scene_window_width, scene_window_height, XM_PI*0.25f, 300.0f);
 	XMStoreFloat4x4(&proj_matrix, proj);
 	XMMATRIX iden = XMMatrixIdentity();
 	XMStoreFloat4x4(&view_matrix, iden);
@@ -74,10 +74,10 @@ scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceCont
 HRESULT scene_engine_test::scene_create()
 {
 	HRESULT hr_need;
-	basic_lighting rec_need(point_light,shadow_none,shader_lib,device_pancy,contex_pancy,renderstate_lib);
+	basic_lighting rec_need(point_light,shadow_none,shader_lib,device_pancy,contex_pancy,renderstate_lib, geometry_lib);
 	nonshadow_light_list.push_back(rec_need);
 
-	light_with_shadowmap rec_shadow(spot_light, shadow_map, shader_lib, device_pancy, contex_pancy, renderstate_lib);
+	light_with_shadowmap rec_shadow(spot_light, shadow_map, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
 	hr_need = rec_shadow.create(1024, 1024);
 	if (FAILED(hr_need))
 	{
@@ -109,6 +109,9 @@ HRESULT scene_engine_test::scene_create()
 }
 HRESULT scene_engine_test::display()
 {
+	contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
+	draw_ssaomap();
+	draw_shadowmap();
 	contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH, 1.f, 0);
 	renderstate_lib->set_posttreatment_rendertarget(ssao_part->get_depthstencilmap());
 	show_ball();
@@ -120,11 +123,6 @@ HRESULT scene_engine_test::display()
 	show_yuri_animation();
 	show_billboard();
 	//清空深度模板缓冲，在AO绘制阶段记录下深度信息
-	contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
-	draw_ssaomap();
-	draw_shadowmap();
-	
-
 	//show_fire_particle();
 	return S_OK;
 }
@@ -134,152 +132,13 @@ HRESULT scene_engine_test::display_nopost()
 	show_fire_particle();
 	return S_OK;
 }
-void scene_engine_test::show_yuri()
-{
-
-	auto* shader_test = shader_lib->get_shader_prelight();
-	auto* model_yuri = geometry_lib->get_yuri();
-	//选定绘制路径
-	ID3DX11EffectTechnique *teque_need, *teque_normal,*teque_hair;
-	shader_test->get_technique(&teque_need, "draw_withshadowssao");
-	shader_test->get_technique(&teque_normal, "draw_withshadowssaonormal");
-	shader_test->get_technique(&teque_hair, "draw_hair");
-	//地面的材质
-	pancy_material test_Mt;
-	XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_specular2(0.0f, 0.0f, 0.0f, 1.0f);
-	test_Mt.ambient = rec_ambient2;
-	test_Mt.diffuse = rec_diffuse2;
-	test_Mt.specular = rec_specular2;
-	shader_test->set_material(test_Mt);
-
-
-	//设定世界变换
-	XMMATRIX trans_world;
-	XMMATRIX scal_world;
-	XMMATRIX rotation_world;
-	XMMATRIX rec_world;
-	XMFLOAT4X4 world_matrix;
-	trans_world = XMMatrixTranslation(0.0, 0.0, 0.5);
-	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-	rotation_world = XMMatrixRotationY(3.141592653f);
-	rec_world = scal_world * rotation_world * trans_world;
-	XMStoreFloat4x4(&world_matrix, rec_world);
-	shader_test->set_trans_world(&world_matrix);
-
-	
-	//设定阴影变换以及阴影贴图
-	
-	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
-	{
-		XMFLOAT4X4 shadow_matrix_pre = rec_shadow_light._Ptr->get_ViewProjTex_matrix();
-
-		XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
-		shadow_matrix = rec_world * shadow_matrix;
-		XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
-		shader_test->set_trans_shadow(&shadow_matrix_pre);
-		shader_test->set_shadowtex(rec_shadow_light._Ptr->get_mapresource());
-	}
-	/*
-	XMFLOAT4X4 shadow_matrix_pre = shadowmap_part->get_ViewProjTex_matrix();
-	XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
-	shadow_matrix = rec_world * shadow_matrix;
-	XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
-	shader_test->set_trans_shadow(&shadow_matrix_pre);
-	shader_test->set_shadowtex(shadowmap_part->get_mapresource());
-	*/
-	//设定总变换
-	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
-	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
-	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
-
-	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
-	XMFLOAT4X4 world_viewrec;
-	XMStoreFloat4x4(&world_viewrec, worldViewProj);
-	shader_test->set_trans_all(&world_viewrec);
-	//设定ssao变换及贴图
-	XMMATRIX T_need(
-		0.5f, 0.0f, 0.0f, 0.0f,
-		0.0f, -0.5f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.5f, 0.5f, 0.0f, 1.0f
-		);
-	XMFLOAT4X4 ssao_matrix;
-	XMStoreFloat4x4(&ssao_matrix, worldViewProj*T_need);
-	shader_test->set_trans_ssao(&ssao_matrix);
-	shader_test->set_ssaotex(ssao_part->get_aomap());
-	//获取渲染路径并渲染
-	//model_yuri->get_technique(teque_need);
-	//model_yuri->draw_mesh();
-	int yuri_render_order[11] = { 4,5,6,7,8,9,10,3,0,2,1 };
-	for (int i = 0; i < 7; ++i)
-	{
-		//纹理设定
-		material_list rec_need;
-		model_yuri->get_texture(&rec_need, yuri_render_order[i]);
-		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
-		if (rec_need.texture_normal_resource != NULL) 
-		{
-			model_yuri->get_technique(teque_normal);
-			shader_test->set_normaltex(rec_need.texture_normal_resource);
-		}
-		else 
-		{
-			model_yuri->get_technique(teque_need);
-		}
-		//shader_test->set_normaltex(tex_normal);
-		model_yuri->draw_part(yuri_render_order[i]);
-	}		
-	//alpha混合设定
-	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-	contex_pancy->OMSetBlendState(renderstate_lib->get_blend_common(), blendFactor, 0xffffffff);
-	for (int i = 8; i < model_yuri->get_meshnum(); ++i) 
-	{
-		//纹理设定
-		material_list rec_need;
-		model_yuri->get_texture(&rec_need, yuri_render_order[i]);
-		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
-		if (rec_need.texture_normal_resource != NULL)
-		{
-			model_yuri->get_technique(teque_normal);
-			shader_test->set_normaltex(rec_need.texture_normal_resource);
-		}
-		else
-		{
-			model_yuri->get_technique(teque_need);
-		}
-		model_yuri->draw_part(yuri_render_order[i]);
-	}
-	//绘制头发
-	
-	model_yuri->get_technique(teque_hair);
-	material_list rec_need;
-	model_yuri->get_texture(&rec_need, yuri_render_order[7]);
-	shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
-	shader_test->set_normaltex(rec_need.texture_normal_resource);
-	model_yuri->draw_part(yuri_render_order[7]);
-	contex_pancy->OMSetDepthStencilState(NULL,0);
-	contex_pancy->OMSetBlendState(0, blendFactor, 0xffffffff);
-	//设置阴影部分
-	geometry_shadow rec_mesh_need(model_yuri,false,false,-1, world_matrix,0,NULL,NULL);
-	geometry_shadow rec_mesh_need_trans(model_yuri, false, true, yuri_render_order[7], world_matrix,NULL,0, rec_need.tex_diffuse_resource);
-	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
-	{
-		rec_shadow_light._Ptr->add_mesh(rec_mesh_need);
-		rec_shadow_light._Ptr->add_mesh(rec_mesh_need_trans);
-	}
-	//设置阴影体
-	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
-	{
-		rec_shadow_volume._Ptr->add_mesh(rec_mesh_need);
-	}
-	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
-}
 void scene_engine_test::show_yuri_animation() 
 {
 	auto* shader_test = shader_lib->get_shader_prelight();
-	auto* model_yuri = geometry_lib->get_yuri_animation();
+	//几何体的打包(动画)属性
+	auto* model_yuri_pack = geometry_lib->get_model_list()->get_geometry_byname("model_yuri");
+	//几何体的固有属性
+	auto* model_yuri = model_yuri_pack->get_geometry_data();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need, *teque_normal, *teque_hair;
 	//设置顶点声明
@@ -307,28 +166,17 @@ void scene_engine_test::show_yuri_animation()
 	test_Mt.diffuse = rec_diffuse2;
 	test_Mt.specular = rec_specular2;
 	shader_test->set_material(test_Mt);
-
-
 	//设定世界变换
-	XMMATRIX trans_world;
-	XMMATRIX scal_world;
-	XMMATRIX rotation_world;
 	XMMATRIX rec_world;
 	XMFLOAT4X4 world_matrix;
-	trans_world = XMMatrixTranslation(0.0, 0.0, 0.5);
-	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-	rotation_world = XMMatrixRotationY(3.141592653f);
-	rec_world = scal_world * rotation_world * trans_world;
+	world_matrix = model_yuri_pack->get_world_matrix();
+	rec_world = XMLoadFloat4x4(&world_matrix);
 	XMStoreFloat4x4(&world_matrix, rec_world);
 	shader_test->set_trans_world(&world_matrix);
-
-
 	//设定阴影变换以及阴影贴图
-
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
 		XMFLOAT4X4 shadow_matrix_pre = rec_shadow_light._Ptr->get_ViewProjTex_matrix();
-
 		XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
 		shadow_matrix = rec_world * shadow_matrix;
 		XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
@@ -367,9 +215,8 @@ void scene_engine_test::show_yuri_animation()
 	//model_yuri->get_technique(teque_need);
 	//model_yuri->draw_mesh();
 	int yuri_render_order[11] = { 4,5,6,7,8,9,10,3,0,2,1 };
-	model_yuri->update_mesh_offset();
-	XMFLOAT4X4 *rec_bonematrix = model_yuri->get_bone_matrix();
-	shader_test->set_bone_matrix(rec_bonematrix, 100);
+	XMFLOAT4X4 *rec_bonematrix = model_yuri_pack->get_bone_matrix();
+	shader_test->set_bone_matrix(rec_bonematrix, model_yuri_pack->get_bone_num());
 	for (int i = 0; i < 7; ++i)
 	{
 		//int num_bone;
@@ -432,9 +279,10 @@ void scene_engine_test::show_yuri_animation()
 	model_yuri->draw_part(yuri_render_order[7]);
 	contex_pancy->OMSetDepthStencilState(NULL, 0);
 	contex_pancy->OMSetBlendState(0, blendFactor, 0xffffffff);
+	/*
 	//设置阴影部分
-	geometry_shadow rec_mesh_need(model_yuri,true, false, -1, world_matrix, rec_bonematrix,100, NULL);
-	geometry_shadow rec_mesh_need_trans(model_yuri, true, true, yuri_render_order[7], world_matrix, rec_bonematrix, 100, rec_need.tex_diffuse_resource);
+	geometry_member rec_mesh_need(model_yuri,true, false, -1, world_matrix, rec_bonematrix,100, NULL);
+	geometry_member rec_mesh_need_trans(model_yuri, true, true, yuri_render_order[7], world_matrix, rec_bonematrix, 100, rec_need.tex_diffuse_resource);
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
 		rec_shadow_light._Ptr->add_mesh(rec_mesh_need);
@@ -448,12 +296,16 @@ void scene_engine_test::show_yuri_animation()
 	{
 		rec_shadow_volume._Ptr->add_mesh(rec_mesh_need);
 	}
+	*/
 	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
 }
 void scene_engine_test::show_castel()
 {
 	auto* shader_test = shader_lib->get_shader_prelight();
-	auto* model_castel = geometry_lib->get_castel();
+	//几何体的打包(动画)属性
+	auto* model_castel_pack = geometry_lib->get_model_list()->get_geometry_byname("model_castel");
+	//几何体的固有属性
+	auto* model_castel = model_castel_pack->get_geometry_data();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need,*teque_normal;
 	shader_test->get_technique(&teque_need, "draw_withshadowssao");
@@ -470,18 +322,21 @@ void scene_engine_test::show_castel()
 
 
 	//设定世界变换
+	/*
 	XMMATRIX trans_world;
 	XMMATRIX scal_world;
 	XMMATRIX rotation_world;
 	XMMATRIX rec_world;
-	XMFLOAT4X4 world_matrix;
+	
 	trans_world = XMMatrixTranslation(0.0, 0.0, 0.0);
 	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
+	*/
+	
+	XMFLOAT4X4 world_matrix = model_castel_pack->get_world_matrix();
+	XMMATRIX rec_world = XMLoadFloat4x4(&model_castel_pack->get_world_matrix());
 	shader_test->set_trans_world(&world_matrix);
-
 	//设定阴影变换以及阴影贴图
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
@@ -505,9 +360,7 @@ void scene_engine_test::show_castel()
 	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
 	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
 	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
-
 	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
-
 	XMFLOAT4X4 world_viewrec;
 	XMStoreFloat4x4(&world_viewrec, worldViewProj);
 	shader_test->set_trans_all(&world_viewrec);
@@ -544,14 +397,16 @@ void scene_engine_test::show_castel()
 		//shader_test->set_normaltex(tex_normal);
 		model_castel->draw_part(i);
 	}
+	/*
 	//设置阴影部分
-	geometry_shadow rec_mesh_need(model_castel, false, false, -1, world_matrix,0,NULL, NULL);
+	geometry_member rec_mesh_need(model_castel, false, false, -1, world_matrix,0,NULL, NULL);
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
 		//rec_shadow_light._Ptr->add_mesh(rec_mesh_need);
 	}
 	//设置ssao
 	ssao_part->add_mesh(rec_mesh_need);
+	*/
 }
 void scene_engine_test::show_ball()
 {
@@ -839,6 +694,7 @@ void scene_engine_test::show_billboard()
 }
 HRESULT scene_engine_test::update(float delta_time)
 {
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~更新场景摄像机~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	HRESULT hr = camera_move();
 	if (hr != S_OK)
 	{
@@ -849,13 +705,34 @@ HRESULT scene_engine_test::update(float delta_time)
 	scene_camera->get_view_position(&eyePos_rec);
 	auto* shader_test = shader_lib->get_shader_prelight();
 	shader_test->set_view_pos(eyePos_rec);
+	auto* shader_grass = shader_lib->get_shader_grass_billboard();
+	shader_grass->set_view_pos(eyePos_rec);
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~更新几何体世界变换~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	auto* model_list = geometry_lib->get_model_list();
+	//更新yuri世界变换
+	XMMATRIX trans_world;
+	XMMATRIX scal_world;
+	XMMATRIX rotation_world;
+	XMMATRIX rec_world;
+	XMFLOAT4X4 world_matrix;
+	trans_world = XMMatrixTranslation(0.0, 0.0, 0.5);
+	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
+	rotation_world = XMMatrixRotationY(3.141592653f);
+	rec_world = scal_world * rotation_world * trans_world;
+	XMStoreFloat4x4(&world_matrix, rec_world);
+	model_list->update_geometry_byname("model_yuri", world_matrix, delta_time);
+	model_list->update_geometry_byname("model_yuri_trans", world_matrix, delta_time);
+	//更新castel世界变换
+	trans_world = XMMatrixTranslation(0.0, 0.0, 0.0);
+	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
+	rec_world = scal_world * trans_world;
+	XMStoreFloat4x4(&world_matrix, rec_world);
+	model_list->update_geometry_byname("model_castel", world_matrix, delta_time);
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~设置shadowmap光源~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	int count = 0;
-	
-	//设置shadowmap光源
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
 		rec_shadow_light._Ptr->set_frontlight(count++);
-		rec_shadow_light._Ptr->clear_mesh();
 	}
 	
 	//设置无影光源
@@ -872,14 +749,11 @@ HRESULT scene_engine_test::update(float delta_time)
 	//设置shadowvolume光源
 	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
 	{
-		rec_shadow_volume._Ptr->set_frontlight(count++);
-		rec_shadow_volume._Ptr->clear_mesh();
+		//rec_shadow_volume._Ptr->set_frontlight(count++);
 		rec_shadow_volume._Ptr->update_view_proj_matrix(view_proj);
 	}
 	//性能隐患！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
 	ssao_part->clear_mesh();
-	auto* model_yuri = geometry_lib->get_yuri_animation();
-	model_yuri->update_animation(delta_time * 20);
 	return S_OK;
 }
 HRESULT scene_engine_test::release()

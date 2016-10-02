@@ -61,7 +61,6 @@ private:
 	void show_ball();
 	void show_floor();
 	void show_aotestproj();
-	void show_yuri();
 	void show_castel();
 	void show_lightsource();
 	void draw_shadowmap();

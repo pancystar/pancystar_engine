@@ -1292,6 +1292,16 @@ HRESULT shader_grass::set_texture_specular(ID3D11ShaderResourceView *tex_in)
 	}
 	return S_OK;
 }
+HRESULT shader_grass::set_view_pos(XMFLOAT3 eye_pos)
+{
+	HRESULT hr = view_pos_handle->SetRawValue((void*)&eye_pos, 0, sizeof(eye_pos));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting view position", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 void shader_grass::release()
 {
 	release_basic();
@@ -1304,6 +1314,7 @@ void shader_grass::init_handle()
 	texture_specular = fx_need->GetVariableByName("texture_specular")->AsShaderResource();
 	//几何变换信息句柄
 	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();
+	view_pos_handle = fx_need->GetVariableByName("position_view");
 }
 void shader_grass::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
 {

@@ -355,12 +355,14 @@ class shader_grass : public shader_basic
 	ID3DX11EffectShaderResourceVariable   *texture_need;
 	ID3DX11EffectShaderResourceVariable   *texture_normal;
 	ID3DX11EffectShaderResourceVariable   *texture_specular;
+	ID3DX11EffectVariable   *view_pos_handle;            //视点位置
 public:
 	shader_grass(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);        //设置总变换
 	HRESULT set_texture_diffuse(ID3D11ShaderResourceView *tex_in);
 	HRESULT set_texture_normal(ID3D11ShaderResourceView *tex_in);
 	HRESULT set_texture_specular(ID3D11ShaderResourceView *tex_in);
+	HRESULT set_view_pos(XMFLOAT3 eye_pos);
 	void release();
 private:
 	void init_handle();                 //注册全局变量句柄

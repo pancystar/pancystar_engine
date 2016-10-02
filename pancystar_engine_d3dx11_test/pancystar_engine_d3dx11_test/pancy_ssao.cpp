@@ -1,11 +1,12 @@
 #include"pancy_ssao.h"
-ssao_pancy::ssao_pancy(pancy_renderstate *renderstate_need,ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, int width, int height, float fovy, float farZ)
+ssao_pancy::ssao_pancy(pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, geometry_control *geometry_lib_need, int width, int height, float fovy, float farZ)
 {
 	device_pancy = device;
 	contex_pancy = dc;
 	set_size(width, height, fovy, farZ);
 	shader_list = shader_need;
 	renderstate_lib = renderstate_need;
+	geometry_lib = geometry_lib_need;
 	//teque_need = NULL;
 }
 HRESULT ssao_pancy::basic_create()
@@ -33,46 +34,51 @@ void ssao_pancy::draw_ao(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix)
 	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
 	set_normaldepth_target(NULL);
 	//绘制环境光遮蔽
-	for (auto now_rec = ssaomesh_list.begin(); now_rec != ssaomesh_list.end(); ++now_rec)
+	scene_geometry_list *list = geometry_lib->get_model_list();
+	geometry_member *now_rec = list->get_geometry_head();
+	for (int i = 0; i < list->get_geometry_num(); ++i)
 	{
-		//半透明部分环境光遮蔽
-		if (now_rec._Ptr->check_if_trans() == true)
+		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全部几何体的环境光遮蔽~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		//设置世界变换矩阵
+		XMFLOAT4X4 final_matrix;
+		XMStoreFloat4x4(&final_matrix, XMLoadFloat4x4(&now_rec->get_world_matrix()) * XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
+		set_normaldepth_mat(now_rec->get_world_matrix(), view_matrix, final_matrix);
+		if (now_rec->check_if_skin() == true)
 		{
-			//设置世界变换矩阵
-			//shadowmap_deal->set_shaderresource(now_rec._Ptr->get_world_matrix());
-			//设置半透明纹理
-			//shadowmap_deal->set_transparent_tex(now_rec._Ptr->get_transparent_tex());
-			XMFLOAT4X4 final_matrix;
-			XMStoreFloat4x4(&final_matrix,XMLoadFloat4x4(&now_rec._Ptr->get_world_matrix()) * XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
-			set_normaldepth_mat(now_rec._Ptr->get_world_matrix(), view_matrix, final_matrix);
-			if (now_rec._Ptr->check_if_skin() == true)
-			{
-				set_bone_matrix(now_rec._Ptr->get_bone_matrix(), now_rec._Ptr->get_bone_num());
-				now_rec._Ptr->draw_transparent_part(get_technique_skin_transparent());
-			}
-			else
-			{
-				now_rec._Ptr->draw_transparent_part(get_technique_transparent());
-			}
+			set_bone_matrix(now_rec->get_bone_matrix(), now_rec->get_bone_num());
+			now_rec->draw_full_geometry(get_technique_skin());
 		}
-		//全部几何体的环境光遮蔽
 		else
 		{
-			//设置世界变换矩阵
-			XMFLOAT4X4 final_matrix;
-			XMStoreFloat4x4(&final_matrix, XMLoadFloat4x4(&now_rec._Ptr->get_world_matrix()) * XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
-			set_normaldepth_mat(now_rec._Ptr->get_world_matrix(), view_matrix, final_matrix);
-			if (now_rec._Ptr->check_if_skin() == true)
-			{
-				set_bone_matrix(now_rec._Ptr->get_bone_matrix(), now_rec._Ptr->get_bone_num());
-				now_rec._Ptr->draw_full_geometry(get_technique_skin());
-			}
-			else
-			{
-				now_rec._Ptr->draw_full_geometry(get_technique());
-			}
-
+			now_rec->draw_full_geometry(get_technique());
 		}
+		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~半透明部分环境光遮蔽~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		for (int i = 0; i < now_rec->get_geometry_data()->get_meshnum(); ++i)
+		{
+			if (now_rec->get_geometry_data()->check_alpha(i))
+			{
+				//设置世界变换矩阵
+				//shadowmap_deal->set_shaderresource(now_rec._Ptr->get_world_matrix());
+				//设置半透明纹理
+				//shadowmap_deal->set_transparent_tex(now_rec._Ptr->get_transparent_tex());
+				material_list rec_mat;
+				now_rec->get_geometry_data()->get_texture(&rec_mat,i);
+				set_transparent_tex(rec_mat.tex_diffuse_resource);
+				XMFLOAT4X4 final_matrix;
+				XMStoreFloat4x4(&final_matrix, XMLoadFloat4x4(&now_rec->get_world_matrix()) * XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
+				set_normaldepth_mat(now_rec->get_world_matrix(), view_matrix, final_matrix);
+				if (now_rec->check_if_skin() == true)
+				{
+					set_bone_matrix(now_rec->get_bone_matrix(), now_rec->get_bone_num());
+					now_rec->draw_transparent_part(get_technique_skin_transparent(),i);
+				}
+				else
+				{
+					now_rec->draw_transparent_part(get_technique_transparent(),i);
+				}
+			}
+		}
+		now_rec = now_rec->get_next_member();
 	}
 	//还原渲染状态
 	contex_pancy->RSSetState(0);
@@ -82,12 +88,12 @@ void ssao_pancy::clear_mesh()
 {
 	ssaomesh_list.clear();
 }
-void ssao_pancy::add_mesh(geometry_shadow mesh_input)
+void ssao_pancy::add_mesh(geometry_member mesh_input)
 {
 	ssaomesh_list.push_back(mesh_input);
 }
 
-ID3DX11EffectTechnique* ssao_pancy::get_technique() 
+ID3DX11EffectTechnique* ssao_pancy::get_technique()
 {
 	HRESULT hr;
 	//选定绘制路径
@@ -130,7 +136,7 @@ ID3DX11EffectTechnique* ssao_pancy::get_technique_skin()
 	HRESULT hr;
 	//选定绘制路径
 	ID3DX11EffectTechnique   *teque_need;          //通用渲染路径
-	hr = shader_list->get_shader_ssaodepthnormal()->get_technique(rec_point, num_member,&teque_need, "NormalDepth_skin");
+	hr = shader_list->get_shader_ssaodepthnormal()->get_technique(rec_point, num_member, &teque_need, "NormalDepth_skin");
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"get technique error when create ssao resource", L"tip", MB_OK);
@@ -138,7 +144,7 @@ ID3DX11EffectTechnique* ssao_pancy::get_technique_skin()
 	}
 	return teque_need;
 }
-ID3DX11EffectTechnique* ssao_pancy::get_technique_skin_transparent() 
+ID3DX11EffectTechnique* ssao_pancy::get_technique_skin_transparent()
 {
 	//设置顶点声明
 	D3D11_INPUT_ELEMENT_DESC rec_point[] =
@@ -154,7 +160,7 @@ ID3DX11EffectTechnique* ssao_pancy::get_technique_skin_transparent()
 	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
 	HRESULT hr;
 	ID3DX11EffectTechnique   *teque_transparent;          //通用渲染路径
-	hr = shader_list->get_shader_ssaodepthnormal()->get_technique(rec_point, num_member,&teque_transparent, "NormalDepth_skin_withalpha");
+	hr = shader_list->get_shader_ssaodepthnormal()->get_technique(rec_point, num_member, &teque_transparent, "NormalDepth_skin_withalpha");
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"get technique error when create ssao resource", L"tip", MB_OK);
@@ -169,7 +175,7 @@ void ssao_pancy::compute_ssaomap()
 	normaldepth_target->GetResource(&normalDepthTex);
 	normaldepth_tex->GetResource(&normalDepthTex_singlesample);
 	//将多重采样纹理转换至非多重纹理
-	contex_pancy->ResolveSubresource(normalDepthTex_singlesample,D3D11CalcSubresource(0, 0, 1),normalDepthTex ,D3D11CalcSubresource(0, 0, 1), DXGI_FORMAT_R16G16B16A16_FLOAT);
+	contex_pancy->ResolveSubresource(normalDepthTex_singlesample, D3D11CalcSubresource(0, 0, 1), normalDepthTex, D3D11CalcSubresource(0, 0, 1), DXGI_FORMAT_R16G16B16A16_FLOAT);
 	normaldepth_tex->Release();
 	normaldepth_tex = NULL;
 	device_pancy->CreateShaderResourceView(normalDepthTex_singlesample, 0, &normaldepth_tex);
@@ -234,7 +240,7 @@ void ssao_pancy::set_normaldepth_target(ID3D11DepthStencilView* dsv)
 	contex_pancy->ClearRenderTargetView(normaldepth_target, clearColor);
 	contex_pancy->ClearDepthStencilView(depthmap_target, D3D11_CLEAR_DEPTH, 1.0f, 0);
 }
-HRESULT ssao_pancy::set_normaldepth_mat(XMFLOAT4X4 world_mat, XMFLOAT4X4 view_mat,XMFLOAT4X4 final_mat)
+HRESULT ssao_pancy::set_normaldepth_mat(XMFLOAT4X4 world_mat, XMFLOAT4X4 view_mat, XMFLOAT4X4 final_mat)
 {
 	auto *shader_depthnormal = shader_list->get_shader_ssaodepthnormal();
 	HRESULT hr = shader_depthnormal->set_trans_world(&world_mat, &view_mat);
@@ -261,7 +267,7 @@ HRESULT ssao_pancy::set_bone_matrix(XMFLOAT4X4 *bone_matrix, int cnt_need)
 	}
 	return S_OK;
 }
-HRESULT ssao_pancy::set_transparent_tex(ID3D11ShaderResourceView *tex_in) 
+HRESULT ssao_pancy::set_transparent_tex(ID3D11ShaderResourceView *tex_in)
 {
 	auto *shader_depthnormal = shader_list->get_shader_ssaodepthnormal();
 	HRESULT hr = shader_depthnormal->set_texture(tex_in);
@@ -575,10 +581,10 @@ void ssao_pancy::basic_blur(ID3D11ShaderResourceView *texin, ID3D11RenderTargetV
 {
 	float black[4] = { 0.0f,0.0f,0.0f,0.0f };
 	ID3D11RenderTargetView* renderTargets[1] = { texout };
-	
+
 	contex_pancy->OMSetRenderTargets(1, renderTargets, 0);
 	contex_pancy->ClearRenderTargetView(texout, black);
-	
+
 
 	contex_pancy->RSSetViewports(1, &render_viewport);
 	auto *shader_blurpass = shader_list->get_shader_ssaoblur();

@@ -7,6 +7,7 @@
 #include <assimp/matrix4x4.h>
 #include <assimp/matrix3x3.h>
 #include<assimp/Exporter.hpp>
+#include<string>
 struct material_list
 {
 	char                       texture_diffuse[128];     //漫反射纹理地址
@@ -32,7 +33,7 @@ struct mesh_list
 		material_use = 0;
 	}
 };
-class assimp_basic 
+class assimp_basic
 {
 protected:
 	ID3D11Device           *device_pancy;     //d3d设备
@@ -56,6 +57,7 @@ public:
 	virtual void draw_mesh() = 0;
 	virtual void draw_mesh_adj() = 0;
 	HRESULT get_technique(ID3DX11EffectTechnique *teque_need);
+	bool check_alpha(int part) { return if_alpha_array[part]; };
 protected:
 	virtual HRESULT init_mesh(bool if_adj) = 0;
 	HRESULT init_texture();
@@ -65,11 +67,6 @@ protected:
 	void change_texturedesc_2dds(char rec[]);
 	void release_basic();
 };
-
-
-
-
-
 template<typename T>
 class model_reader_assimp : public assimp_basic
 {
@@ -89,7 +86,7 @@ protected:
 	Geometry<T> *mesh_scene;  //存储合并的场景顶点
 	//bool if_alpha_array[10000];    //用于判断是否是透明部分
 public:
-	model_reader_assimp(ID3D11Device *device_need, ID3D11DeviceContext *contex_need,char* filename, char* texture_path);
+	model_reader_assimp(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, char* filename, char* texture_path);
 	//HRESULT model_create(bool if_adj, bool if_optimize,int alpha_partnum,int* alpha_part);
 	//int get_meshnum();
 	void get_texture(material_list *texture_need, int i);
@@ -109,7 +106,7 @@ protected:
 	HRESULT optimization_mesh(bool if_adj);//网格优化
 };
 template<typename T>
-model_reader_assimp<T>::model_reader_assimp(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, char* pFile, char *texture_path) : assimp_basic(device_need,contex_need,pFile,texture_path)
+model_reader_assimp<T>::model_reader_assimp(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, char* pFile, char *texture_path) : assimp_basic(device_need, contex_need, pFile, texture_path)
 {
 	mesh_need = NULL;
 	mesh_scene = NULL;
@@ -475,7 +472,7 @@ struct skin_tree
 		bone_number = -1;
 		brother = NULL;
 		son = NULL;
-		XMStoreFloat4x4(&basic_matrix,XMMatrixIdentity());
+		XMStoreFloat4x4(&basic_matrix, XMMatrixIdentity());
 		XMStoreFloat4x4(&animation_matrix, XMMatrixIdentity());
 		XMStoreFloat4x4(&now_matrix, XMMatrixIdentity());
 	}
@@ -543,6 +540,7 @@ public:
 	void update_animation(float delta_time);
 	XMFLOAT4X4* get_bone_matrix(int i, int &num_bone);
 	XMFLOAT4X4* get_bone_matrix();
+	int get_bone_num() { return bone_num; };
 	void release_all();
 private:
 	HRESULT init_mesh(bool if_adj);
@@ -561,35 +559,63 @@ private:
 	void Interpolate(vector_animation& pOut, vector_animation pStart, vector_animation pEnd, float pFactor);
 	void Get_quatMatrix(XMFLOAT4X4 &resMatrix, quaternion_animation& pOut);
 };
-class geometry_shadow
+class geometry_member
 {
+	std::string geometry_name;
+	int indexnum_geometry;
 	assimp_basic *model_data;
-	ID3D11ShaderResourceView *transparent_resource;
 	XMFLOAT4X4 world_matrix;
 	XMFLOAT4X4 *bone_matrix;
 	bool if_skinmesh;
-	bool if_transparent;
 	int bone_num;
-	int transparent_part;
+	geometry_member *next;
+	geometry_member *pre;
 public:
-	geometry_shadow(assimp_basic *model_input, bool if_skin, bool if_trans, int trans_part, XMFLOAT4X4 matrix_need, XMFLOAT4X4 *matrix_bone,int bone_num_need,ID3D11ShaderResourceView *tex_need);
+	geometry_member(assimp_basic *model_input, bool if_skin, XMFLOAT4X4 matrix_need, XMFLOAT4X4 *matrix_bone, int bone_num_need, std::string name_need, int indexnum_need);
 	void draw_full_geometry(ID3DX11EffectTechnique *tech_common);
 	void draw_full_geometry_adj(ID3DX11EffectTechnique *tech_common);
-	void draw_transparent_part(ID3DX11EffectTechnique *tech_transparent);
-	bool check_if_trans() { return if_transparent; };
+	void draw_transparent_part(ID3DX11EffectTechnique *tech_transparent, int transparent_part);
 	bool check_if_skin() { return if_skinmesh; };
+
 	XMFLOAT4X4 get_world_matrix() { return world_matrix; };
-	ID3D11ShaderResourceView *get_transparent_tex() { return transparent_resource; };
 	XMFLOAT4X4* get_bone_matrix() { return if_skinmesh ? bone_matrix : NULL; };
 	int get_bone_num() { return bone_num; };
+	geometry_member *get_last_member() { return pre; };
+	geometry_member *get_next_member() { return next; };
+	void set_next_member(geometry_member *next_need) { next = next_need; };
+	void set_pre_member(geometry_member *pre_data) { pre = pre_data; };
+	std::string get_geometry_name() { return geometry_name; };
+	int get_geometry_index() { return indexnum_geometry; };
+	void release();
+	void update(XMFLOAT4X4 world_matrix_need, float delta_time);
+	void get_texture(material_list *texture_need, int i) { model_data->get_texture(texture_need, i); };
+	assimp_basic *get_geometry_data() { return model_data; };
+private:
+	void reset_world_matrix(XMFLOAT4X4 world_matrix_need) { world_matrix = world_matrix_need; };
+	void reset_bone_matrix(XMFLOAT4X4 *bone_matrix_need, int bone_num_need) { bone_matrix = bone_matrix_need; bone_num = bone_num_need; };
+};
+class scene_geometry_list
+{
+	geometry_member *head;
+	geometry_member *tail;
+	int number_list;
+public:
+	scene_geometry_list();
+	void add_new_geometry(geometry_member *data_input);
+	void delete_geometry_byname(std::string name_input);
+	geometry_member *get_geometry_byname(std::string name_input);
+	geometry_member *get_geometry_head() { return head; };
+	geometry_member *get_geometry_tail() { return tail; };
+	int get_geometry_num() { return number_list; };
+	void update_geometry_byname(std::string name_input, XMFLOAT4X4 world_matrix_need,float delta_time);
+	void release();
 };
 class geometry_control
 {
 	ID3D11Device        *device_pancy;     //d3d设备
 	ID3D11DeviceContext *contex_pancy;     //设备描述表
-	model_reader_assimp<point_with_tangent> *yuri_model;
-	model_reader_assimp<point_with_tangent> *castel_model;
-	skin_mesh           *yuri_animation_model;
+	scene_geometry_list *list_model_assimp;
+
 	Geometry<point_with_tangent>  *floor_need;          //盒子模型
 	Geometry<point_with_tangent>  *sky_need;            //球体模型
 	ID3D11ShaderResourceView      *tex_skycube;         //天空盒
@@ -613,10 +639,8 @@ public:
 	ID3D11ShaderResourceView      *get_grassnormal_tex() { return tex_grassnormal; };
 	ID3D11ShaderResourceView      *get_grassspec_tex() { return tex_grassspec; };
 
-	skin_mesh                     *get_yuri_animation() { return yuri_animation_model; };
-	model_reader_assimp<point_with_tangent>           *get_yuri() { return yuri_model; }
-	model_reader_assimp<point_with_tangent>           *get_castel() { return castel_model; }
-	mesh_billboard                *get_grass_common() {return grass_billboard;};
+	scene_geometry_list *get_model_list() { return list_model_assimp; };
+	mesh_billboard                *get_grass_common() { return grass_billboard; };
 	HRESULT create();
 	void release();
 };
