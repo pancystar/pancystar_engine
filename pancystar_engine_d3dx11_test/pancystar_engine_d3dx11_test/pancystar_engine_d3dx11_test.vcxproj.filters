@@ -118,9 +118,6 @@
     <FxCompile Include="ssao_draw_aomap.fx">
       <Filter>源文件</Filter>
     </FxCompile>
-    <FxCompile Include="ssao_normaldepth_map.fx">
-      <Filter>源文件</Filter>
-    </FxCompile>
     <FxCompile Include="light_reflect.fx">
       <Filter>源文件</Filter>
     </FxCompile>
@@ -152,6 +149,9 @@
       <Filter>源文件</Filter>
     </FxCompile>
     <FxCompile Include="cross_grass.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
+    <FxCompile Include="gbuffer_normaldepth_map.fx">
       <Filter>源文件</Filter>
     </FxCompile>
   </ItemGroup>

@@ -135,7 +135,7 @@ private:
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-class shader_ssaodepthnormal_map : public shader_basic
+class shader_gbufferdepthnormal_map : public shader_basic
 {
 	ID3DX11EffectMatrixVariable           *project_matrix_handle;      //全套几何变换句柄
 	ID3DX11EffectMatrixVariable           *world_matrix_handle;        //世界变换句柄
@@ -143,7 +143,7 @@ class shader_ssaodepthnormal_map : public shader_basic
 	ID3DX11EffectMatrixVariable           *BoneTransforms;             //骨骼变换矩阵
 	ID3DX11EffectShaderResourceVariable   *texture_need;
 public:
-	shader_ssaodepthnormal_map(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	shader_gbufferdepthnormal_map(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_trans_world(XMFLOAT4X4 *mat_world, XMFLOAT4X4 *mat_view);
 	HRESULT set_trans_all(XMFLOAT4X4 *mat_final);
 	HRESULT set_texture(ID3D11ShaderResourceView *tex_in);
@@ -160,6 +160,7 @@ class shader_ssaomap : public shader_basic
 	ID3DX11EffectVectorVariable* OffsetVectors;
 	ID3DX11EffectVectorVariable* FrustumCorners;
 	ID3DX11EffectShaderResourceVariable* NormalDepthMap;
+	ID3DX11EffectShaderResourceVariable* DepthMap;
 	ID3DX11EffectShaderResourceVariable* RandomVecMap;
 public:
 	shader_ssaomap(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
@@ -168,6 +169,7 @@ public:
 	HRESULT set_OffsetVectors(const XMFLOAT4 v[14]);
 	HRESULT set_FrustumCorners(const XMFLOAT4 v[4]);
 	HRESULT set_NormalDepthtex(ID3D11ShaderResourceView* srv);
+	HRESULT set_Depthtex(ID3D11ShaderResourceView* srv);
 	HRESULT set_randomtex(ID3D11ShaderResourceView* srv);
 	void release();
 private:
@@ -375,7 +377,7 @@ class shader_control
 	light_shadow               *shader_shadowmap;          //阴影图着色器
 	shader_shadow_volume       *shader_shadowvolume;       //阴影体着色器
 	shader_shadow_volume_draw  *shader_shadowvolume_draw;  //阴影体绘制
-	shader_ssaodepthnormal_map *shader_ssao_depthnormal;   //ssao深度纹理着色器
+	shader_gbufferdepthnormal_map *shader_gbuffer_depthnormal;   //ssao深度纹理着色器
 	shader_ssaomap             *shader_ssao_draw;          //ssao遮蔽图渲染着色器
 	shader_ssaoblur            *shader_ssao_blur;          //ssao模糊着色器
 	shader_reflect             *shader_cubemap;            //立方贴图着色器
@@ -393,7 +395,7 @@ public:
 	light_shadow*               get_shader_shadowmap() { return shader_shadowmap; };
 	shader_shadow_volume*       get_shader_shadowvolume() { return shader_shadowvolume; };
 	shader_shadow_volume_draw*  get_shader_shadowvolume_draw() { return shader_shadowvolume_draw; };
-	shader_ssaodepthnormal_map* get_shader_ssaodepthnormal() {return shader_ssao_depthnormal;};
+	shader_gbufferdepthnormal_map* get_shader_gbufferdepthnormal() {return shader_gbuffer_depthnormal;};
 	shader_ssaomap*             get_shader_ssaodraw() { return shader_ssao_draw; };
 	shader_ssaoblur*            get_shader_ssaoblur() { return shader_ssao_blur; };
 	shader_reflect*             get_shader_reflect() { return shader_cubemap; };

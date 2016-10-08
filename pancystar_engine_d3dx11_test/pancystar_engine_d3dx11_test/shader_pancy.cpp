@@ -343,10 +343,10 @@ void light_shadow::release()
 	release_basic();
 }
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao 深度法线记录部分~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-shader_ssaodepthnormal_map::shader_ssaodepthnormal_map(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+shader_gbufferdepthnormal_map::shader_gbufferdepthnormal_map(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
 {
 }
-void shader_ssaodepthnormal_map::init_handle()
+void shader_gbufferdepthnormal_map::init_handle()
 {
 	world_matrix_handle = fx_need->GetVariableByName("world_matrix")->AsMatrix();
 	normal_matrix_handle = fx_need->GetVariableByName("normal_matrix")->AsMatrix();
@@ -354,7 +354,7 @@ void shader_ssaodepthnormal_map::init_handle()
 	BoneTransforms = fx_need->GetVariableByName("gBoneTransforms")->AsMatrix();
 	texture_need = fx_need->GetVariableByName("texture_diffuse")->AsShaderResource();
 }
-HRESULT shader_ssaodepthnormal_map::set_trans_world(XMFLOAT4X4 *mat_world, XMFLOAT4X4 *mat_view)
+HRESULT shader_gbufferdepthnormal_map::set_trans_world(XMFLOAT4X4 *mat_world, XMFLOAT4X4 *mat_view)
 {
 	XMVECTOR x_delta;
 	XMMATRIX world_need = XMLoadFloat4x4(mat_world);
@@ -379,7 +379,7 @@ HRESULT shader_ssaodepthnormal_map::set_trans_world(XMFLOAT4X4 *mat_world, XMFLO
 	}
 	return S_OK;
 }
-HRESULT shader_ssaodepthnormal_map::set_trans_all(XMFLOAT4X4 *mat_final) 
+HRESULT shader_gbufferdepthnormal_map::set_trans_all(XMFLOAT4X4 *mat_final) 
 {
 	HRESULT hr;
 	hr = set_matrix(project_matrix_handle, mat_final);
@@ -390,7 +390,7 @@ HRESULT shader_ssaodepthnormal_map::set_trans_all(XMFLOAT4X4 *mat_final)
 	}
 	return S_OK;
 }
-HRESULT shader_ssaodepthnormal_map::set_texture(ID3D11ShaderResourceView *tex_in) 
+HRESULT shader_gbufferdepthnormal_map::set_texture(ID3D11ShaderResourceView *tex_in) 
 {
 	HRESULT hr;
 	hr = texture_need->SetResource(tex_in);
@@ -401,7 +401,7 @@ HRESULT shader_ssaodepthnormal_map::set_texture(ID3D11ShaderResourceView *tex_in
 	}
 	return S_OK;
 }
-HRESULT shader_ssaodepthnormal_map::set_bone_matrix(const XMFLOAT4X4* M, int cnt)
+HRESULT shader_gbufferdepthnormal_map::set_bone_matrix(const XMFLOAT4X4* M, int cnt)
 {
 	HRESULT hr = BoneTransforms->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
 	if (FAILED(hr))
@@ -410,11 +410,11 @@ HRESULT shader_ssaodepthnormal_map::set_bone_matrix(const XMFLOAT4X4* M, int cnt
 	}
 	return S_OK;
 }
-void shader_ssaodepthnormal_map::release()
+void shader_gbufferdepthnormal_map::release()
 {
 	release_basic();
 }
-void shader_ssaodepthnormal_map::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+void shader_gbufferdepthnormal_map::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
 {
 	//设置顶点声明
 	D3D11_INPUT_ELEMENT_DESC rec[] =
@@ -442,6 +442,7 @@ void shader_ssaomap::init_handle()
 	FrustumCorners = fx_need->GetVariableByName("gFrustumCorners")->AsVector();
 
 	NormalDepthMap = fx_need->GetVariableByName("gNormalDepthMap")->AsShaderResource();
+	DepthMap = fx_need->GetVariableByName("gdepth_map")->AsShaderResource();
 	RandomVecMap = fx_need->GetVariableByName("gRandomVecMap")->AsShaderResource();
 }
 void shader_ssaomap::release()
@@ -481,6 +482,16 @@ HRESULT shader_ssaomap::set_OffsetVectors(const XMFLOAT4 v[14])
 HRESULT shader_ssaomap::set_NormalDepthtex(ID3D11ShaderResourceView* srv)
 {
 	HRESULT hr = NormalDepthMap->SetResource(srv);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set NormalDepthtex error in ssao draw part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_ssaomap::set_Depthtex(ID3D11ShaderResourceView* srv)
+{
+	HRESULT hr = DepthMap->SetResource(srv);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"set NormalDepthtex error in ssao draw part", L"tip", MB_OK);
@@ -1338,7 +1349,7 @@ shader_control::shader_control()
 	shader_light_deferred = NULL;
 	shader_shadowmap = NULL;
 	shader_cubemap = NULL;
-	shader_ssao_depthnormal = NULL;
+	shader_gbuffer_depthnormal = NULL;
 	shader_ssao_draw = NULL;
 	shader_ssao_blur = NULL;
 	particle_fire = NULL;
@@ -1369,8 +1380,8 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 		return hr;
 	}
 	
-	shader_ssao_depthnormal = new shader_ssaodepthnormal_map(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\ssao_normaldepth_map.cso", device_pancy, contex_pancy);
-	hr = shader_ssao_depthnormal->shder_create();
+	shader_gbuffer_depthnormal = new shader_gbufferdepthnormal_map(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\gbuffer_normaldepth_map.cso", device_pancy, contex_pancy);
+	hr = shader_gbuffer_depthnormal->shder_create();
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"an error when ssao_depthnormal shader created", L"tip", MB_OK);
@@ -1467,7 +1478,7 @@ void shader_control::release()
 	shader_shadowmap->release();
 	shader_shadowvolume->release();
 	shader_shadowvolume_draw->release();
-	shader_ssao_depthnormal->release();
+	shader_gbuffer_depthnormal->release();
 	shader_ssao_draw->release();
 	shader_ssao_blur->release();
 	shader_cubemap->release();

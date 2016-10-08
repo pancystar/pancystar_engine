@@ -478,25 +478,25 @@ float4 PS_withshadowssaonormal(VertexOut pin) :SV_TARGET
 		//无阴影光
 		if (light_need[i].type.y == 0)
 		{
-			diffuse += D;
-			spec += S;
+		//	diffuse += D;
+		//	spec += S;
 		}
 		//shadowmap阴影
 		else if (light_need[i].type.y == 1)
 		{
-			diffuse += (0.2f + 0.8f*rec_shadow)*D;
-			spec += (0.2f + 0.8f*rec_shadow)*S;
+		//	diffuse += (0.2f + 0.8f*rec_shadow)*D;
+		//	spec += (0.2f + 0.8f*rec_shadow)*S;
 		}
 		//shadow volume阴影
 		else
 		{
-			diffuse += D;
-			spec += S;
+		//	diffuse += D;
+		//	spec += S;
 		}
 	}
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
 	//float4 tex_color = texture_diffuse.SampleLevel(samTex_liner, pin.tex,15);
-	float4 final_color = tex_color * (ambient + diffuse) + spec;
+	float4 final_color = 1 * (ambient + diffuse) + spec;
 	final_color.a = tex_color.a;
 	return final_color;
 }

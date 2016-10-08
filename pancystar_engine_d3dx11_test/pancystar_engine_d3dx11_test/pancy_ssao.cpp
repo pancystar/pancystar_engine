@@ -27,6 +27,7 @@ HRESULT ssao_pancy::basic_create()
 	}
 	return S_OK;
 }
+/*
 void ssao_pancy::draw_ao(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix)
 {
 	//关闭alpha混合
@@ -84,15 +85,6 @@ void ssao_pancy::draw_ao(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix)
 	contex_pancy->RSSetState(0);
 	//renderstate_lib->set_posttreatment_rendertarget();
 }
-void ssao_pancy::clear_mesh()
-{
-	ssaomesh_list.clear();
-}
-void ssao_pancy::add_mesh(geometry_member mesh_input)
-{
-	ssaomesh_list.push_back(mesh_input);
-}
-
 ID3DX11EffectTechnique* ssao_pancy::get_technique()
 {
 	HRESULT hr;
@@ -168,8 +160,10 @@ ID3DX11EffectTechnique* ssao_pancy::get_technique_skin_transparent()
 	}
 	return teque_transparent;
 }
+*/
 void ssao_pancy::compute_ssaomap()
 {
+	/*
 	ID3D11Resource * normalDepthTex = 0;
 	ID3D11Resource * normalDepthTex_singlesample = 0;
 	normaldepth_target->GetResource(&normalDepthTex);
@@ -181,6 +175,7 @@ void ssao_pancy::compute_ssaomap()
 	device_pancy->CreateShaderResourceView(normalDepthTex_singlesample, 0, &normaldepth_tex);
 	normalDepthTex->Release();
 	normalDepthTex_singlesample->Release();
+	*/
 	//绑定渲染目标纹理，不设置深度模缓冲区因为这里不需要
 	ID3D11RenderTargetView* renderTargets[1] = { ambient_target0 };
 	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -203,6 +198,7 @@ void ssao_pancy::compute_ssaomap()
 	shader_aopass->set_OffsetVectors(random_Offsets);
 	shader_aopass->set_FrustumCorners(FrustumFarCorner);
 	shader_aopass->set_NormalDepthtex(normaldepth_tex);
+	shader_aopass->set_Depthtex(depth_tex);
 	shader_aopass->set_randomtex(randomtex);
 
 	//渲染屏幕空间像素图
@@ -232,6 +228,12 @@ ID3D11ShaderResourceView* ssao_pancy::get_aomap()
 {
 	return ambient_tex0;
 }
+void ssao_pancy::get_normaldepthmap(ID3D11ShaderResourceView *normalspec_need, ID3D11ShaderResourceView *depth_need)
+{
+	normaldepth_tex = normalspec_need;
+	depth_tex = depth_need;
+}
+/*
 void ssao_pancy::set_normaldepth_target(ID3D11DepthStencilView* dsv)
 {
 	ID3D11RenderTargetView* renderTargets[1] = { normaldepth_target };
@@ -257,6 +259,7 @@ HRESULT ssao_pancy::set_normaldepth_mat(XMFLOAT4X4 world_mat, XMFLOAT4X4 view_ma
 	}
 	return S_OK;
 }
+
 HRESULT ssao_pancy::set_bone_matrix(XMFLOAT4X4 *bone_matrix, int cnt_need)
 {
 	auto* shader_test = shader_list->get_shader_ssaodepthnormal();
@@ -278,6 +281,7 @@ HRESULT ssao_pancy::set_transparent_tex(ID3D11ShaderResourceView *tex_in)
 	}
 	return S_OK;
 }
+*/
 HRESULT ssao_pancy::build_texture()
 {
 	HRESULT hr;
@@ -288,12 +292,13 @@ HRESULT ssao_pancy::build_texture()
 	texDesc.MipLevels = 1;
 	texDesc.ArraySize = 1;
 	texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-	texDesc.SampleDesc.Count = 4;
+	texDesc.SampleDesc.Count = 1;
 	texDesc.SampleDesc.Quality = 0;
 	texDesc.Usage = D3D11_USAGE_DEFAULT;
 	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	texDesc.CPUAccessFlags = 0;
 	texDesc.MiscFlags = 0;
+	/*
 	ID3D11Texture2D* normalDepthTex = 0;
 	hr = device_pancy->CreateTexture2D(&texDesc, 0, &normalDepthTex);
 	if (FAILED(hr))
@@ -311,11 +316,6 @@ HRESULT ssao_pancy::build_texture()
 		MessageBox(0, L"create normalDepth texture error", L"tip", MB_OK);
 		return hr;
 	}
-	/*
-	//将多重采样纹理转换至非多重纹理
-	contex_pancy->ResolveSubresource( DepthTex_singlesample,D3D11CalcSubresource(0, 0, 1),normalDepthTexnormal ,D3D11CalcSubresource(0, 0, 1), DXGI_FORMAT_R16G16B16A16_FLOAT);
-	*/
-
 	//创建shader resource view以及render target view
 	hr = device_pancy->CreateShaderResourceView(normalDepthTex_singlesample, 0, &normaldepth_tex);
 	if (FAILED(hr))
@@ -331,26 +331,26 @@ HRESULT ssao_pancy::build_texture()
 	}
 	normalDepthTex->Release();
 	normalDepthTex_singlesample->Release();
-
+	*/
 
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~半屏幕纹理~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	texDesc.Width = render_viewport.Width;
 	texDesc.Height = render_viewport.Height;
 	texDesc.Format = DXGI_FORMAT_R16_FLOAT;
 	ID3D11Texture2D* ambientTex0 = 0;
-	device_pancy->CreateTexture2D(&texDesc, 0, &ambientTex0);
+	hr = device_pancy->CreateTexture2D(&texDesc, 0, &ambientTex0);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create ambient map texture1 error", L"tip", MB_OK);
 		return hr;
 	}
-	device_pancy->CreateShaderResourceView(ambientTex0, 0, &ambient_tex0);
+	hr = device_pancy->CreateShaderResourceView(ambientTex0, 0, &ambient_tex0);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create ambient map texture1 error", L"tip", MB_OK);
 		return hr;
 	}
-	device_pancy->CreateRenderTargetView(ambientTex0, 0, &ambient_target0);
+	hr = device_pancy->CreateRenderTargetView(ambientTex0, 0, &ambient_target0);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create ambient map texture1 error", L"tip", MB_OK);
@@ -358,24 +358,25 @@ HRESULT ssao_pancy::build_texture()
 	}
 
 	ID3D11Texture2D* ambientTex1 = 0;
-	device_pancy->CreateTexture2D(&texDesc, 0, &ambientTex1);
+	hr = device_pancy->CreateTexture2D(&texDesc, 0, &ambientTex1);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create ambient map texture2 error", L"tip", MB_OK);
 		return hr;
 	}
-	device_pancy->CreateShaderResourceView(ambientTex1, 0, &ambient_tex1);
+	hr = device_pancy->CreateShaderResourceView(ambientTex1, 0, &ambient_tex1);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create ambient map texture2 error", L"tip", MB_OK);
 		return hr;
 	}
-	device_pancy->CreateRenderTargetView(ambientTex1, 0, &ambient_target1);
+	hr = device_pancy->CreateRenderTargetView(ambientTex1, 0, &ambient_target1);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create ambient map texture2 error", L"tip", MB_OK);
 		return hr;
 	}
+	/*
 	D3D11_TEXTURE2D_DESC texDesc2;
 	texDesc2.Width = map_width;
 	texDesc2.Height = map_height;
@@ -388,7 +389,6 @@ HRESULT ssao_pancy::build_texture()
 	texDesc2.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	texDesc2.CPUAccessFlags = 0;
 	texDesc2.MiscFlags = 0;
-
 	ID3D11Texture2D* depthMap = 0;
 	hr = device_pancy->CreateTexture2D(&texDesc2, 0, &depthMap);
 	if (FAILED(hr))
@@ -398,6 +398,7 @@ HRESULT ssao_pancy::build_texture()
 	}
 	D3D11_DEPTH_STENCIL_DESC rec_depth_need;
 	rec_depth_need.DepthFunc;
+
 	hr = device_pancy->CreateDepthStencilView(depthMap, 0, &depthmap_target);
 	if (FAILED(hr))
 	{
@@ -405,6 +406,7 @@ HRESULT ssao_pancy::build_texture()
 		return hr;
 	}
 	depthMap->Release();
+	*/
 	ambientTex0->Release();
 	ambientTex1->Release();
 	//depthmap_target = renderstate_lib->get_basicrendertarget();
@@ -652,9 +654,9 @@ void ssao_pancy::release()
 	safe_release(AoMap_VB);
 	safe_release(AoMap_IB);
 	safe_release(randomtex);
-	safe_release(normaldepth_target);
-	safe_release(normaldepth_tex);
-	safe_release(depthmap_target);
+//	safe_release(normaldepth_target);
+//	safe_release(normaldepth_tex);
+//	safe_release(depthmap_target);
 	safe_release(ambient_target0);
 	safe_release(ambient_tex0);
 	safe_release(ambient_target1);

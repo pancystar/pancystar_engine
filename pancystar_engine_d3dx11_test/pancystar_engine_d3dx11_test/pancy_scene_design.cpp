@@ -60,11 +60,15 @@ HRESULT scene_root::camera_move()
 		scene_camera->rotation_up(user_input->MouseMove_X() * 0.001f);
 		scene_camera->rotation_right(user_input->MouseMove_Y() * 0.001f);
 	}
-	scene_camera->count_view_matrix(&view);
-	XMStoreFloat4x4(&view_matrix, view);
+	scene_camera->count_view_matrix(&view_matrix);
+	//XMStoreFloat4x4(&view_matrix, view);
 	return S_OK;
 }
-
+void scene_root::get_gbuffer(ID3D11ShaderResourceView *normalspec_need, ID3D11ShaderResourceView *depth_need)
+{
+	gbuffer_normalspec = normalspec_need;
+	gbuffer_depth = depth_need;
+}
 scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need,geometry_need,width, height)
 {
 	nonshadow_light_list.clear();
@@ -109,11 +113,13 @@ HRESULT scene_engine_test::scene_create()
 }
 HRESULT scene_engine_test::display()
 {
-	contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
+	renderstate_lib->clear_posttreatmentcrendertarget();
+	//contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 	draw_ssaomap();
 	draw_shadowmap();
-	contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH, 1.f, 0);
-	renderstate_lib->set_posttreatment_rendertarget(ssao_part->get_depthstencilmap());
+	//contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH, 1.f, 0);
+	//renderstate_lib->set_posttreatment_rendertarget(ssao_part->get_depthstencilmap());
+	renderstate_lib->set_posttreatment_rendertarget();
 	show_ball();
 	show_lightsource();
 	show_floor();
@@ -128,7 +134,8 @@ HRESULT scene_engine_test::display()
 }
 HRESULT scene_engine_test::display_nopost()
 {
-	renderstate_lib->restore_rendertarget(ssao_part->get_depthstencilmap());
+	//renderstate_lib->restore_rendertarget(ssao_part->get_depthstencilmap());
+	renderstate_lib->restore_rendertarget();
 	show_fire_particle();
 	return S_OK;
 }
@@ -652,14 +659,15 @@ void scene_engine_test::draw_shadowmap()
 	}
 	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
 	{
-		rec_shadow_volume._Ptr->build_shadow(ssao_part->get_depthstencilmap());
+		//rec_shadow_volume._Ptr->build_shadow(ssao_part->get_depthstencilmap());
 		//rec_shadow_volume._Ptr->draw_shadow_volume();
 	}
 	contex_pancy->RSSetState(NULL);
 }
 void scene_engine_test::draw_ssaomap()
 {
-	ssao_part->draw_ao(view_matrix,proj_matrix);
+	//ssao_part->draw_ao(view_matrix,proj_matrix);
+	ssao_part->get_normaldepthmap(gbuffer_normalspec, gbuffer_depth);
 	ssao_part->compute_ssaomap();
 	ssao_part->blur_ssaomap();
 	renderstate_lib->set_posttreatment_rendertarget();
@@ -752,8 +760,6 @@ HRESULT scene_engine_test::update(float delta_time)
 		//rec_shadow_volume._Ptr->set_frontlight(count++);
 		rec_shadow_volume._Ptr->update_view_proj_matrix(view_proj);
 	}
-	//ÐÔÄÜÒþ»¼£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡£¡
-	ssao_part->clear_mesh();
 	return S_OK;
 }
 HRESULT scene_engine_test::release()
