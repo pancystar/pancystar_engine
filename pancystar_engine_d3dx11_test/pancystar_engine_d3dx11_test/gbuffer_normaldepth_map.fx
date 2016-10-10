@@ -82,7 +82,7 @@ float4 PS_withalpha(VertexOut pin) : SV_Target
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
 	clip(tex_color.a - 0.9f);
 	pin.NormalV = normalize(pin.NormalV);
-	return float4(pin.NormalV, pin.PosV.z);
+	return float4(pin.NormalV, 1);
 }
 technique11 NormalDepth
 {

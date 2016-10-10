@@ -3,7 +3,6 @@ cbuffer cbPerFrame
 	float gTexelWidth;
 	float gTexelHeight;
 };
-
 cbuffer cbSettings
 {
 	float gWeights[11] =
@@ -11,12 +10,12 @@ cbuffer cbSettings
 		0.05f, 0.05f, 0.1f, 0.1f, 0.1f, 0.2f, 0.1f, 0.1f, 0.1f, 0.05f, 0.05f
 	};
 };
-
 cbuffer cbFixed
 {
 	static const int gBlurRadius = 5;
 };
 Texture2D gNormalDepthMap;
+Texture2D gdepth_map;
 Texture2D gInputImage;
 SamplerState samNormalDepth
 {
@@ -68,6 +67,7 @@ float4 PS(VertexOut pin, uniform bool gHorizontalBlur) : SV_Target
 	float totalWeight = gWeights[5];
 	//中心点的深度采样
 	float4 centerNormalDepth = gNormalDepthMap.SampleLevel(samNormalDepth, pin.Tex, 0.0f);
+	float center_depth = gdepth_map.SampleLevel(samNormalDepth, pin.Tex, 0.0f).r;
 	for (float i = -gBlurRadius; i <= gBlurRadius; ++i)
 	{
 		if (i == 0)
@@ -77,6 +77,7 @@ float4 PS(VertexOut pin, uniform bool gHorizontalBlur) : SV_Target
 		float2 tex = pin.Tex + i*texOffset;
 		//采集边界点的深度信息用于判断是否应当被贡献
 		float4 neighborNormalDepth = gNormalDepthMap.SampleLevel(samNormalDepth, tex, 0.0f);
+		float neighbor_depth = gdepth_map.SampleLevel(samNormalDepth, tex, 0.0f).r;
 		//采集边界点的遮蔽值用于计算模糊贡献值
 		float4 neighborcolor = gInputImage.SampleLevel(samInputImage, tex, 0.0);
 		//计算当前点的遮蔽情况
@@ -89,7 +90,7 @@ float4 PS(VertexOut pin, uniform bool gHorizontalBlur) : SV_Target
 			totalWeight += weight;
 		}
 		*/
-		if (abs(dot(neighborNormalDepth.xyz, centerNormalDepth.xyz)) >= 0.8f &&abs(neighborNormalDepth.a - centerNormalDepth.a) <= 0.2f)
+		if (abs(dot(neighborNormalDepth.xyz, centerNormalDepth.xyz)) >= 0.8f &&abs(neighbor_depth - center_depth) <= 0.2f)
 		{
 			//发现当前点与中心点属于可混合的部分(首先是颜色差不大，然后就是深度差很小说明是同一物体，向量差也小说明是同一面，这种情况下才能够混合)
 			color += weight*neighborcolor;

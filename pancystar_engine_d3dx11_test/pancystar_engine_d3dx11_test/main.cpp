@@ -54,9 +54,13 @@ class Pretreatment_gbuffer
 	ID3D11RenderTargetView   *gbuffer_specular_target;    //存储漫反射光照效果的渲染目标
 	ID3D11ShaderResourceView *gbuffer_specular_tex;       //存储漫反射光照效果的纹理资源
 
+	ID3D11RenderTargetView   *depthmap_single_target;     //存储深度msaa采样后信息的渲染目标
+	ID3D11ShaderResourceView *depthmap_single_tex;        //存储深度msaa采样后信息的纹理资源
+
 	XMFLOAT4                 FrustumFarCorner[4];         //投影视截体的远截面的四个角点
 	D3D11_VIEWPORT           render_viewport;             //视口信息
 
+	ID3D11Buffer             *depthbuffer_VB;             //深度采样纹理顶点缓冲区
 	ID3D11Buffer             *lightbuffer_VB;             //光照纹理顶点缓冲区
 	ID3D11Buffer             *lightbuffer_IB;             //光照纹理索引缓冲区
 	XMFLOAT4X4               proj_matrix_gbuffer;         //投影变换
@@ -66,7 +70,7 @@ public:
 	void display();
 	void release();
 	ID3D11ShaderResourceView *get_gbuffer_normalspec() { return normalspec_tex; };
-	ID3D11ShaderResourceView *get_gbuffer_depth() { return depthmap_tex; };
+	ID3D11ShaderResourceView *get_gbuffer_depth() { return depthmap_single_tex; };
 	ID3D11ShaderResourceView *get_gbuffer_difusse() { return gbuffer_diffuse_tex; };
 	ID3D11ShaderResourceView *get_gbuffer_specular() { return gbuffer_specular_tex; };
 private:
@@ -75,12 +79,14 @@ private:
 	HRESULT init_buffer();
 	void set_normalspecdepth_target();
 	void set_multirender_target();
+	void set_resolvdepth_target();
 	void BuildFrustumFarCorners(float fovy, float farZ);
 	void render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix);
 	ID3DX11EffectTechnique* get_technique();
 	ID3DX11EffectTechnique* get_technique_transparent();
 	ID3DX11EffectTechnique* get_technique_skin();
 	ID3DX11EffectTechnique* get_technique_skin_transparent();
+	void resolve_depth_render(ID3DX11EffectTechnique* tech);
 	template<class T>
 	void safe_release(T t)
 	{
@@ -121,14 +127,14 @@ HRESULT Pretreatment_gbuffer::init_texture()
 	texDesc.Height = map_height;
 	texDesc.MipLevels = 1;
 	texDesc.ArraySize = 1;
-	texDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-	texDesc.SampleDesc.Count = 1;
+	texDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	texDesc.SampleDesc.Count = 4;
 	texDesc.SampleDesc.Quality = 0;
 	texDesc.Usage = D3D11_USAGE_DEFAULT;
 	texDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 	texDesc.CPUAccessFlags = 0;
 	texDesc.MiscFlags = 0;
-	//建立CPU上的纹理资源
+	//建立4xMSAA抗锯齿渲染目标
 	ID3D11Texture2D* depthMap = 0;
 	hr = device_pancy->CreateTexture2D(&texDesc, 0, &depthMap);
 	if (FAILED(hr))
@@ -136,11 +142,10 @@ HRESULT Pretreatment_gbuffer::init_texture()
 		MessageBox(0, L"create texture2D error when create shadowmap resource", L"tip", MB_OK);
 		return hr;
 	}
-	//建立GPU上的两种资源：纹理资源以及渲染目标资源
 	D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc;
 	dsvDesc.Flags = 0;
-	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
 	dsvDesc.Texture2D.MipSlice = 0;
 	hr = device_pancy->CreateDepthStencilView(depthMap, &dsvDesc, &depthmap_target);
 	if (FAILED(hr))
@@ -148,9 +153,10 @@ HRESULT Pretreatment_gbuffer::init_texture()
 		MessageBox(0, L"create shader resource view error when create shadowmap resource", L"tip", MB_OK);
 		return hr;
 	}
+	
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-	srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
 	srvDesc.Texture2D.MipLevels = texDesc.MipLevels;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	hr = device_pancy->CreateShaderResourceView(depthMap, &srvDesc, &depthmap_tex);
@@ -159,22 +165,21 @@ HRESULT Pretreatment_gbuffer::init_texture()
 		MessageBox(0, L"create render target view error when create shadowmap resource", L"tip", MB_OK);
 		return hr;
 	}
-	//释放CPU上的纹理资源
 	if (depthMap != NULL)
 	{
 		depthMap->Release();
 	}
 	//~~~~~~~~~~~~~~~法线&镜面反射纹理~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	//指定纹理格式并创建纹理资源
+	//指定4xMSAA抗锯齿纹理格式并创建纹理资源
 	texDesc.Width = map_width;
 	texDesc.Height = map_height;
 	texDesc.MipLevels = 1;
 	texDesc.ArraySize = 1;
 	texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Count =4;
 	texDesc.SampleDesc.Quality = 0;
 	texDesc.Usage = D3D11_USAGE_DEFAULT;
-	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+	texDesc.BindFlags = D3D11_BIND_RENDER_TARGET;
 	texDesc.CPUAccessFlags = 0;
 	texDesc.MiscFlags = 0;
 	ID3D11Texture2D* normalspec_buf = 0;
@@ -185,12 +190,6 @@ HRESULT Pretreatment_gbuffer::init_texture()
 		return hr;
 	}
 	//根据纹理资源创建访问资源以及渲染目标
-	hr = device_pancy->CreateShaderResourceView(normalspec_buf, 0, &normalspec_tex);
-	if (FAILED(hr))
-	{
-		MessageBox(0, L"create normalspec_buf texture error", L"tip", MB_OK);
-		return hr;
-	}
 	hr = device_pancy->CreateRenderTargetView(normalspec_buf, 0, &normalspec_target);
 	if (FAILED(hr))
 	{
@@ -199,7 +198,29 @@ HRESULT Pretreatment_gbuffer::init_texture()
 	}
 	//释放纹理资源
 	normalspec_buf->Release();
+	//创建非抗锯齿纹理
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	ID3D11Texture2D* normalspec_singlebuf = 0;
+	hr = device_pancy->CreateTexture2D(&texDesc, 0, &normalspec_singlebuf);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create normalspec_buf texture error", L"tip", MB_OK);
+		return hr;
+	}
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	hr = device_pancy->CreateShaderResourceView(normalspec_singlebuf, 0, &normalspec_tex);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create normalspec_buf texture error", L"tip", MB_OK);
+		return hr;
+	}
+	normalspec_singlebuf->Release();
+	
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~光照信息存储纹理~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 	ID3D11Texture2D *diffuse_buf = 0,*specular_buf = 0;
 	hr = device_pancy->CreateTexture2D(&texDesc, 0, &diffuse_buf);
 	if (FAILED(hr))
@@ -241,12 +262,71 @@ HRESULT Pretreatment_gbuffer::init_texture()
 	}
 	diffuse_buf->Release();
 	specular_buf->Release();
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~msaa重采样纹理~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	texDesc.Width = map_width;
+	texDesc.Height = map_height;
+	texDesc.MipLevels = 1;
+	texDesc.ArraySize = 1;
+	texDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	texDesc.CPUAccessFlags = 0;
+	texDesc.MiscFlags = 0;
+	ID3D11Texture2D* depth_singlebuffer = 0;
+	hr = device_pancy->CreateTexture2D(&texDesc, 0, &depth_singlebuffer);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create depth_singlebuffer texture error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = device_pancy->CreateShaderResourceView(depth_singlebuffer, 0, &depthmap_single_tex);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create normalspec_buf texture error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = device_pancy->CreateRenderTargetView(depth_singlebuffer, 0, &depthmap_single_target);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create normalspec_buf texture error", L"tip", MB_OK);
+		return hr;
+	}
+	depth_singlebuffer->Release();
 	return S_OK;
 }
 HRESULT Pretreatment_gbuffer::init_buffer() 
 {
-	pancy_point v[4];
 	HRESULT hr;
+	simpletex_point v_need[4];
+	v_need[0].position = XMFLOAT3(-1.0f, -1.0f, 0.0f);
+	v_need[1].position = XMFLOAT3(-1.0f, +1.0f, 0.0f);
+	v_need[2].position = XMFLOAT3(+1.0f, +1.0f, 0.0f);
+	v_need[3].position = XMFLOAT3(+1.0f, -1.0f, 0.0f);
+
+	v_need[0].tex = XMFLOAT2(0.0f, static_cast<float>(map_height));
+	v_need[1].tex = XMFLOAT2(0.0f, 0.0f);
+	v_need[2].tex = XMFLOAT2(static_cast<float>(map_width), 0.0f);
+	v_need[3].tex = XMFLOAT2(static_cast<float>(map_width), static_cast<float>(map_height));
+	
+	D3D11_BUFFER_DESC data_desc;
+	data_desc.Usage = D3D11_USAGE_IMMUTABLE;
+	data_desc.ByteWidth = sizeof(simpletex_point) * 4;
+	data_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	data_desc.CPUAccessFlags = 0;
+	data_desc.MiscFlags = 0;
+	data_desc.StructureByteStride = 0;
+	D3D11_SUBRESOURCE_DATA data_buf;
+	data_buf.pSysMem = v_need;
+	hr = device_pancy->CreateBuffer(&data_desc, &data_buf, &depthbuffer_VB);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create buffer error", L"tip", MB_OK);
+		return hr;
+	}
+	pancy_point v[4];
+	
 	v[0].position = XMFLOAT3(-1.0f, -1.0f, 0.0f);
 	v[1].position = XMFLOAT3(-1.0f, +1.0f, 0.0f);
 	v[2].position = XMFLOAT3(+1.0f, +1.0f, 0.0f);
@@ -347,6 +427,13 @@ void Pretreatment_gbuffer::set_multirender_target()
 	contex_pancy->ClearRenderTargetView(gbuffer_diffuse_target, clearColor);
 	contex_pancy->ClearRenderTargetView(gbuffer_specular_target, clearColor);
 	//contex_pancy->ClearDepthStencilView(depthmap_target, D3D11_CLEAR_DEPTH, 1.0f, 0);
+}
+void Pretreatment_gbuffer::set_resolvdepth_target()
+{
+	ID3D11RenderTargetView* renderTargets[1] = { depthmap_single_target};
+	contex_pancy->OMSetRenderTargets(1, renderTargets, NULL);
+	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	contex_pancy->ClearRenderTargetView(depthmap_single_target, clearColor);
 }
 HRESULT Pretreatment_gbuffer::create()
 {
@@ -504,12 +591,75 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 	}
 	//还原渲染状态
 	contex_pancy->RSSetState(0);
+	ID3D11Resource * normalDepthTex = 0;
+	ID3D11Resource * normalDepthTex_singlesample = 0;
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~存储深度纹理~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	/*
+	
+	depthmap_target->GetResource(&normalDepthTex);
+	depthmap_tex->GetResource(&normalDepthTex_singlesample);
+	//将多重采样纹理转换至非多重纹理
+	contex_pancy->ResolveSubresource(normalDepthTex_singlesample, D3D11CalcSubresource(0, 0, 1), normalDepthTex, D3D11CalcSubresource(0, 0, 1), DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
+	depthmap_tex->Release();
+	depthmap_tex = NULL;
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	HRESULT hr = device_pancy->CreateShaderResourceView(normalDepthTex_singlesample, &srvDesc, &depthmap_tex);
+	normalDepthTex->Release();
+	normalDepthTex_singlesample->Release();*/
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~存储法线镜面反射光纹理~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	normalspec_target->GetResource(&normalDepthTex);
+	normalspec_tex->GetResource(&normalDepthTex_singlesample);
+	//将多重采样纹理转换至非多重纹理
+	contex_pancy->ResolveSubresource(normalDepthTex_singlesample, D3D11CalcSubresource(0, 0, 1), normalDepthTex, D3D11CalcSubresource(0, 0, 1), DXGI_FORMAT_R16G16B16A16_FLOAT);
+	normalspec_tex->Release();
+	normalspec_tex = NULL;
+	device_pancy->CreateShaderResourceView(normalDepthTex_singlesample, 0, &normalspec_tex);
+	normalDepthTex->Release();
+	normalDepthTex_singlesample->Release();
+	//msaa-shader重采样
+	set_resolvdepth_target();
+	auto shader_resolve = shader_list->get_shader_resolve_depthstencil();
+	shader_resolve->set_texture_MSAA(depthmap_tex);
+	XMFLOAT3 rec_proj_vec;
+	rec_proj_vec.x = 1.0f / proj_matrix_gbuffer._43;
+	rec_proj_vec.y = -1.0f / proj_matrix_gbuffer._43;
+	rec_proj_vec.z = 0.0f;
+	shader_resolve->set_projmessage(rec_proj_vec);
+	ID3DX11EffectTechnique *tech_need;
+	shader_resolve->get_technique(&tech_need,"resolove_msaa");
+	resolve_depth_render(tech_need);
+	shader_resolve->set_texture_MSAA(NULL);
+	ID3D11RenderTargetView* NULL_target[1] = { NULL };
+	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
+	
 }
 void Pretreatment_gbuffer::display()
 {
 	XMFLOAT4X4 view_matrix_gbuffer;         //取景变换
 	camera_use->count_view_matrix(&view_matrix_gbuffer);
 	render_gbuffer(view_matrix_gbuffer, proj_matrix_gbuffer);
+
+}
+void Pretreatment_gbuffer::resolve_depth_render(ID3DX11EffectTechnique* tech)
+{
+	//渲染屏幕空间像素图
+	UINT stride = sizeof(simpletex_point);
+	UINT offset = 0;
+	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	contex_pancy->IASetVertexBuffers(0, 1, &depthbuffer_VB, &stride, &offset);
+	contex_pancy->IASetIndexBuffer(lightbuffer_IB, DXGI_FORMAT_R16_UINT, 0);
+	D3DX11_TECHNIQUE_DESC techDesc;
+	tech->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+		contex_pancy->DrawIndexed(6, 0, 0);
+	}
+
 }
 void Pretreatment_gbuffer::release()
 {
@@ -523,6 +673,9 @@ void Pretreatment_gbuffer::release()
 	safe_release(gbuffer_specular_tex);
 	safe_release(lightbuffer_VB);
 	safe_release(lightbuffer_IB);
+	safe_release(depthmap_single_target);
+	safe_release(depthmap_single_tex);
+	safe_release(depthbuffer_VB);
 }
 //继承的d3d注册类
 class d3d_pancy_1 :public d3d_pancy_basic

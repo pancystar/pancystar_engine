@@ -183,11 +183,13 @@ class shader_ssaoblur : public shader_basic
 	ID3DX11EffectScalarVariable* TexelHeight;
 
 	ID3DX11EffectShaderResourceVariable* NormalDepthMap;
+	ID3DX11EffectShaderResourceVariable* DepthMap;
 	ID3DX11EffectShaderResourceVariable* InputImage;
 public:
 	shader_ssaoblur(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_image_size(float width, float height);
 	HRESULT set_tex_resource(ID3D11ShaderResourceView* tex_normaldepth, ID3D11ShaderResourceView* tex_aomap);
+	HRESULT set_Depthtex(ID3D11ShaderResourceView* srv);
 	void release();
 private:
 	void init_handle();//注册shader中所有全局变量的句柄
@@ -370,23 +372,39 @@ private:
 	void init_handle();                 //注册全局变量句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
+class shader_resolvedepth : public shader_basic
+{
+	ID3DX11EffectShaderResourceVariable   *texture_MSAA;
+	ID3DX11EffectVariable   *projmessage_handle;            //视点位置
+public:
+	shader_resolvedepth(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_texture_MSAA(ID3D11ShaderResourceView *tex_in);
+	HRESULT set_projmessage(XMFLOAT3 proj_message);
+	void release();
+private:
+	void init_handle();                 //注册全局变量句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shader list~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_control
 {
-	light_pre                  *shader_light_pre;          //前向光照着色器
-	light_shadow               *shader_shadowmap;          //阴影图着色器
-	shader_shadow_volume       *shader_shadowvolume;       //阴影体着色器
-	shader_shadow_volume_draw  *shader_shadowvolume_draw;  //阴影体绘制
+	light_pre                  *shader_light_pre;                //前向光照着色器
+	light_shadow               *shader_shadowmap;                //阴影图着色器
+	shader_shadow_volume       *shader_shadowvolume;             //阴影体着色器
+	shader_shadow_volume_draw  *shader_shadowvolume_draw;        //阴影体绘制
+	shader_resolvedepth        *shader_resolve_depthstencil;     //msaa深度模板缓冲区重采样
 	shader_gbufferdepthnormal_map *shader_gbuffer_depthnormal;   //ssao深度纹理着色器
-	shader_ssaomap             *shader_ssao_draw;          //ssao遮蔽图渲染着色器
-	shader_ssaoblur            *shader_ssao_blur;          //ssao模糊着色器
-	shader_reflect             *shader_cubemap;            //立方贴图着色器
-	compute_averagelight       *shader_HDR_average;        //HDR像素平均
-	shader_HDRpreblur          *shader_HDR_preblur;        //HDR高光提取
-	shader_HDRblur             *shader_HDR_blur;           //HDR高光模糊
-	shader_HDRfinal            *shader_HDR_final;          //HDR最终结果
-	shader_particle            *particle_fire;             //粒子系统着色器
-	shader_grass               *shader_grass_billboard;    //草地公告板
+	shader_ssaomap             *shader_ssao_draw;                //ssao遮蔽图渲染着色器
+	shader_ssaoblur            *shader_ssao_blur;                //ssao模糊着色器
+	shader_reflect             *shader_cubemap;                  //立方贴图着色器
+	compute_averagelight       *shader_HDR_average;              //HDR像素平均
+	shader_HDRpreblur          *shader_HDR_preblur;              //HDR高光提取
+	shader_HDRblur             *shader_HDR_blur;                 //HDR高光模糊
+	shader_HDRfinal            *shader_HDR_final;                //HDR最终结果
+	shader_particle            *particle_fire;                   //粒子系统着色器
+	shader_grass               *shader_grass_billboard;          //草地公告板
+
 	shader_basic *shader_light_deferred;
 public:
 	shader_control();
@@ -395,6 +413,7 @@ public:
 	light_shadow*               get_shader_shadowmap() { return shader_shadowmap; };
 	shader_shadow_volume*       get_shader_shadowvolume() { return shader_shadowvolume; };
 	shader_shadow_volume_draw*  get_shader_shadowvolume_draw() { return shader_shadowvolume_draw; };
+	shader_resolvedepth*        get_shader_resolve_depthstencil() { return shader_resolve_depthstencil; };
 	shader_gbufferdepthnormal_map* get_shader_gbufferdepthnormal() {return shader_gbuffer_depthnormal;};
 	shader_ssaomap*             get_shader_ssaodraw() { return shader_ssao_draw; };
 	shader_ssaoblur*            get_shader_ssaoblur() { return shader_ssao_blur; };

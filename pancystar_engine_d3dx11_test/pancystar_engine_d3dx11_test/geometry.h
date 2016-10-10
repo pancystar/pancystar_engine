@@ -15,6 +15,11 @@ enum CullMode
 	Cull_CCW = 1,
 	Cull_NONE = 2
 };
+struct simpletex_point 
+{
+	XMFLOAT3 position;
+	XMFLOAT2 tex;
+};
 struct pancy_point
 {
 	XMFLOAT3 position;

@@ -154,6 +154,9 @@
     <FxCompile Include="gbuffer_normaldepth_map.fx">
       <Filter>源文件</Filter>
     </FxCompile>
+    <FxCompile Include="ResolveMSAAdepthstencil.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram2.cd" />

@@ -539,6 +539,7 @@ void shader_ssaoblur::init_handle()
 	TexelHeight = fx_need->GetVariableByName("gTexelHeight")->AsScalar();
 
 	NormalDepthMap = fx_need->GetVariableByName("gNormalDepthMap")->AsShaderResource();
+	DepthMap = fx_need->GetVariableByName("gdepth_map")->AsShaderResource();
 	InputImage = fx_need->GetVariableByName("gInputImage")->AsShaderResource();
 }
 HRESULT shader_ssaoblur::set_image_size(float width, float height)
@@ -571,6 +572,16 @@ HRESULT shader_ssaoblur::set_tex_resource(ID3D11ShaderResourceView* tex_normalde
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"set tex_aomap error in ssao blur part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_ssaoblur::set_Depthtex(ID3D11ShaderResourceView* srv)
+{
+	HRESULT hr = DepthMap->SetResource(srv);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set NormalDepthtex error in ssao draw part", L"tip", MB_OK);
 		return hr;
 	}
 	return S_OK;
@@ -1342,6 +1353,56 @@ void shader_grass::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, U
 		member_point[i] = rec[i];
 	}
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~MSAA深度模板缓冲重采样~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_resolvedepth::shader_resolvedepth(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT shader_resolvedepth::set_texture_MSAA(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = texture_MSAA->SetResource(tex_in);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set billboard texture error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_resolvedepth::set_projmessage(XMFLOAT3 proj_message)
+{
+	HRESULT hr = projmessage_handle->SetRawValue((void*)&proj_message, 0, sizeof(proj_message));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting view position", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_resolvedepth::release()
+{
+	release_basic();
+}
+void shader_resolvedepth::init_handle()
+{
+	//纹理信息句柄
+	texture_MSAA = fx_need->GetVariableByName("gdepth_map")->AsShaderResource();
+	//几何变换信息句柄
+	projmessage_handle = fx_need->GetVariableByName("proj_desc");
+}
+void shader_resolvedepth::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD",     0, DXGI_FORMAT_R32G32_FLOAT,    0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全局shader管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_control::shader_control()
 {
@@ -1360,6 +1421,7 @@ shader_control::shader_control()
 	shader_shadowvolume = NULL;
 	shader_shadowvolume_draw = NULL;
 	shader_grass_billboard = NULL;
+	shader_resolve_depthstencil = NULL;
 }
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
@@ -1470,6 +1532,13 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 		MessageBox(0, L"an error when grass billboard shader created", L"tip", MB_OK);
 		return hr;
 	}
+	shader_resolve_depthstencil = new shader_resolvedepth(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\ResolveMSAAdepthstencil.cso", device_pancy, contex_pancy);
+	hr = shader_resolve_depthstencil->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when grass billboard shader created", L"tip", MB_OK);
+		return hr;
+	}
 	return S_OK;
 }
 void shader_control::release()
@@ -1488,4 +1557,5 @@ void shader_control::release()
 	shader_HDR_final->release();
 	particle_fire->release();
 	shader_grass_billboard->release();
+	shader_resolve_depthstencil->release();
 }

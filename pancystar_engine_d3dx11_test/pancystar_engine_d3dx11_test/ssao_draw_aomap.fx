@@ -85,8 +85,9 @@ float4 PS(VertexOut pin) : SV_Target
 	float4 normalDepth = gNormalDepthMap.Sample(samNormalDepth, pin.Tex);
 	float3 n = normalDepth.xyz;
 	//float pz = normalDepth.w;
+	//float pz = gdepth_map.Load(int2(pin.Tex * float2(800,600)), 0).r;
 	float pz = gdepth_map.Sample(samNormalDepth, pin.Tex).r;
-	pz = 0.1f / (1.0f - pz);
+	//pz = 0.1f / (1.0f - pz);
 	float3 p = (pz / pin.ToFarPlane.z)*pin.ToFarPlane;
 	//获取随机向量
 	float3 randVec = 2.0f*gRandomVecMap.SampleLevel(samRandomVec, 4.0f*pin.Tex,0.0f).rgb - 1.0f;
@@ -107,7 +108,8 @@ float4 PS(VertexOut pin) : SV_Target
 		//根据坐标在normalmap上找到当前视角能看到的一个随机点
 		//float rz = gNormalDepthMap.SampleLevel(samNormalDepth, projQ.xy, 0.0f).a;
 		float rz = gdepth_map.Sample(samNormalDepth, projQ.xy).r;
-		rz = 0.1f / (1.0f - rz);
+		//float rz = gdepth_map.Load(int2(projQ.xy * float2(800, 600)), 0).r;
+		//rz = 0.1f / (1.0f - rz);
 		//还原当前视角能看到的这个点的世界坐标
 		float3 r = (rz / q.z) * q;
 		//根据距离d = |p.z - r.z|，遮挡点指向测试点的向量与测试点法向量的夹角n*(r-p)共同计算出r点对p点的遮挡贡献

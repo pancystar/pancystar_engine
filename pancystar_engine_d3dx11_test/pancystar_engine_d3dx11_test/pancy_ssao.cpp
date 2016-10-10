@@ -592,6 +592,7 @@ void ssao_pancy::basic_blur(ID3D11ShaderResourceView *texin, ID3D11RenderTargetV
 	auto *shader_blurpass = shader_list->get_shader_ssaoblur();
 	shader_blurpass->set_image_size(1.0f / render_viewport.Width, 1.0f / render_viewport.Height);
 	shader_blurpass->set_tex_resource(normaldepth_tex, texin);
+	shader_blurpass->set_Depthtex(depth_tex);
 	UINT stride = sizeof(pancy_point);
 	UINT offset = 0;
 
@@ -617,8 +618,13 @@ void ssao_pancy::basic_blur(ID3D11ShaderResourceView *texin, ID3D11RenderTargetV
 		contex_pancy->DrawIndexed(6, 0, 0);
 	}
 	shader_blurpass->set_tex_resource(NULL, NULL);
+	shader_blurpass->set_Depthtex(NULL);
 	ID3D11RenderTargetView* NULL_target[1] = { NULL };
 	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+	}
 	//tech->GetPassByIndex(0)->Apply(0, contex_pancy);
 }
 void ssao_pancy::check_ssaomap()

@@ -502,6 +502,10 @@ void render_posttreatment_HDR::basic_blur(ID3D11ShaderResourceView *input, ID3D1
 	shader_blur->set_tex_resource(NULL);
 	ID3D11RenderTargetView* NULL_target[1] = { NULL };
 	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+	}
 	//tech->GetPassByIndex(0)->Apply(0, contex_pancy);
 }
 HRESULT render_posttreatment_HDR::build_fullscreen_picturebuff()
