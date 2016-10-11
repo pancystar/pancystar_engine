@@ -133,9 +133,6 @@
     <FxCompile Include="HDR_final.fx">
       <Filter>源文件</Filter>
     </FxCompile>
-    <FxCompile Include="light_defferd_gbuffer.fx">
-      <Filter>源文件</Filter>
-    </FxCompile>
     <FxCompile Include="light_defferd_darw.fx">
       <Filter>源文件</Filter>
     </FxCompile>
@@ -155,6 +152,9 @@
       <Filter>源文件</Filter>
     </FxCompile>
     <FxCompile Include="ResolveMSAAdepthstencil.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
+    <FxCompile Include="light_defferd_lightbuffer.fx">
       <Filter>源文件</Filter>
     </FxCompile>
   </ItemGroup>

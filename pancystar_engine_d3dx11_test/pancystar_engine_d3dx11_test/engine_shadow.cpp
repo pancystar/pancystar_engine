@@ -111,6 +111,7 @@ HRESULT shadow_basic::set_viewport(int width_need, int height_need)
 	shadow_map_VP.Height = static_cast<float>(shadowmap_height);
 	shadow_map_VP.MinDepth = 0.0f;
 	shadow_map_VP.MaxDepth = 1.0f;
+	/*
 	//指定用于存储深度记录的shader图片资源的格式
 	D3D11_TEXTURE2D_DESC texDesc;
 	texDesc.Width = shadowmap_width;
@@ -159,6 +160,43 @@ HRESULT shadow_basic::set_viewport(int width_need, int height_need)
 	if (depthMap != NULL)
 	{
 		depthMap->Release();
+	}*/
+	return S_OK;
+}
+HRESULT shadow_basic::init_texture(ID3D11Texture2D* depthMap_array, int index_need)
+{
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~深度模板渲染目标~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	D3D11_TEXTURE2D_DESC texDesc;
+	depthMap_array->GetDesc(&texDesc);
+	//建立GPU上的两种资源：纹理资源以及渲染目标资源
+	D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = 
+	{
+		DXGI_FORMAT_D24_UNORM_S8_UINT,
+		D3D11_DSV_DIMENSION_TEXTURE2DARRAY
+	};
+	dsvDesc.Texture2DArray.ArraySize = 1;
+	dsvDesc.Texture2DArray.FirstArraySlice = index_need;
+	HRESULT hr = device_pancy->CreateDepthStencilView(depthMap_array, &dsvDesc, &depthmap_target);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create shader resource view error when create shadowmap resource", L"tip", MB_OK);
+		return hr;
+	}
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~深度信息访问资源~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = 
+	{
+		DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
+		D3D11_SRV_DIMENSION_TEXTURE2DARRAY
+	};
+	srvDesc.Texture2D.MipLevels = texDesc.MipLevels;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2DArray.ArraySize = 1;
+	srvDesc.Texture2DArray.FirstArraySlice = index_need;
+	hr = device_pancy->CreateShaderResourceView(depthMap_array, &srvDesc, &depthmap_tex);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create render target view error when create shadowmap resource", L"tip", MB_OK);
+		return hr;
 	}
 	return S_OK;
 }

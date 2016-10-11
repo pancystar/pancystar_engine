@@ -372,8 +372,10 @@ private:
 	void init_handle();                 //注册全局变量句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~resolve_depth stencilview~~~~~~~~~~~~~~~~~~~~~~
 class shader_resolvedepth : public shader_basic
 {
+
 	ID3DX11EffectShaderResourceVariable   *texture_MSAA;
 	ID3DX11EffectVariable   *projmessage_handle;            //视点位置
 public:
@@ -385,11 +387,40 @@ private:
 	void init_handle();                 //注册全局变量句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~defered lighting lightbuffer~~~~~~~~~~~~~~~~~~~~~
+class light_defered_lightbuffer : public shader_basic
+{
+	ID3DX11EffectVariable                 *light_list;                 //灯光
+	ID3DX11EffectVariable                 *light_num_handle;           //光源数量
+	ID3DX11EffectMatrixVariable           *shadow_matrix_handle;       //阴影图变换
+	ID3DX11EffectMatrixVariable           *view_matrix_handle;         //取景变换句柄
+	ID3DX11EffectMatrixVariable           *invview_matrix_handle;      //取景变换逆变换句柄
+	ID3DX11EffectVectorVariable           *FrustumCorners;             //3D还原角点
+	ID3DX11EffectShaderResourceVariable   *NormalspecMap;             //法线镜面光纹理资源句柄
+	ID3DX11EffectShaderResourceVariable   *DepthMap;                   //深度纹理资源句柄
+	ID3DX11EffectShaderResourceVariable   *texture_shadow;             //阴影纹理资源句柄
+public:
+	light_defered_lightbuffer(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_light(pancy_light_basic light_need, int light_num); //设置一个光源
+	HRESULT set_light_num(XMUINT3 all_light_num);                       //设置光源数量
+	HRESULT set_FrustumCorners(const XMFLOAT4 v[4]);                //设置3D还原角点
+	HRESULT set_shadow_matrix(const XMFLOAT4X4* M, int cnt);		//设置阴影图变换矩阵
+	HRESULT set_view_matrix(XMFLOAT4X4 *mat_need);                  //设置取景变换
+	HRESULT set_invview_matrix(XMFLOAT4X4 *mat_need);                  //设置取景变换
 
+	HRESULT set_Normalspec_tex(ID3D11ShaderResourceView *tex_in);	//设置法线镜面光纹理
+	HRESULT set_DepthMap_tex(ID3D11ShaderResourceView *tex_in);		//设置深度纹理
+	HRESULT set_shadow_tex(ID3D11ShaderResourceView *tex_in);		//设置阴影纹理
+	void release();
+private:
+	void init_handle();                 //注册全局变量句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shader list~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_control
 {
 	light_pre                  *shader_light_pre;                //前向光照着色器
+	light_defered_lightbuffer  *shader_light_deffered_lbuffer;   //延迟光照光照缓存着色器
 	light_shadow               *shader_shadowmap;                //阴影图着色器
 	shader_shadow_volume       *shader_shadowvolume;             //阴影体着色器
 	shader_shadow_volume_draw  *shader_shadowvolume_draw;        //阴影体绘制
@@ -424,7 +455,8 @@ public:
 	shader_HDRfinal*            get_shader_HDRfinal() { return shader_HDR_final; };
 	shader_particle*            get_shader_fireparticle() { return particle_fire; };
 	shader_grass*               get_shader_grass_billboard() { return shader_grass_billboard; };
-	
+	light_defered_lightbuffer*  get_shader_defferedlight_lightbuffer() { return shader_light_deffered_lbuffer; };
+
 	void release();
 };
 

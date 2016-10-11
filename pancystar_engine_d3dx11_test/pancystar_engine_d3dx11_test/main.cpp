@@ -67,6 +67,7 @@ class Pretreatment_gbuffer
 public:
 	Pretreatment_gbuffer(int width_need,int height_need,ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *renderstate_need, shader_control *shader_need, geometry_control *geometry_need, pancy_camera *camera_need);
 	HRESULT create();
+	//void update();
 	void display();
 	void release();
 	ID3D11ShaderResourceView *get_gbuffer_normalspec() { return normalspec_tex; };
@@ -82,11 +83,13 @@ private:
 	void set_resolvdepth_target();
 	void BuildFrustumFarCorners(float fovy, float farZ);
 	void render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix);
+	void render_lbuffer(XMFLOAT4X4 view_matrix,XMFLOAT4X4 invview_matrix);
 	ID3DX11EffectTechnique* get_technique();
 	ID3DX11EffectTechnique* get_technique_transparent();
 	ID3DX11EffectTechnique* get_technique_skin();
 	ID3DX11EffectTechnique* get_technique_skin_transparent();
 	void resolve_depth_render(ID3DX11EffectTechnique* tech);
+	void light_buffer_render(ID3DX11EffectTechnique* tech);
 	template<class T>
 	void safe_release(T t)
 	{
@@ -533,7 +536,7 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
 	contex_pancy->RSSetViewports(1, &render_viewport);
 	set_normalspecdepth_target();
-	//»æÖÆ»·¾³¹âÕÚ±Î
+	//»æÖÆgbuffer
 	scene_geometry_list *list = geometry_lib->get_model_list();
 	geometry_member *now_rec = list->get_geometry_head();
 	auto *g_shader = shader_list->get_shader_gbufferdepthnormal();
@@ -635,14 +638,20 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 	shader_resolve->set_texture_MSAA(NULL);
 	ID3D11RenderTargetView* NULL_target[1] = { NULL };
 	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
-	
+	D3DX11_TECHNIQUE_DESC techDesc;
+	tech_need->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech_need->GetPassByIndex(p)->Apply(0, contex_pancy);
+	}
 }
 void Pretreatment_gbuffer::display()
 {
-	XMFLOAT4X4 view_matrix_gbuffer;         //È¡¾°±ä»»
+	XMFLOAT4X4 view_matrix_gbuffer,invview_matrix_lbuffer;         //È¡¾°±ä»»&Äæ±ä»»
 	camera_use->count_view_matrix(&view_matrix_gbuffer);
+	camera_use->count_invview_matrix(&invview_matrix_lbuffer);
 	render_gbuffer(view_matrix_gbuffer, proj_matrix_gbuffer);
-
+	render_lbuffer(view_matrix_gbuffer, invview_matrix_lbuffer);
 }
 void Pretreatment_gbuffer::resolve_depth_render(ID3DX11EffectTechnique* tech)
 {
@@ -661,6 +670,22 @@ void Pretreatment_gbuffer::resolve_depth_render(ID3DX11EffectTechnique* tech)
 	}
 
 }
+void Pretreatment_gbuffer::light_buffer_render(ID3DX11EffectTechnique* tech)
+{
+	//äÖÈ¾ÆÁÄ»¿Õ¼äÏñËØÍ¼
+	UINT stride = sizeof(pancy_point);
+	UINT offset = 0;
+	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	contex_pancy->IASetVertexBuffers(0, 1, &lightbuffer_VB, &stride, &offset);
+	contex_pancy->IASetIndexBuffer(lightbuffer_IB, DXGI_FORMAT_R16_UINT, 0);
+	D3DX11_TECHNIQUE_DESC techDesc;
+	tech->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+		contex_pancy->DrawIndexed(6, 0, 0);
+	}
+}
 void Pretreatment_gbuffer::release()
 {
 	safe_release(depthmap_tex);
@@ -676,6 +701,28 @@ void Pretreatment_gbuffer::release()
 	safe_release(depthmap_single_target);
 	safe_release(depthmap_single_tex);
 	safe_release(depthbuffer_VB);
+}
+void Pretreatment_gbuffer::render_lbuffer(XMFLOAT4X4 view_matrix,XMFLOAT4X4 invview_matrix)
+{
+	contex_pancy->RSSetViewports(1, &render_viewport);
+	set_multirender_target();
+	auto lbuffer_shader = shader_list->get_shader_defferedlight_lightbuffer();
+	lbuffer_shader->set_DepthMap_tex(depthmap_single_tex);
+	lbuffer_shader->set_Normalspec_tex(normalspec_tex);
+	lbuffer_shader->set_FrustumCorners(FrustumFarCorner);
+	lbuffer_shader->set_view_matrix(&view_matrix);
+	lbuffer_shader->set_invview_matrix(&invview_matrix);
+	ID3DX11EffectTechnique *tech_need;
+	lbuffer_shader->get_technique(&tech_need,"draw_common");
+	light_buffer_render(tech_need);
+	ID3D11RenderTargetView* NULL_target[1] = { NULL };
+	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
+	D3DX11_TECHNIQUE_DESC techDesc;
+	tech_need->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech_need->GetPassByIndex(p)->Apply(0, contex_pancy);
+	}
 }
 //¼Ì³ÐµÄd3d×¢²áÀà
 class d3d_pancy_1 :public d3d_pancy_basic

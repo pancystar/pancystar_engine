@@ -12,6 +12,7 @@ scene_root::scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_ne
 	renderstate_lib = render_state;
 	geometry_lib = geometry_need;
 	time_game = 0.0f;
+	light_list = new light_control(device_need,contex_need,20);
 	//初始化投影以及取景变换矩阵
 	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, scene_window_width*1.0f / scene_window_height*1.0f, 0.1f, 300.f);
 	ssao_part = new ssao_pancy(render_state,device_need, contex_need, shader_lib,geometry_lib,scene_window_width, scene_window_height, XM_PI*0.25f, 300.0f);
@@ -71,13 +72,19 @@ void scene_root::get_gbuffer(ID3D11ShaderResourceView *normalspec_need, ID3D11Sh
 }
 scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need,geometry_need,width, height)
 {
-	nonshadow_light_list.clear();
-	shadowmap_light_list.clear();
+	//nonshadow_light_list.clear();
+	//shadowmap_light_list.clear();
 	particle_fire = new particle_system<fire_point>(device_need, contex_need, 1500, lib_need, PARTICLE_TYPE_FIRE);
 }
 HRESULT scene_engine_test::scene_create()
 {
 	HRESULT hr_need;
+	hr_need = light_list->create(shader_lib,geometry_lib, renderstate_lib);
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	/*
 	basic_lighting rec_need(point_light,shadow_none,shader_lib,device_pancy,contex_pancy,renderstate_lib, geometry_lib);
 	nonshadow_light_list.push_back(rec_need);
 
@@ -88,21 +95,18 @@ HRESULT scene_engine_test::scene_create()
 		return hr_need;
 	}
 	shadowmap_light_list.push_back(rec_shadow);
+	*/
 	hr_need = ssao_part->basic_create();
-	/*
-	light_with_shadowvolume rec_shadowvalum(spot_light, shadow_volume, shader_lib, device_pancy, contex_pancy, renderstate_lib);
-	hr_need = rec_shadowvalum.create(1000000);
 	if (FAILED(hr_need))
 	{
 		return hr_need;
 	}
+	/*
+	light_with_shadowvolume rec_shadowvalum(spot_light, shadow_volume, shader_lib, device_pancy, contex_pancy, renderstate_lib);
+	hr_need = rec_shadowvalum.create(1000000);
+	
 	shadowvalume_light_list.push_back(rec_shadowvalum);
 	*/
-	if (hr_need != S_OK)
-	{
-		MessageBox(0, L"load ssao class error", L"tip", MB_OK);
-		return hr_need;
-	}
 	hr_need = particle_fire->create(L"flare0.dds");
 	if (hr_need != S_OK)
 	{
@@ -181,6 +185,8 @@ void scene_engine_test::show_yuri_animation()
 	XMStoreFloat4x4(&world_matrix, rec_world);
 	shader_test->set_trans_world(&world_matrix);
 	//设定阴影变换以及阴影贴图
+	std::vector<light_with_shadowmap> shadowmap_light_list;
+	shadowmap_light_list = *light_list->get_lightdata_shadow();
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
 		XMFLOAT4X4 shadow_matrix_pre = rec_shadow_light._Ptr->get_ViewProjTex_matrix();
@@ -340,7 +346,8 @@ void scene_engine_test::show_castel()
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
 	*/
-	
+	std::vector<light_with_shadowmap> shadowmap_light_list;
+	shadowmap_light_list = *light_list->get_lightdata_shadow();
 	XMFLOAT4X4 world_matrix = model_castel_pack->get_world_matrix();
 	XMMATRIX rec_world = XMLoadFloat4x4(&model_castel_pack->get_world_matrix());
 	shader_test->set_trans_world(&world_matrix);
@@ -536,7 +543,8 @@ void scene_engine_test::show_floor()
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
 	shader_test->set_trans_world(&world_matrix);
-
+	std::vector<light_with_shadowmap> shadowmap_light_list;
+	shadowmap_light_list = *light_list->get_lightdata_shadow();
 	//设定阴影变换以及阴影贴图
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
@@ -606,7 +614,8 @@ void scene_engine_test::show_aotestproj()
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
 	shader_test->set_trans_world(&world_matrix);
-
+	std::vector<light_with_shadowmap> shadowmap_light_list;
+	shadowmap_light_list = *light_list->get_lightdata_shadow();
 	//设定阴影变换以及阴影贴图
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
@@ -653,6 +662,8 @@ void scene_engine_test::show_aotestproj()
 }
 void scene_engine_test::draw_shadowmap()
 {
+	light_list->draw_shadow();
+	/*
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
 		rec_shadow_light._Ptr->draw_shadow();
@@ -663,6 +674,7 @@ void scene_engine_test::draw_shadowmap()
 		//rec_shadow_volume._Ptr->draw_shadow_volume();
 	}
 	contex_pancy->RSSetState(NULL);
+	*/
 }
 void scene_engine_test::draw_ssaomap()
 {
@@ -737,35 +749,42 @@ HRESULT scene_engine_test::update(float delta_time)
 	XMStoreFloat4x4(&world_matrix, rec_world);
 	model_list->update_geometry_byname("model_castel", world_matrix, delta_time);
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~设置shadowmap光源~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	light_list->update_and_setlight();
+	/*
 	int count = 0;
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
-		rec_shadow_light._Ptr->set_frontlight(count++);
+		rec_shadow_light._Ptr->set_frontlight(count);
+		rec_shadow_light._Ptr->set_defferedlight(count);
+		count += 1;
 	}
 	
 	//设置无影光源
 	for (auto rec_non_light = nonshadow_light_list.begin(); rec_non_light != nonshadow_light_list.end(); ++rec_non_light) 
 	{
-		rec_non_light._Ptr->set_frontlight(count++);
+		rec_non_light._Ptr->set_frontlight(count);
+		rec_non_light._Ptr->set_defferedlight(count);
+		count += 1;
 	}
-
+	//设置shadowvolume光源
 	XMFLOAT4X4 view_proj;
 	XMStoreFloat4x4(&view_proj, XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
 	time_game += delta_time;
 	particle_fire->update(delta_time, time_game,&view_proj,&eyePos_rec);
-	
-	//设置shadowvolume光源
 	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
 	{
-		//rec_shadow_volume._Ptr->set_frontlight(count++);
-		rec_shadow_volume._Ptr->update_view_proj_matrix(view_proj);
-	}
+		//rec_shadow_volume._Ptr->set_frontlight(count);
+		//rec_shadow_volume._Ptr->set_defferedlight(count);
+		//count++;
+		//rec_shadow_volume._Ptr->update_view_proj_matrix(view_proj);
+	}*/
 	return S_OK;
 }
 HRESULT scene_engine_test::release()
 {
 	ssao_part->release();
 	particle_fire->release();
+	/*
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
 		rec_shadow_light._Ptr->release();
@@ -774,5 +793,7 @@ HRESULT scene_engine_test::release()
 	{
 		rec_shadow_volume._Ptr->release();
 	}
+	*/
+	light_list->release();
 	return S_OK;
 }

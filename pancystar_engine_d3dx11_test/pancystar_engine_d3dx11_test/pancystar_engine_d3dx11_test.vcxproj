@@ -211,7 +211,7 @@
     <FxCompile Include="HDR_final.fx" />
     <FxCompile Include="HDR_preblur_pass.fx" />
     <FxCompile Include="light_defferd_darw.fx" />
-    <FxCompile Include="light_defferd_gbuffer.fx" />
+    <FxCompile Include="light_defferd_lightbuffer.fx" />
     <FxCompile Include="light_define.fx" />
     <FxCompile Include="light_pre.fx" />
     <FxCompile Include="light_reflect.fx" />

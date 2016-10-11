@@ -45,6 +45,7 @@ public:
 	ID3DX11EffectTechnique* get_technique_skin_transparent();
 	HRESULT set_transparent_tex(ID3D11ShaderResourceView *tex_in);
 	XMFLOAT4X4 get_ViewProjTex_matrix() {return shadow_rebuild;};
+	HRESULT init_texture(ID3D11Texture2D* depthMap_array,int index_need);
 	void release();
 };
 

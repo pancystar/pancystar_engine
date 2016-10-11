@@ -19,6 +19,7 @@ protected:
 	geometry_control          *geometry_lib;     //几何体资源
 	shader_control            *shader_lib;       //shader资源
 	pancy_renderstate         *renderstate_lib;  //渲染格式
+	light_control             *light_list;       //光源
 	pancy_input               *user_input;       //输入输出控制
 	pancy_camera              *scene_camera;     //虚拟摄像机
 	//shadow_basic           *shadowmap_part;
@@ -47,9 +48,9 @@ protected:
 
 class scene_engine_test : public scene_root
 {
-	vector<basic_lighting>                nonshadow_light_list;
-	vector<light_with_shadowmap>          shadowmap_light_list;
-	vector<light_with_shadowvolume>       shadowvalume_light_list;
+	//vector<basic_lighting>                nonshadow_light_list;
+	//vector<light_with_shadowmap>          shadowmap_light_list;
+	//vector<light_with_shadowvolume>       shadowvalume_light_list;
 	particle_system<fire_point>           *particle_fire;
 
 public:

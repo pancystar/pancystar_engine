@@ -21,6 +21,8 @@ public:
 	basic_lighting(light_type type_need_light, shadow_type type_need_shadow, shader_control *lib_need, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, geometry_control *geometry_lib_need);
 	//前向光渲染
 	void set_frontlight(int light_num);
+	//延迟光渲染
+	void set_defferedlight(int light_num);
 	void set_light_ambient(float red, float green, float blue, float alpha);
 	void set_light_diffuse(float red, float green, float blue, float alpha);
 	void set_light_specular(float red, float green, float blue, float alpha);
@@ -37,6 +39,7 @@ public:
 	light_with_shadowmap(light_type type_need_light, shadow_type type_need_shadow, shader_control *lib_need, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, geometry_control *geometry_lib_need);
 	void set_shadow_range(XMFLOAT3 center, float range);
 	HRESULT create(int width_need, int height_need);
+	HRESULT init_texture(ID3D11Texture2D* depthMap_array, int index_need) { return shadowmap_deal->init_texture(depthMap_array, index_need); };
 	void draw_shadow();
 	ID3D11ShaderResourceView* get_mapresource() { return shadowmap_deal->get_mapresource(); };
 	XMFLOAT4X4 get_ViewProjTex_matrix() { return shadowmap_deal->get_ViewProjTex_matrix(); };
@@ -53,4 +56,23 @@ public:
 	void update_view_proj_matrix(XMFLOAT4X4 mat_need);
 	void release();
 };
-
+class light_control
+{
+	ID3D11Device           *device_pancy;     //d3d设备
+	ID3D11DeviceContext    *contex_pancy;     //设备描述表
+	shader_control          *shader_lib;
+	std::vector<basic_lighting>                nonshadow_light_list;
+	std::vector<light_with_shadowmap>          shadowmap_light_list;
+	std::vector<light_with_shadowvolume>       shadowvalume_light_list;
+	ID3D11ShaderResourceView                   *shadow_map_resource;
+	int max_shadow_num;
+public:
+	light_control(ID3D11Device *device_need,ID3D11DeviceContext *contex_need,int shadow_num_need);
+	HRESULT create(shader_control *shader_lib, geometry_control *geometry_lib, pancy_renderstate *renderstate_lib);
+	std::vector<light_with_shadowmap>* get_lightdata_shadow() { return &shadowmap_light_list; };
+	void release();
+	void update_and_setlight();
+	void draw_shadow();
+private:
+	HRESULT get_shadow_map_matrix(XMFLOAT4X4* mat_out,int &mat_num_out);
+};

@@ -78,6 +78,42 @@ void pancy_camera::count_view_matrix(XMFLOAT4X4* view_matrix)
 	view_matrix->_43 = z;
 	view_matrix->_44 = 1.0f;
 }
+void pancy_camera::count_invview_matrix(XMFLOAT4X4* inv_view_matrix)
+{
+	XMVECTOR rec_camera_look;
+	XMVECTOR rec_camera_up;
+	XMVECTOR rec_camera_right;
+	XMVECTOR rec_camera_position;
+	//格式转换
+	rec_camera_look = XMLoadFloat3(&camera_look);
+	rec_camera_up = XMLoadFloat3(&camera_up);
+	rec_camera_right = XMLoadFloat3(&camera_right);
+	rec_camera_position = XMLoadFloat3(&camera_position);
+	//求叉积
+	rec_camera_right = XMVector3Normalize(XMVector3Cross(rec_camera_up, rec_camera_look));
+	rec_camera_up = XMVector3Normalize(XMVector3Cross(rec_camera_look, rec_camera_right));
+	rec_camera_look = XMVector3Normalize(rec_camera_look);
+	float x = -XMVectorGetX(XMVector3Dot(rec_camera_right, rec_camera_position));
+	float y = -XMVectorGetX(XMVector3Dot(rec_camera_up, rec_camera_position));
+	float z = -XMVectorGetX(XMVector3Dot(rec_camera_look, rec_camera_position));
+	inv_view_matrix->_11 = camera_right.x;
+	inv_view_matrix->_12 = camera_right.y;
+	inv_view_matrix->_13 = camera_right.z;
+	inv_view_matrix->_14 = 0.0f;
+	inv_view_matrix->_21 = camera_up.x;
+	inv_view_matrix->_22 = camera_up.y;
+	inv_view_matrix->_23 = camera_up.z;
+	inv_view_matrix->_24 = 0.0f;
+	inv_view_matrix->_31 = camera_look.x;
+	inv_view_matrix->_32 = camera_look.y;
+	inv_view_matrix->_33 = camera_look.z;
+	inv_view_matrix->_34 = 0.0f;
+	inv_view_matrix->_41 = camera_position.x;
+	inv_view_matrix->_42 = camera_position.y;
+	inv_view_matrix->_43 = camera_position.z;
+	inv_view_matrix->_44 = 1.0f;
+	//inv_view_matrix
+}
 void pancy_camera::count_view_matrix(XMFLOAT3 rec_look, XMFLOAT3 rec_up, XMFLOAT3 rec_pos,XMFLOAT4X4 *view_matrix)
 {
 	XMVECTOR rec_camera_look = XMLoadFloat3(&rec_look);

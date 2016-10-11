@@ -88,7 +88,11 @@ void basic_lighting::set_frontlight(int light_num)
 	auto* shader_test = shader_lib->get_shader_prelight();
 	shader_test->set_light(light_data, light_num);
 }
-
+void basic_lighting::set_defferedlight(int light_num)
+{
+	auto* shader_test = shader_lib->get_shader_defferedlight_lightbuffer();
+	shader_test->set_light(light_data, light_num);
+}
 light_with_shadowmap::light_with_shadowmap(light_type type_need_light, shadow_type type_need_shadow, shader_control *lib_need, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,geometry_control *geometry_lib_need) : basic_lighting(type_need_light, type_need_shadow, lib_need, device_need, contex_need, render_state, geometry_lib_need)
 {
 	shadowmap_deal = new shadow_basic(device_need, contex_need, shader_lib);
@@ -212,4 +216,144 @@ void light_with_shadowvolume::release()
 void light_with_shadowvolume::draw_shadow_volume()
 {
 	shadowvolume_deal->draw_SOvertex();
+}
+
+light_control::light_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, int shadow_num_need)
+{
+	device_pancy = device_need;
+	contex_pancy = contex_need;
+	max_shadow_num = shadow_num_need;
+}
+void light_control::release()
+{
+	shadow_map_resource->Release();
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		rec_shadow_light._Ptr->release();
+	}
+	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
+	{
+		rec_shadow_volume._Ptr->release();
+	}
+}
+HRESULT light_control::create(shader_control *shader_need, geometry_control *geometry_lib, pancy_renderstate *renderstate_lib)
+{
+	shader_lib = shader_need;
+	HRESULT hr;
+	basic_lighting rec_need(point_light, shadow_none, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
+	nonshadow_light_list.push_back(rec_need);
+
+	light_with_shadowmap rec_shadow(spot_light, shadow_map, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
+	hr = rec_shadow.create(1024, 1024);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	shadowmap_light_list.push_back(rec_shadow);
+
+	ID3D11Texture2D* ShadowTextureArray;
+	D3D11_TEXTURE2D_DESC texDesc;
+	texDesc.Width = 1024;
+	texDesc.Height = 1024;
+	texDesc.MipLevels = 1;
+	texDesc.ArraySize = max_shadow_num;
+	texDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+	texDesc.CPUAccessFlags = 0;
+	texDesc.MiscFlags = 0;
+	hr = device_pancy->CreateTexture2D(&texDesc, NULL, &ShadowTextureArray);
+	if (FAILED(hr)) 
+	{
+		MessageBox(NULL,L"create shadowmap texarray error",L"tip",MB_OK);
+		return hr;
+	}
+	D3D11_SHADER_RESOURCE_VIEW_DESC dsrvd = {
+		DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
+		D3D11_SRV_DIMENSION_TEXTURE2DARRAY,
+	};
+	dsrvd.Texture2DArray.ArraySize = max_shadow_num;
+	dsrvd.Texture2DArray.FirstArraySlice = 0;
+	dsrvd.Texture2DArray.MipLevels = 1;
+	dsrvd.Texture2DArray.MostDetailedMip = 0;
+
+	hr = device_pancy->CreateShaderResourceView(ShadowTextureArray,&dsrvd, &shadow_map_resource);
+	if (FAILED(hr))
+	{
+		MessageBox(NULL, L"create shadowmap texarray error", L"tip", MB_OK);
+		return hr;
+	}
+	int shadow_count = 0;
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		rec_shadow_light._Ptr->init_texture(ShadowTextureArray, shadow_count++);
+	}
+	ShadowTextureArray->Release();
+	/*
+	
+	DXUT_SetDebugName(m_pCascadedShadowMapVarianceSRVArraySingle, "VSM Cascaded SM Var Array SRV");
+
+	for (int index = 0; index < m_CopyOfCascadeConfig.m_nCascadeLevels; ++index)
+	*/
+	return S_OK;
+}
+void light_control::update_and_setlight() 
+{
+	int count = 0;
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		rec_shadow_light._Ptr->set_frontlight(count);
+		rec_shadow_light._Ptr->set_defferedlight(count);
+		count += 1;
+	}
+	//设置无影光源
+	for (auto rec_non_light = nonshadow_light_list.begin(); rec_non_light != nonshadow_light_list.end(); ++rec_non_light)
+	{
+		rec_non_light._Ptr->set_frontlight(count);
+		rec_non_light._Ptr->set_defferedlight(count);
+		count += 1;
+	}
+	//设置shadowvolume光源
+	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
+	{
+		//rec_shadow_volume._Ptr->set_frontlight(count);
+		//rec_shadow_volume._Ptr->set_defferedlight(count);
+		//count++;
+		//rec_shadow_volume._Ptr->update_view_proj_matrix(view_proj);
+	}
+	XMFLOAT4X4 mat_shadow[30];
+	int shadow_num;
+	get_shadow_map_matrix(mat_shadow, shadow_num);
+	auto shader_deffered = shader_lib->get_shader_defferedlight_lightbuffer();
+	for (int i = 0; i < shadow_num; ++i) 
+	{
+		shader_deffered->set_shadow_matrix(mat_shadow, shadow_num);
+	}
+	shader_deffered->set_shadow_tex(shadow_map_resource);
+	XMUINT3 lightnum = XMUINT3(count,shadow_num,0);
+	shader_deffered->set_light_num(lightnum);
+}
+void light_control::draw_shadow() 
+{
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		rec_shadow_light._Ptr->draw_shadow();
+	}
+	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
+	{
+		//rec_shadow_volume._Ptr->build_shadow(ssao_part->get_depthstencilmap());
+		//rec_shadow_volume._Ptr->draw_shadow_volume();
+	}
+	contex_pancy->RSSetState(NULL);
+}
+HRESULT light_control::get_shadow_map_matrix(XMFLOAT4X4* mat_out, int &mat_num_out) 
+{
+	mat_num_out = 0;
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		mat_out[mat_num_out++] = rec_shadow_light._Ptr->get_ViewProjTex_matrix();
+	}
+	return S_OK;
 }

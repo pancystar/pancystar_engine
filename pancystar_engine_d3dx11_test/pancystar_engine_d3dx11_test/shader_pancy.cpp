@@ -1403,6 +1403,133 @@ void shader_resolvedepth::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_p
 		member_point[i] = rec[i];
 	}
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~延迟光照算法光照缓冲区~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+light_defered_lightbuffer::light_defered_lightbuffer(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT light_defered_lightbuffer::set_light(pancy_light_basic light_need, int light_num)
+{
+	HRESULT hr = light_list->SetRawValue(&light_need, light_num * sizeof(light_need), sizeof(light_need));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting light", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_lightbuffer::set_FrustumCorners(const XMFLOAT4 v[4])
+{
+	HRESULT hr = FrustumCorners->SetFloatVectorArray(reinterpret_cast<const float*>(v), 0, 4);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set FrustumCorners error in ssao draw part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_lightbuffer::set_shadow_matrix(const XMFLOAT4X4* M, int cnt)
+{
+	HRESULT hr = shadow_matrix_handle->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_lightbuffer::set_view_matrix(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(view_matrix_handle, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting project matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_lightbuffer::set_invview_matrix(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(invview_matrix_handle, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting project matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+
+HRESULT light_defered_lightbuffer::set_light_num(XMUINT3 all_light_num)
+{
+	HRESULT hr = light_num_handle->SetRawValue((void*)&all_light_num, 0, sizeof(all_light_num));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting light num", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_lightbuffer::set_Normalspec_tex(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = NormalspecMap->SetResource(tex_in);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting ssao texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_lightbuffer::set_DepthMap_tex(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = DepthMap->SetResource(tex_in);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting ssao texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_lightbuffer::set_shadow_tex(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = texture_shadow->SetResource(tex_in);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting ssao texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void light_defered_lightbuffer::release()
+{
+	release_basic();
+}
+void light_defered_lightbuffer::init_handle()
+{
+	shadow_matrix_handle = fx_need->GetVariableByName("shadowmap_matrix")->AsMatrix();//阴影变换句柄
+	view_matrix_handle = fx_need->GetVariableByName("view_matrix")->AsMatrix();       //取景变换句柄	
+	invview_matrix_handle = fx_need->GetVariableByName("invview_matrix")->AsMatrix();    //取景变换逆变换句柄
+	light_list = fx_need->GetVariableByName("light_need");                            //光照句柄
+	light_num_handle = fx_need->GetVariableByName("lightshadow_num");                 //光源数量句柄
+	FrustumCorners = fx_need->GetVariableByName("gFrustumCorners")->AsVector();       //3D还原角点句柄
+
+	NormalspecMap = fx_need->GetVariableByName("gNormalspecMap")->AsShaderResource();  //shader中的纹理资源句柄
+	DepthMap = fx_need->GetVariableByName("gdepth_map")->AsShaderResource();  //shader中的纹理资源句柄
+	texture_shadow = fx_need->GetVariableByName("texture_shadow")->AsShaderResource();  //shader中的纹理资源句柄
+}
+void light_defered_lightbuffer::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全局shader管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_control::shader_control()
 {
@@ -1422,6 +1549,7 @@ shader_control::shader_control()
 	shader_shadowvolume_draw = NULL;
 	shader_grass_billboard = NULL;
 	shader_resolve_depthstencil = NULL;
+	shader_light_deffered_lbuffer = NULL;
 }
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
@@ -1433,7 +1561,13 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 		MessageBox(0, L"an error when pre lighting shader created", L"tip", MB_OK);
 		return hr;
 	}
-
+	shader_light_deffered_lbuffer = new light_defered_lightbuffer(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\light_defferd_lightbuffer.cso", device_pancy, contex_pancy);
+	hr = shader_light_deffered_lbuffer->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when deffered lighting shader created", L"tip", MB_OK);
+		return hr;
+	}
 	shader_shadowmap = new light_shadow(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\shadowmap.cso", device_pancy, contex_pancy);
 	hr = shader_shadowmap->shder_create();
 	if (FAILED(hr))
@@ -1544,6 +1678,7 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 void shader_control::release()
 {
 	shader_light_pre->release();
+	shader_light_deffered_lbuffer->release();
 	shader_shadowmap->release();
 	shader_shadowvolume->release();
 	shader_shadowvolume_draw->release();
