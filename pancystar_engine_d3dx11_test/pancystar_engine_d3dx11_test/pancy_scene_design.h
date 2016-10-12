@@ -32,11 +32,14 @@ protected:
 	float                     time_game;
 	ID3D11ShaderResourceView  *gbuffer_normalspec;
 	ID3D11ShaderResourceView  *gbuffer_depth;
+	ID3D11ShaderResourceView  *lbuffer_diffuse;
+	ID3D11ShaderResourceView  *lbuffer_specular;
 
 public:
-	scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need,int width,int height);
+	scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need,int width,int height);
 	virtual HRESULT scene_create() = 0;
 	void get_gbuffer(ID3D11ShaderResourceView *normalspec_need, ID3D11ShaderResourceView *depth_need);
+	void get_lbuffer(ID3D11ShaderResourceView *diffuse_need, ID3D11ShaderResourceView *specular_need);
 	virtual HRESULT display() = 0;
 	virtual HRESULT display_nopost() = 0;
 	virtual HRESULT update(float delta_time) = 0;
@@ -54,7 +57,7 @@ class scene_engine_test : public scene_root
 	particle_system<fire_point>           *particle_fire;
 
 public:
-	scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height);
+	scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height);
 	HRESULT scene_create();
 	HRESULT display();
 	
@@ -66,10 +69,12 @@ private:
 	void show_floor();
 	void show_aotestproj();
 	void show_castel();
+	void show_castel_deffered();
 	void show_lightsource();
 	void draw_shadowmap();
 	void draw_ssaomap();
 	void show_fire_particle();
 	void show_yuri_animation();
+	void show_yuri_animation_deffered();
 	void show_billboard();
 };

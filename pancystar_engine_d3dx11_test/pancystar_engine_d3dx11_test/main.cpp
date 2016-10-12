@@ -40,7 +40,8 @@ class Pretreatment_gbuffer
 	pancy_renderstate        *renderstate_lib;
 	shader_control           *shader_list;                //shader表
 	geometry_control         *geometry_lib;               //几何体表
-	pancy_camera             *camera_use;                //摄像机
+	light_control            *light_list;                 //光源表
+	pancy_camera             *camera_use;                 //摄像机
 
 	ID3D11ShaderResourceView *depthmap_tex;               //保存深度信息的纹理资源
 	ID3D11DepthStencilView   *depthmap_target;            //用作渲染目标的缓冲区资源
@@ -65,7 +66,7 @@ class Pretreatment_gbuffer
 	ID3D11Buffer             *lightbuffer_IB;             //光照纹理索引缓冲区
 	XMFLOAT4X4               proj_matrix_gbuffer;         //投影变换
 public:
-	Pretreatment_gbuffer(int width_need,int height_need,ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *renderstate_need, shader_control *shader_need, geometry_control *geometry_need, pancy_camera *camera_need);
+	Pretreatment_gbuffer(int width_need,int height_need,ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *renderstate_need, shader_control *shader_need, geometry_control *geometry_need, pancy_camera *camera_need, light_control *light_need);
 	HRESULT create();
 	//void update();
 	void display();
@@ -100,7 +101,7 @@ private:
 		}
 	}
 };
-Pretreatment_gbuffer::Pretreatment_gbuffer(int width_need, int height_need,ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *renderstate_need, shader_control *shader_need, geometry_control *geometry_need, pancy_camera *camera_need)
+Pretreatment_gbuffer::Pretreatment_gbuffer(int width_need, int height_need,ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *renderstate_need, shader_control *shader_need, geometry_control *geometry_need, pancy_camera *camera_need, light_control *light_need)
 {
 	map_width = width_need;
 	map_height = height_need;
@@ -110,6 +111,7 @@ Pretreatment_gbuffer::Pretreatment_gbuffer(int width_need, int height_need,ID3D1
 	shader_list = shader_need;
 	geometry_lib = geometry_need;
 	camera_use = camera_need;
+	light_list = light_need;
 	depthmap_tex = NULL;
 	depthmap_target = NULL;
 	normalspec_target = NULL;
@@ -712,6 +714,7 @@ void Pretreatment_gbuffer::render_lbuffer(XMFLOAT4X4 view_matrix,XMFLOAT4X4 invv
 	lbuffer_shader->set_FrustumCorners(FrustumFarCorner);
 	lbuffer_shader->set_view_matrix(&view_matrix);
 	lbuffer_shader->set_invview_matrix(&invview_matrix);
+	lbuffer_shader->set_shadow_tex(light_list->get_shadow_map_resource());
 	ID3DX11EffectTechnique *tech_need;
 	lbuffer_shader->get_technique(&tech_need,"draw_common");
 	light_buffer_render(tech_need);
@@ -730,6 +733,7 @@ class d3d_pancy_1 :public d3d_pancy_basic
 	scene_root               *first_scene_test;
 	geometry_control         *geometry_list;       //几何体表
 	shader_control           *shader_list;         //shader表
+	light_control            *light_list;          //光源表
 	time_count               time_need;            //时钟控制
 	pancy_input              *test_input;          //输入输出控制
     pancy_camera             *test_camera;         //虚拟摄像机
@@ -750,6 +754,7 @@ void d3d_pancy_1::release()
 	geometry_list->release();
 	render_state->release();
 	shader_list->release();
+	light_list->release();
 	first_scene_test->release();
 	swapchain->Release();
 	contex_pancy->Release();
@@ -792,6 +797,7 @@ HRESULT d3d_pancy_1::init_create()
 	test_camera = new pancy_camera(device_pancy, window_width, window_hight);
 	test_input = new pancy_input(wind_hwnd, device_pancy, hInstance);
 	geometry_list = new geometry_control(device_pancy, contex_pancy);
+	light_list = new light_control(device_pancy,contex_pancy,20);
 	hr = shader_list->shader_init(device_pancy, contex_pancy);
 	if (FAILED(hr)) 
 	{
@@ -804,7 +810,12 @@ HRESULT d3d_pancy_1::init_create()
 		MessageBox(0, L"create geometry list failed", L"tip", MB_OK);
 		return hr;
 	}
-	first_scene_test = new scene_engine_test(device_pancy,contex_pancy, render_state,test_input, test_camera, shader_list, geometry_list,wind_width, wind_hight);
+	hr = light_list->create(shader_list, geometry_list, render_state);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	first_scene_test = new scene_engine_test(device_pancy,contex_pancy, render_state,test_input, test_camera, shader_list, geometry_list, light_list,wind_width, wind_hight);
 	hr = first_scene_test->scene_create();
 	if (FAILED(hr))
 	{
@@ -818,7 +829,7 @@ HRESULT d3d_pancy_1::init_create()
 		MessageBox(0, L"create posttreat_class failed", L"tip", MB_OK);
 		return hr;
 	}
-	pretreat_scene = new Pretreatment_gbuffer(wind_width, wind_hight,device_pancy, contex_pancy,render_state,shader_list,geometry_list, test_camera);
+	pretreat_scene = new Pretreatment_gbuffer(wind_width, wind_hight,device_pancy, contex_pancy,render_state,shader_list,geometry_list, test_camera,light_list);
 	hr = pretreat_scene->create();
 	if (FAILED(hr))
 	{
@@ -843,6 +854,7 @@ void d3d_pancy_1::display()
 	render_state->clear_basicrendertarget();
 	render_state->clear_posttreatmentcrendertarget();
 	first_scene_test->get_gbuffer(pretreat_scene->get_gbuffer_normalspec(), pretreat_scene->get_gbuffer_depth());
+	first_scene_test->get_lbuffer(pretreat_scene->get_gbuffer_difusse(), pretreat_scene->get_gbuffer_specular());
 	//render_state->set_posttreatment_rendertarget();
 	first_scene_test->display();
 

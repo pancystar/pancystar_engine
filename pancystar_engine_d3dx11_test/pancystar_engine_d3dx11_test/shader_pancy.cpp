@@ -1530,6 +1530,123 @@ void light_defered_lightbuffer::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *me
 		member_point[i] = rec[i];
 	}
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~延迟光照算法最终渲染~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+light_defered_draw::light_defered_draw(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT light_defered_draw::set_trans_ssao(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(ssao_matrix_handle, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting ssao matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_draw::set_trans_all(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(final_matrix_handle, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting project matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_draw::set_bone_matrix(const XMFLOAT4X4* M, int cnt)
+{
+	HRESULT hr = BoneTransforms->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_draw::set_material(pancy_material material_in)
+{
+	HRESULT hr = material_need->SetRawValue(&material_in, 0, sizeof(material_in));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting material", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_draw::set_ssaotex(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = texture_ssao_handle->SetResource(tex_in);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting ssao texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_draw::set_diffusetex(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = texture_diffuse_handle->SetResource(tex_in);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting diffuse texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_draw::set_diffuse_light_tex(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = tex_light_diffuse_handle->SetResource(tex_in);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting diffuse texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_draw::set_specular_light_tex(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = tex_light_specular_handle->SetResource(tex_in);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting diffuse texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void light_defered_draw::release()
+{
+	release_basic();
+}
+void light_defered_draw::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT" ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
+void light_defered_draw::init_handle()
+{
+	texture_diffuse_handle = fx_need->GetVariableByName("texture_diffuse")->AsShaderResource();  //shader中的纹理资源句柄
+	tex_light_diffuse_handle = fx_need->GetVariableByName("texture_light_diffuse")->AsShaderResource();    //法线贴图纹理
+	tex_light_specular_handle = fx_need->GetVariableByName("texture_light_specular")->AsShaderResource();    //阴影贴图句柄
+	texture_ssao_handle = fx_need->GetVariableByName("texture_ssao")->AsShaderResource();        //环境光贴图句柄
+																								 //几何变换句柄
+	final_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();         //全套几何变换句柄
+	ssao_matrix_handle = fx_need->GetVariableByName("ssao_matrix")->AsMatrix();             //ssao矩阵变换句柄
+	BoneTransforms = fx_need->GetVariableByName("gBoneTransforms")->AsMatrix();
+	material_need = fx_need->GetVariableByName("material_need");
+}
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全局shader管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_control::shader_control()
 {
@@ -1550,6 +1667,7 @@ shader_control::shader_control()
 	shader_grass_billboard = NULL;
 	shader_resolve_depthstencil = NULL;
 	shader_light_deffered_lbuffer = NULL;
+	shader_light_deffered_draw = NULL;
 }
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
@@ -1563,6 +1681,13 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 	}
 	shader_light_deffered_lbuffer = new light_defered_lightbuffer(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\light_defferd_lightbuffer.cso", device_pancy, contex_pancy);
 	hr = shader_light_deffered_lbuffer->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when deffered lighting shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_light_deffered_draw = new light_defered_draw(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\light_defferd_darw.cso", device_pancy, contex_pancy);
+	hr = shader_light_deffered_draw->shder_create();
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"an error when deffered lighting shader created", L"tip", MB_OK);
@@ -1693,4 +1818,5 @@ void shader_control::release()
 	particle_fire->release();
 	shader_grass_billboard->release();
 	shader_resolve_depthstencil->release();
+	shader_light_deffered_draw->release();
 }

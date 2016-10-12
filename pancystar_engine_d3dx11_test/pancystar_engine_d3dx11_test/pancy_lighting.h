@@ -70,6 +70,7 @@ public:
 	light_control(ID3D11Device *device_need,ID3D11DeviceContext *contex_need,int shadow_num_need);
 	HRESULT create(shader_control *shader_lib, geometry_control *geometry_lib, pancy_renderstate *renderstate_lib);
 	std::vector<light_with_shadowmap>* get_lightdata_shadow() { return &shadowmap_light_list; };
+	ID3D11ShaderResourceView  *get_shadow_map_resource() { return shadow_map_resource; };
 	void release();
 	void update_and_setlight();
 	void draw_shadow();

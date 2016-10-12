@@ -75,7 +75,7 @@ VertexOut VS_bone(Vertex_IN_bone vin)
 float4 PS(VertexOut pin) : SV_Target
 {
 	pin.NormalV = normalize(pin.NormalV);
-	return float4(pin.NormalV, pin.PosV.z);
+	return float4(pin.NormalV,10.0);
 }
 float4 PS_withalpha(VertexOut pin) : SV_Target
 {

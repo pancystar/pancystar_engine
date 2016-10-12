@@ -327,11 +327,8 @@ void light_control::update_and_setlight()
 	int shadow_num;
 	get_shadow_map_matrix(mat_shadow, shadow_num);
 	auto shader_deffered = shader_lib->get_shader_defferedlight_lightbuffer();
-	for (int i = 0; i < shadow_num; ++i) 
-	{
-		shader_deffered->set_shadow_matrix(mat_shadow, shadow_num);
-	}
-	shader_deffered->set_shadow_tex(shadow_map_resource);
+	shader_deffered->set_shadow_matrix(mat_shadow, shadow_num);
+	//shader_deffered->set_shadow_tex(shadow_map_resource);
 	XMUINT3 lightnum = XMUINT3(count,shadow_num,0);
 	shader_deffered->set_light_num(lightnum);
 }

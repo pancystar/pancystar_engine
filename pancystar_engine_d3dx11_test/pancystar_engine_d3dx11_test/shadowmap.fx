@@ -9,7 +9,7 @@ SamplerState samTex_liner
 };
 RasterizerState Depth
 {
-	DepthBias = 1000;
+	DepthBias = 10000;
 	DepthBiasClamp = 0.0f;
 	SlopeScaledDepthBias = 1.0f;
 };

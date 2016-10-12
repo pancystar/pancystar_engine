@@ -1,5 +1,5 @@
 #include"pancy_scene_design.h"
-scene_root::scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height)
+scene_root::scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need,light_control *light_need,int width, int height)
 {
 	user_input = input_need;
 	scene_camera = camera_need;
@@ -11,8 +11,8 @@ scene_root::scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_ne
 	//engine_state = engine_root;
 	renderstate_lib = render_state;
 	geometry_lib = geometry_need;
+	light_list = light_need;
 	time_game = 0.0f;
-	light_list = new light_control(device_need,contex_need,20);
 	//初始化投影以及取景变换矩阵
 	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, scene_window_width*1.0f / scene_window_height*1.0f, 0.1f, 300.f);
 	ssao_part = new ssao_pancy(render_state,device_need, contex_need, shader_lib,geometry_lib,scene_window_width, scene_window_height, XM_PI*0.25f, 300.0f);
@@ -70,7 +70,12 @@ void scene_root::get_gbuffer(ID3D11ShaderResourceView *normalspec_need, ID3D11Sh
 	gbuffer_normalspec = normalspec_need;
 	gbuffer_depth = depth_need;
 }
-scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, int width, int height) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need,geometry_need,width, height)
+void scene_root::get_lbuffer(ID3D11ShaderResourceView *diffuse_need, ID3D11ShaderResourceView *specular_need)
+{
+	lbuffer_diffuse = diffuse_need;
+	lbuffer_specular = specular_need;
+}
+scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need,geometry_need, light_need,width, height)
 {
 	//nonshadow_light_list.clear();
 	//shadowmap_light_list.clear();
@@ -79,11 +84,6 @@ scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceCont
 HRESULT scene_engine_test::scene_create()
 {
 	HRESULT hr_need;
-	hr_need = light_list->create(shader_lib,geometry_lib, renderstate_lib);
-	if (FAILED(hr_need))
-	{
-		return hr_need;
-	}
 	/*
 	basic_lighting rec_need(point_light,shadow_none,shader_lib,device_pancy,contex_pancy,renderstate_lib, geometry_lib);
 	nonshadow_light_list.push_back(rec_need);
@@ -127,9 +127,11 @@ HRESULT scene_engine_test::display()
 	show_ball();
 	show_lightsource();
 	show_floor();
-	show_castel();
+	show_castel_deffered();
+	//show_castel();
 	//show_aotestproj();
 	//show_yuri();
+	show_yuri_animation_deffered();
 	show_yuri_animation();
 	show_billboard();
 	//清空深度模板缓冲，在AO绘制阶段记录下深度信息
@@ -230,6 +232,7 @@ void scene_engine_test::show_yuri_animation()
 	int yuri_render_order[11] = { 4,5,6,7,8,9,10,3,0,2,1 };
 	XMFLOAT4X4 *rec_bonematrix = model_yuri_pack->get_bone_matrix();
 	shader_test->set_bone_matrix(rec_bonematrix, model_yuri_pack->get_bone_num());
+	/*
 	for (int i = 0; i < 7; ++i)
 	{
 		//int num_bone;
@@ -252,7 +255,7 @@ void scene_engine_test::show_yuri_animation()
 		}
 		//shader_test->set_normaltex(tex_normal);
 		model_yuri->draw_part(yuri_render_order[i]);
-	}
+	}*/
 	//alpha混合设定
 	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	contex_pancy->OMSetBlendState(renderstate_lib->get_blend_common(), blendFactor, 0xffffffff);
@@ -311,6 +314,78 @@ void scene_engine_test::show_yuri_animation()
 	}
 	*/
 	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
+}
+void scene_engine_test::show_yuri_animation_deffered()
+{
+	auto* shader_test = shader_lib->get_shader_light_deffered_draw();
+	//几何体的打包(动画)属性
+	auto* model_yuri_pack = geometry_lib->get_model_list()->get_geometry_byname("model_yuri");
+	//几何体的固有属性
+	auto* model_yuri = model_yuri_pack->get_geometry_data();
+	//选定绘制路径
+	ID3DX11EffectTechnique *teque_need;
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec_point[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION"    ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"      ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT"     ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "BONEINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "WEIGHTS"     ,0  ,DXGI_FORMAT_R32G32B32A32_FLOAT ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,68 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	shader_test->get_technique(rec_point, num_member, &teque_need, "LightWithBone");
+	//地面的材质
+	pancy_material test_Mt;
+	XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_specular2(0.0f, 0.0f, 0.0f, 1.0f);
+	test_Mt.ambient = rec_ambient2;
+	test_Mt.diffuse = rec_diffuse2;
+	test_Mt.specular = rec_specular2;
+	shader_test->set_material(test_Mt);
+	//设定世界变换
+	XMMATRIX rec_world;
+	XMFLOAT4X4 world_matrix;
+	world_matrix = model_yuri_pack->get_world_matrix();
+	rec_world = XMLoadFloat4x4(&world_matrix);
+	XMStoreFloat4x4(&world_matrix, rec_world);
+	//设定总变换
+	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
+	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+
+	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
+	XMFLOAT4X4 world_viewrec;
+	XMStoreFloat4x4(&world_viewrec, worldViewProj);
+	shader_test->set_trans_all(&world_viewrec);
+	//设定ssao变换及贴图
+	XMMATRIX T_need(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f
+		);
+	XMFLOAT4X4 ssao_matrix;
+	XMStoreFloat4x4(&ssao_matrix, worldViewProj*T_need);
+	shader_test->set_trans_ssao(&ssao_matrix);
+	shader_test->set_ssaotex(ssao_part->get_aomap());
+	//获取渲染路径并渲染
+	//model_yuri->get_technique(teque_need);
+	//model_yuri->draw_mesh();
+	int yuri_render_order[11] = { 4,5,6,7,8,9,10,3,0,2,1 };
+	XMFLOAT4X4 *rec_bonematrix = model_yuri_pack->get_bone_matrix();
+	shader_test->set_bone_matrix(rec_bonematrix, model_yuri_pack->get_bone_num());
+	for (int i = 0; i < 7; ++i)
+	{
+		material_list rec_need;
+		model_yuri->get_texture(&rec_need, yuri_render_order[i]);
+		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
+		model_yuri->get_technique(teque_need);
+		model_yuri->draw_part(yuri_render_order[i]);
+	}
 }
 void scene_engine_test::show_castel()
 {
@@ -421,6 +496,63 @@ void scene_engine_test::show_castel()
 	//设置ssao
 	ssao_part->add_mesh(rec_mesh_need);
 	*/
+}
+void scene_engine_test::show_castel_deffered() 
+{
+	auto* shader_test = shader_lib->get_shader_light_deffered_draw();
+	//几何体的打包(动画)属性
+	auto* model_castel_pack = geometry_lib->get_model_list()->get_geometry_byname("model_castel");
+	//几何体的固有属性
+	auto* model_castel = model_castel_pack->get_geometry_data();
+	//选定绘制路径
+	ID3DX11EffectTechnique *teque_need;
+	shader_test->get_technique(&teque_need, "LightTech");
+	//地面的材质
+	pancy_material test_Mt;
+	XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_specular2(1.0f, 1.0f, 1.0f, 6.0f);
+	test_Mt.ambient = rec_ambient2;
+	test_Mt.diffuse = rec_diffuse2;
+	test_Mt.specular = rec_specular2;
+	shader_test->set_material(test_Mt);
+
+
+	//设定世界变换
+	std::vector<light_with_shadowmap> shadowmap_light_list;
+	shadowmap_light_list = *light_list->get_lightdata_shadow();
+	XMFLOAT4X4 world_matrix = model_castel_pack->get_world_matrix();
+	XMMATRIX rec_world = XMLoadFloat4x4(&model_castel_pack->get_world_matrix());
+	//设定总变换
+	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
+	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
+	XMFLOAT4X4 world_viewrec;
+	XMStoreFloat4x4(&world_viewrec, worldViewProj);
+	shader_test->set_trans_all(&world_viewrec);
+	//设定ssao变换及贴图
+	XMMATRIX T_need(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f
+		);
+	XMFLOAT4X4 ssao_matrix;
+	XMStoreFloat4x4(&ssao_matrix, worldViewProj*T_need);
+	shader_test->set_trans_ssao(&ssao_matrix);
+	shader_test->set_ssaotex(ssao_part->get_aomap());
+	shader_test->set_diffuse_light_tex(lbuffer_diffuse);
+	shader_test->set_specular_light_tex(lbuffer_specular);
+	for (int i = 0; i < model_castel->get_meshnum(); ++i)
+	{
+		//纹理设定
+		material_list rec_need;
+		model_castel->get_texture(&rec_need, i);
+		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
+		model_castel->get_technique(teque_need);
+		model_castel->draw_part(i);
+	}
 }
 void scene_engine_test::show_ball()
 {
@@ -794,6 +926,6 @@ HRESULT scene_engine_test::release()
 		rec_shadow_volume._Ptr->release();
 	}
 	*/
-	light_list->release();
+	//light_list->release();
 	return S_OK;
 }

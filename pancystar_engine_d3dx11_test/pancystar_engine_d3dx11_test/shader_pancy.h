@@ -416,11 +416,38 @@ private:
 	void init_handle();                 //注册全局变量句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~deffered lighting draw~~~~~~~~~~~~~~~~~~~~~~~~~
+class light_defered_draw : public shader_basic
+{
+	ID3DX11EffectVariable                 *material_need;            //材质
+	ID3DX11EffectMatrixVariable           *final_matrix_handle;      //全套几何变换句柄
+	ID3DX11EffectMatrixVariable           *ssao_matrix_handle;       //ssao矩阵变换句柄
+	ID3DX11EffectMatrixVariable           *BoneTransforms;           //骨骼变换矩阵
+	ID3DX11EffectShaderResourceVariable   *tex_light_diffuse_handle; //漫反射光纹理资源句柄
+	ID3DX11EffectShaderResourceVariable   *tex_light_specular_handle;//镜面光纹理资源句柄
+	ID3DX11EffectShaderResourceVariable   *texture_ssao_handle;      //环境光纹理资源句柄
+	ID3DX11EffectShaderResourceVariable   *texture_diffuse_handle;   //漫反射纹理资源句柄
+public:
+	light_defered_draw(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_trans_ssao(XMFLOAT4X4 *mat_need);                   //设置环境光变换
+	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);                    //设置总变换
+	HRESULT set_material(pancy_material material_in);				//设置材质
+	HRESULT set_ssaotex(ID3D11ShaderResourceView *tex_in);			//设置ssaomap
+	HRESULT set_diffusetex(ID3D11ShaderResourceView *tex_in);		//设置漫反射纹理
+	HRESULT set_diffuse_light_tex(ID3D11ShaderResourceView *tex_in);//设置漫反射光纹理
+	HRESULT set_specular_light_tex(ID3D11ShaderResourceView *tex_in);//设置镜面反射光纹理
+	virtual HRESULT set_bone_matrix(const XMFLOAT4X4* M, int cnt);	 //设置骨骼变换矩阵
+	void release();
+private:
+	void init_handle();                 //注册全局变量句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shader list~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_control
 {
 	light_pre                  *shader_light_pre;                //前向光照着色器
 	light_defered_lightbuffer  *shader_light_deffered_lbuffer;   //延迟光照光照缓存着色器
+	light_defered_draw         *shader_light_deffered_draw;      //延迟光照渲染
 	light_shadow               *shader_shadowmap;                //阴影图着色器
 	shader_shadow_volume       *shader_shadowvolume;             //阴影体着色器
 	shader_shadow_volume_draw  *shader_shadowvolume_draw;        //阴影体绘制
@@ -456,6 +483,7 @@ public:
 	shader_particle*            get_shader_fireparticle() { return particle_fire; };
 	shader_grass*               get_shader_grass_billboard() { return shader_grass_billboard; };
 	light_defered_lightbuffer*  get_shader_defferedlight_lightbuffer() { return shader_light_deffered_lbuffer; };
+	light_defered_draw*         get_shader_light_deffered_draw() { return  shader_light_deffered_draw; };
 
 	void release();
 };
