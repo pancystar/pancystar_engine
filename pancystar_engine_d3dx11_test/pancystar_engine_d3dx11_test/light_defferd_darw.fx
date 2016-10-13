@@ -81,7 +81,7 @@ VertexOut VS(Vertex_IN vin)
 float4 PS(VertexOut pin) :SV_TARGET
 {
 	pin.pos_ssao /= pin.pos_ssao.w;
-	float4 ambient = 0.5f*float4(1.0f, 1.0f, 1.0f, 0.0f) * texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
+	float4 ambient = 0.6f*float4(1.0f, 1.0f, 1.0f, 0.0f) * texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
 	float4 tex_color = material_need.ambient * texture_diffuse.Sample(samTex_liner, pin.tex);
 	float4 diffuse = material_need.diffuse * texture_light_diffuse.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f);      //漫反射光
 	float4 spec = material_need.specular * texture_light_specular.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f);       //镜面反射光

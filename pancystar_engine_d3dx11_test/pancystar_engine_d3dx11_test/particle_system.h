@@ -240,13 +240,14 @@ void particle_system<T>::draw_particle()
 		particle_fx = NULL;
 		return;
 	}
-	particle_fx->set_startposition(start_pos);
-	particle_fx->set_startdirection(start_dir);
-	particle_fx->set_texture(particle_tex);
-	particle_fx->set_randomtex(random_tex);
+	HRESULT hr;
+	hr = particle_fx->set_startposition(start_pos);
+	hr = particle_fx->set_startdirection(start_dir);
+	hr = particle_fx->set_texture(particle_tex);
+	hr = particle_fx->set_randomtex(random_tex);
 	//粒子的更新shader
 	ID3DX11EffectTechnique                *teque_need;          //绘制路径
-	particle_fx->get_technique(&teque_need, "StreamOutTech");
+	hr = particle_fx->get_technique(&teque_need, "StreamOutTech");
 	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 
 	UINT stride = sizeof(T);
@@ -286,7 +287,7 @@ void particle_system<T>::draw_particle()
 	std::swap(auto_Vinput_need, auto_Vstream0ut_need);
 	//绘制输出缓冲区生成的粒子
 	contex_pancy->IASetVertexBuffers(0, 1, &auto_Vinput_need, &stride, &offset);
-	particle_fx->get_technique(&teque_need, "DrawTech");
+	hr = particle_fx->get_technique(&teque_need, "DrawTech");
 	teque_need->GetDesc(&techDesc);
 	for (UINT p = 0; p < techDesc.Passes; ++p)
 	{

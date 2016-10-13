@@ -392,6 +392,7 @@ class light_defered_lightbuffer : public shader_basic
 {
 	ID3DX11EffectVariable                 *light_list;                 //灯光
 	ID3DX11EffectVariable                 *light_num_handle;           //光源数量
+	ID3DX11EffectVariable                 *shadow_num_handle;           //光源数量
 	ID3DX11EffectMatrixVariable           *shadow_matrix_handle;       //阴影图变换
 	ID3DX11EffectMatrixVariable           *view_matrix_handle;         //取景变换句柄
 	ID3DX11EffectMatrixVariable           *invview_matrix_handle;      //取景变换逆变换句柄
@@ -402,7 +403,8 @@ class light_defered_lightbuffer : public shader_basic
 public:
 	light_defered_lightbuffer(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_light(pancy_light_basic light_need, int light_num); //设置一个光源
-	HRESULT set_light_num(XMUINT3 all_light_num);                       //设置光源数量
+	HRESULT set_light_num(XMUINT3 all_light_num);                   //设置光源数量
+	HRESULT set_shadow_num(XMUINT3 all_light_num);                  //设置光源数量
 	HRESULT set_FrustumCorners(const XMFLOAT4 v[4]);                //设置3D还原角点
 	HRESULT set_shadow_matrix(const XMFLOAT4X4* M, int cnt);		//设置阴影图变换矩阵
 	HRESULT set_view_matrix(XMFLOAT4X4 *mat_need);                  //设置取景变换

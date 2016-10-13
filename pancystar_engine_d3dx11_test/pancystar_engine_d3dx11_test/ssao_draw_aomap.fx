@@ -51,7 +51,7 @@ SamplerState samNormalDepth
 	// so we do not get false occlusions.
 	AddressU = BORDER;
 	AddressV = BORDER;
-	BorderColor = float4(0.0f, 0.0f, 0.0f, 1e5f);
+	BorderColor = float4(1e5f, 0.0f, 0.0f, 1e5f);
 };
 struct VertexIn//普通顶点
 {
@@ -84,8 +84,6 @@ float4 PS(VertexOut pin) : SV_Target
 	//还原点的世界坐标
 	float4 normalDepth = gNormalDepthMap.Sample(samNormalDepth, pin.Tex);
 	float3 n = normalDepth.xyz;
-	//float pz = normalDepth.w;
-	//float pz = gdepth_map.Load(int2(pin.Tex * float2(800,600)), 0).r;
 	float pz = gdepth_map.Sample(samNormalDepth, pin.Tex).r;
 	//pz = 0.1f / (1.0f - pz);
 	float3 p = (pz / pin.ToFarPlane.z)*pin.ToFarPlane;
@@ -106,10 +104,7 @@ float4 PS(VertexOut pin) : SV_Target
 		float4 projQ = mul(float4(q, 1.0f), gViewToTexSpace);
 		projQ /= projQ.w;
 		//根据坐标在normalmap上找到当前视角能看到的一个随机点
-		//float rz = gNormalDepthMap.SampleLevel(samNormalDepth, projQ.xy, 0.0f).a;
-		float rz = gdepth_map.Sample(samNormalDepth, projQ.xy).r;
-		//float rz = gdepth_map.Load(int2(projQ.xy * float2(800, 600)), 0).r;
-		//rz = 0.1f / (1.0f - rz);
+		float rz = gdepth_map.SampleLevel(samNormalDepth, projQ.xy,0.0f).r;
 		//还原当前视角能看到的这个点的世界坐标
 		float3 r = (rz / q.z) * q;
 		//根据距离d = |p.z - r.z|，遮挡点指向测试点的向量与测试点法向量的夹角n*(r-p)共同计算出r点对p点的遮挡贡献
@@ -119,7 +114,7 @@ float4 PS(VertexOut pin) : SV_Target
 		float dp = max(dot(n, normalize(r - p)), 0.0f);
 		float occlusion = delta * dp * OcclusionFunction(distZ);
 
-		occlusionSum += occlusion;
+		occlusionSum += occlusion*0.3f;
 	}
 
 	occlusionSum /= 14;

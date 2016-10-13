@@ -2,7 +2,7 @@
 #include"light_define.fx"
 cbuffer perframe
 {
-	pancy_light_basic   light_need[15];   //聚光灯光源
+	pancy_light_basic   light_need[100];   //聚光灯光源
 	float3             position_view;         //视点位置
 	int4 num_dir;
 	float4x4 gBoneTransforms[100];//骨骼变换矩阵
@@ -458,6 +458,10 @@ float4 PS_withshadowssaonormal(VertexOut pin) :SV_TARGET
 
 	for (int i = 0; i < 2; ++i)
 	{
+		compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
+		diffuse += D;
+		spec += S;
+		/*
 		//方向光(direction light)
 		if (light_need[i].type.x == 0)
 		{
@@ -492,7 +496,7 @@ float4 PS_withshadowssaonormal(VertexOut pin) :SV_TARGET
 		{
 			diffuse += D;
 			spec += S;
-		}
+		}*/
 	}
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
 	//float4 tex_color = texture_diffuse.SampleLevel(samTex_liner, pin.tex,15);

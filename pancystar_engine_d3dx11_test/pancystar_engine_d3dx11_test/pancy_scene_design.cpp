@@ -135,7 +135,7 @@ HRESULT scene_engine_test::display()
 	show_yuri_animation();
 	show_billboard();
 	//清空深度模板缓冲，在AO绘制阶段记录下深度信息
-	//show_fire_particle();
+	show_fire_particle();
 	return S_OK;
 }
 HRESULT scene_engine_test::display_nopost()
@@ -372,6 +372,8 @@ void scene_engine_test::show_yuri_animation_deffered()
 	XMStoreFloat4x4(&ssao_matrix, worldViewProj*T_need);
 	shader_test->set_trans_ssao(&ssao_matrix);
 	shader_test->set_ssaotex(ssao_part->get_aomap());
+	shader_test->set_diffuse_light_tex(lbuffer_diffuse);
+	shader_test->set_specular_light_tex(lbuffer_specular);
 	//获取渲染路径并渲染
 	//model_yuri->get_technique(teque_need);
 	//model_yuri->draw_mesh();
@@ -385,6 +387,16 @@ void scene_engine_test::show_yuri_animation_deffered()
 		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
 		model_yuri->get_technique(teque_need);
 		model_yuri->draw_part(yuri_render_order[i]);
+	}
+
+	shader_test->set_ssaotex(NULL);
+	shader_test->set_diffuse_light_tex(NULL);
+	shader_test->set_specular_light_tex(NULL);
+	D3DX11_TECHNIQUE_DESC techDesc;
+	teque_need->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		teque_need->GetPassByIndex(p)->Apply(0, contex_pancy);
 	}
 }
 void scene_engine_test::show_castel()
@@ -552,6 +564,16 @@ void scene_engine_test::show_castel_deffered()
 		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
 		model_castel->get_technique(teque_need);
 		model_castel->draw_part(i);
+	}
+
+	shader_test->set_ssaotex(NULL);
+	shader_test->set_diffuse_light_tex(NULL);
+	shader_test->set_specular_light_tex(NULL);
+	D3DX11_TECHNIQUE_DESC techDesc;
+	teque_need->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		teque_need->GetPassByIndex(p)->Apply(0, contex_pancy);
 	}
 }
 void scene_engine_test::show_ball()
@@ -843,6 +865,14 @@ void scene_engine_test::show_billboard()
 	floor_need->get_teque(teque_need);
 	floor_need->show_mesh();
 	contex_pancy->RSSetState(NULL);
+	ID3D11RenderTargetView* NULL_target[1] = { NULL };
+	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
+	D3DX11_TECHNIQUE_DESC techDesc;
+	teque_need->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		teque_need->GetPassByIndex(p)->Apply(0, contex_pancy);
+	}
 }
 HRESULT scene_engine_test::update(float delta_time)
 {
@@ -890,7 +920,6 @@ HRESULT scene_engine_test::update(float delta_time)
 		rec_shadow_light._Ptr->set_defferedlight(count);
 		count += 1;
 	}
-	
 	//设置无影光源
 	for (auto rec_non_light = nonshadow_light_list.begin(); rec_non_light != nonshadow_light_list.end(); ++rec_non_light) 
 	{
@@ -899,10 +928,6 @@ HRESULT scene_engine_test::update(float delta_time)
 		count += 1;
 	}
 	//设置shadowvolume光源
-	XMFLOAT4X4 view_proj;
-	XMStoreFloat4x4(&view_proj, XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
-	time_game += delta_time;
-	particle_fire->update(delta_time, time_game,&view_proj,&eyePos_rec);
 	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
 	{
 		//rec_shadow_volume._Ptr->set_frontlight(count);
@@ -910,6 +935,10 @@ HRESULT scene_engine_test::update(float delta_time)
 		//count++;
 		//rec_shadow_volume._Ptr->update_view_proj_matrix(view_proj);
 	}*/
+	XMFLOAT4X4 view_proj;
+	XMStoreFloat4x4(&view_proj, XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
+	time_game += delta_time*0.3;
+	particle_fire->update(delta_time*0.3, time_game,&view_proj,&eyePos_rec);
 	return S_OK;
 }
 HRESULT scene_engine_test::release()

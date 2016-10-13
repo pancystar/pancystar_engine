@@ -598,6 +598,8 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 	contex_pancy->RSSetState(0);
 	ID3D11Resource * normalDepthTex = 0;
 	ID3D11Resource * normalDepthTex_singlesample = 0;
+	ID3D11RenderTargetView* NULL_target[1] = { NULL };
+	contex_pancy->OMSetRenderTargets(1, NULL_target, NULL);
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~存储深度纹理~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	/*
 	
@@ -638,8 +640,7 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 	shader_resolve->get_technique(&tech_need,"resolove_msaa");
 	resolve_depth_render(tech_need);
 	shader_resolve->set_texture_MSAA(NULL);
-	ID3D11RenderTargetView* NULL_target[1] = { NULL };
-	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
+	contex_pancy->OMSetRenderTargets(1, NULL_target, NULL);
 	D3DX11_TECHNIQUE_DESC techDesc;
 	tech_need->GetDesc(&techDesc);
 	for (UINT p = 0; p < techDesc.Passes; ++p)
@@ -718,14 +719,18 @@ void Pretreatment_gbuffer::render_lbuffer(XMFLOAT4X4 view_matrix,XMFLOAT4X4 invv
 	ID3DX11EffectTechnique *tech_need;
 	lbuffer_shader->get_technique(&tech_need,"draw_common");
 	light_buffer_render(tech_need);
-	ID3D11RenderTargetView* NULL_target[1] = { NULL };
-	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
+	ID3D11RenderTargetView* NULL_target[2] = { NULL,NULL };
+	contex_pancy->OMSetRenderTargets(2, NULL_target, 0);
+	lbuffer_shader->set_DepthMap_tex(NULL);
+	lbuffer_shader->set_Normalspec_tex(NULL);
+	lbuffer_shader->set_shadow_tex(NULL);
 	D3DX11_TECHNIQUE_DESC techDesc;
 	tech_need->GetDesc(&techDesc);
 	for (UINT p = 0; p < techDesc.Passes; ++p)
 	{
 		tech_need->GetPassByIndex(p)->Apply(0, contex_pancy);
 	}
+	
 }
 //继承的d3d注册类
 class d3d_pancy_1 :public d3d_pancy_basic
@@ -857,7 +862,6 @@ void d3d_pancy_1::display()
 	first_scene_test->get_lbuffer(pretreat_scene->get_gbuffer_difusse(), pretreat_scene->get_gbuffer_specular());
 	//render_state->set_posttreatment_rendertarget();
 	first_scene_test->display();
-
 	render_state->restore_rendertarget();
 	posttreat_scene->display();
 	first_scene_test->display_nopost();

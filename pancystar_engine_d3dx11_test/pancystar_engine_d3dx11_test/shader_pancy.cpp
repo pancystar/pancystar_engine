@@ -1467,6 +1467,16 @@ HRESULT light_defered_lightbuffer::set_light_num(XMUINT3 all_light_num)
 	}
 	return S_OK;
 }
+HRESULT light_defered_lightbuffer::set_shadow_num(XMUINT3 all_light_num)
+{
+	HRESULT hr = shadow_num_handle->SetRawValue((void*)&all_light_num, 0, sizeof(all_light_num));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting light num", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 HRESULT light_defered_lightbuffer::set_Normalspec_tex(ID3D11ShaderResourceView *tex_in)
 {
 	HRESULT hr = NormalspecMap->SetResource(tex_in);
@@ -1505,9 +1515,10 @@ void light_defered_lightbuffer::init_handle()
 {
 	shadow_matrix_handle = fx_need->GetVariableByName("shadowmap_matrix")->AsMatrix();//阴影变换句柄
 	view_matrix_handle = fx_need->GetVariableByName("view_matrix")->AsMatrix();       //取景变换句柄	
-	invview_matrix_handle = fx_need->GetVariableByName("invview_matrix")->AsMatrix();    //取景变换逆变换句柄
+	invview_matrix_handle = fx_need->GetVariableByName("invview_matrix")->AsMatrix(); //取景变换逆变换句柄
 	light_list = fx_need->GetVariableByName("light_need");                            //光照句柄
-	light_num_handle = fx_need->GetVariableByName("lightshadow_num");                 //光源数量句柄
+	light_num_handle = fx_need->GetVariableByName("light_num");                       //光源数量句柄
+	shadow_num_handle = fx_need->GetVariableByName("shadow_num");                     //阴影数量句柄
 	FrustumCorners = fx_need->GetVariableByName("gFrustumCorners")->AsVector();       //3D还原角点句柄
 
 	NormalspecMap = fx_need->GetVariableByName("gNormalspecMap")->AsShaderResource();  //shader中的纹理资源句柄

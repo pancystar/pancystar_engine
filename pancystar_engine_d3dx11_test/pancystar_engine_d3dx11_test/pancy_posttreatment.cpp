@@ -186,6 +186,12 @@ HRESULT render_posttreatment_HDR::HDR_map()
 		contex_pancy->DrawIndexed(6, 0, 0);
 	}
 	shader_test3->set_tex_resource(NULL, NULL, NULL);
+	ID3D11RenderTargetView* NULL_target[1] = { NULL };
+	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+	}
 	return S_OK;
 }
 HRESULT render_posttreatment_HDR::CreateCPUaccessBuf(int size_need)

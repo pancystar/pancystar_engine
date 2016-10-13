@@ -26,6 +26,8 @@ public:
 	void set_light_ambient(float red, float green, float blue, float alpha);
 	void set_light_diffuse(float red, float green, float blue, float alpha);
 	void set_light_specular(float red, float green, float blue, float alpha);
+	shadow_type get_shadow_type() { return shadow_source_type; };
+	light_type get_light_type() { return light_source_type; };
 protected:
 	void init_comman_dirlight(shadow_type type_need_shadow);
 	void init_comman_pointlight(shadow_type type_need_shadow);
