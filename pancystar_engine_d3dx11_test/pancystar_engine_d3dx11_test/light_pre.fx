@@ -102,6 +102,7 @@ struct Vertex_IN//含法线贴图顶点
 	float3	pos 	: POSITION;     //顶点位置
 	float3	normal 	: NORMAL;       //顶点法向量
 	float3	tangent : TANGENT;      //顶点切向量
+	uint4   texid   : TEXINDICES;   //纹理索引
 	float2  tex1    : TEXCOORD;     //顶点纹理坐标
 };
 struct Vertex_IN_bone//含法线贴图顶点
@@ -111,6 +112,7 @@ struct Vertex_IN_bone//含法线贴图顶点
 	float3	tangent     : TANGENT;      //顶点切向量
 	uint4   bone_id     : BONEINDICES;  //骨骼ID号
 	float4  bone_weight : WEIGHTS;      //骨骼权重
+	uint4   texid       : TEXINDICES;   //纹理索引
 	float2  tex1        : TEXCOORD;     //顶点纹理坐标
 };
 struct VertexOut

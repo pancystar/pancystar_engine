@@ -134,6 +134,7 @@ void light_pre::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT
 		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "TANGENT" ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
 	};
 	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
@@ -330,7 +331,8 @@ void light_shadow::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, U
 		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "TANGENT" ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
-		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+		{ "TEXINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
 	};
 	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
 	for (UINT i = 0; i < *num_member; ++i)
@@ -353,6 +355,7 @@ void shader_gbufferdepthnormal_map::init_handle()
 	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();
 	BoneTransforms = fx_need->GetVariableByName("gBoneTransforms")->AsMatrix();
 	texture_need = fx_need->GetVariableByName("texture_diffuse")->AsShaderResource();
+	texture_normal = fx_need->GetVariableByName("texture_normal")->AsShaderResource();
 }
 HRESULT shader_gbufferdepthnormal_map::set_trans_world(XMFLOAT4X4 *mat_world, XMFLOAT4X4 *mat_view)
 {
@@ -401,6 +404,17 @@ HRESULT shader_gbufferdepthnormal_map::set_texture(ID3D11ShaderResourceView *tex
 	}
 	return S_OK;
 }
+HRESULT shader_gbufferdepthnormal_map::set_texture_normal(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr;
+	hr = texture_normal->SetResource(tex_in);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set tex_normaldepth error in ssao depth normal part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 HRESULT shader_gbufferdepthnormal_map::set_bone_matrix(const XMFLOAT4X4* M, int cnt)
 {
 	HRESULT hr = BoneTransforms->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
@@ -423,7 +437,8 @@ void shader_gbufferdepthnormal_map::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC
 		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "TANGENT" ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
-		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+		{ "TEXINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
 	};
 	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
 	for (UINT i = 0; i < *num_member; ++i)
@@ -684,7 +699,8 @@ void shader_reflect::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point,
 		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "TANGENT" ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
-		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+		{ "TEXINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
 	};
 	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
 	for (UINT i = 0; i < *num_member; ++i)
@@ -1226,7 +1242,8 @@ void shader_shadow_volume::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_
 		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "TANGENT" ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
-		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+		{ "TEXINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
 	};
 	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
 	for (UINT i = 0; i < *num_member; ++i)
@@ -1637,7 +1654,8 @@ void light_defered_draw::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_po
 		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "TANGENT" ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
-		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+		{ "TEXINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
 	};
 	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
 	for (UINT i = 0; i < *num_member; ++i)

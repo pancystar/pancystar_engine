@@ -46,24 +46,31 @@ protected:
 	material_list *matlist_need; //材质表
 	int material_optimization;   //优化后的材质数量
 	int mesh_optimization;       //优化后的网格数量
+	int mesh_normal_optimization;
 	bool if_alpha_array[10000];    //用于判断是否是透明部分
+	bool if_normal_array[10000];    //用于判断是否是法线贴图部分
 public:
 	assimp_basic(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, char* filename, char* texture_path);
 	HRESULT model_create(bool if_adj, bool if_optimize, int alpha_partnum, int* alpha_part);
 	int get_meshnum();
+	int get_meshnormalnum();
 	virtual void get_texture(material_list *texture_need, int i) = 0;
+	virtual void get_normaltexture(material_list *texture_need, int i) = 0;
 	virtual void release() = 0;
 	virtual void draw_part(int i) = 0;
+	virtual void draw_normal_part(int i) = 0;
 	virtual void draw_mesh() = 0;
 	virtual void draw_mesh_adj() = 0;
 	HRESULT get_technique(ID3DX11EffectTechnique *teque_need);
 	bool check_alpha(int part) { return if_alpha_array[part]; };
+	bool check_normal(int part) { return if_normal_array[part]; };
 protected:
 	virtual HRESULT init_mesh(bool if_adj) = 0;
 	HRESULT init_texture();
 	void remove_texture_path(char rec[]);
 	virtual HRESULT combine_vertex_array(int alpha_partnum, int* alpha_part, bool if_adj) = 0;
 	virtual HRESULT optimization_mesh(bool if_adj) = 0;//网格优化
+	virtual HRESULT optimization_normalmesh(bool if_adj) = 0;//网格优化
 	void change_texturedesc_2dds(char rec[]);
 	void release_basic();
 };
@@ -71,39 +78,23 @@ template<typename T>
 class model_reader_assimp : public assimp_basic
 {
 protected:
-	//ID3D11Device           *device_pancy;     //d3d设备
-	//ID3D11DeviceContext    *contex_pancy;     //设备描述表
-	//ID3DX11EffectTechnique *teque_pancy;       //绘制路径
-	//std::string filename;        //模型文件名
-	//char rec_texpath[128];       //纹理路径
-	//Assimp::Importer importer;   //模型导入器
-	//const aiScene *model_need;   //模型存储类
-
-	//material_list *matlist_need; //材质表
 	mesh_list<T> *mesh_need;        //网格表
-	//int material_optimization;   //优化后的材质数量
-	//int mesh_optimization;       //优化后的网格数量
+	mesh_list<T> *mesh_need_normal; //法线优化后的网格表
 	Geometry<T> *mesh_scene;  //存储合并的场景顶点
-	//bool if_alpha_array[10000];    //用于判断是否是透明部分
 public:
 	model_reader_assimp(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, char* filename, char* texture_path);
-	//HRESULT model_create(bool if_adj, bool if_optimize,int alpha_partnum,int* alpha_part);
-	//int get_meshnum();
 	void get_texture(material_list *texture_need, int i);
+	void get_normaltexture(material_list *texture_need, int i);
 	void release();
 	void draw_part(int i);
 	void draw_mesh();
 	void draw_mesh_adj();
-	//void draw_part(int i);
-	//void draw_mesh();
-	//void draw_mesh_adj();
-	//HRESULT get_technique(ID3DX11EffectTechnique *teque_need);
+	void draw_normal_part(int i);
 protected:
 	virtual HRESULT init_mesh(bool if_adj);
-	//HRESULT init_texture();
-	//void remove_texture_path(char rec[]);
 	HRESULT combine_vertex_array(int alpha_partnum, int* alpha_part, bool if_adj);
 	HRESULT optimization_mesh(bool if_adj);//网格优化
+	HRESULT optimization_normalmesh(bool if_adj);//网格优化
 };
 template<typename T>
 model_reader_assimp<T>::model_reader_assimp(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, char* pFile, char *texture_path) : assimp_basic(device_need, contex_need, pFile, texture_path)
@@ -200,7 +191,7 @@ HRESULT model_reader_assimp<T>::combine_vertex_array(int alpha_partnum, int* alp
 	UINT *index_out;
 	int all_vertex = 0, all_index = 0;
 	Geometry<T> *now_meshneed[700];
-	for (int i = 0; i < model_need->mNumMeshes; ++i)
+	for (int i = 0; i < mesh_optimization; ++i)
 	{
 		if (if_alpha_array[i] == false)
 		{
@@ -211,7 +202,7 @@ HRESULT model_reader_assimp<T>::combine_vertex_array(int alpha_partnum, int* alp
 			int a = 0;
 		}
 	}
-	for (int i = 0; i < model_need->mNumMeshes; ++i)
+	for (int i = 0; i < mesh_optimization; ++i)
 	{
 		if (if_alpha_array[i] == false)
 		{
@@ -227,8 +218,10 @@ HRESULT model_reader_assimp<T>::combine_vertex_array(int alpha_partnum, int* alp
 	T *now_pointer = vertex_out;
 	UINT *now_index_pointer = index_out;
 	int vertex_num = 0;
-	for (int i = 0; i < model_need->mNumMeshes; ++i)
+	for (int i = 0; i < mesh_optimization; ++i)
 	{
+		material_list check_need;
+		get_texture(&check_need, i);
 		if (if_alpha_array[i] == false)
 		{
 			T *vertex_rec;
@@ -240,6 +233,11 @@ HRESULT model_reader_assimp<T>::combine_vertex_array(int alpha_partnum, int* alp
 			index_rec = (UINT*)malloc(all_index * sizeof(UINT) + 100);
 			//获取几何体的顶点与索引数据
 			now_meshneed[i]->get_bufferdata(vertex_rec, index_rec);
+			for (int j = 0; j < all_vertex; ++j)
+			{
+				vertex_rec[j].tex_id.x = mesh_need[i].material_use - 1;
+				vertex_rec[j].tex_id.y = mesh_need[i].material_use - 1;
+			}
 			//拷贝顶点
 			memcpy(now_pointer, vertex_rec, all_vertex * sizeof(T));
 			//修改索引号
@@ -256,6 +254,10 @@ HRESULT model_reader_assimp<T>::combine_vertex_array(int alpha_partnum, int* alp
 			free(vertex_rec);
 			free(index_rec);
 		}
+		else
+		{
+			if_normal_array[i] = true;
+		}
 	}
 	mesh_scene = new mesh_comman<T>(device_pancy, contex_pancy, all_vertex, all_index);
 	HRESULT hr = mesh_scene->create_object(vertex_out, index_out, if_adj);
@@ -264,6 +266,7 @@ HRESULT model_reader_assimp<T>::combine_vertex_array(int alpha_partnum, int* alp
 		MessageBox(0, L"combine scene error", L"tip", MB_OK);
 		return hr;
 	}
+
 	free(vertex_out);
 	free(index_out);
 	return S_OK;
@@ -272,6 +275,15 @@ template<typename T>
 void model_reader_assimp<T>::get_texture(material_list *texture_need, int i)
 {
 	*texture_need = matlist_need[mesh_need[i].material_use];
+}
+template<typename T>
+void model_reader_assimp<T>::get_normaltexture(material_list *texture_need, int i)
+{
+	if (mesh_need_normal[i].material_use == 0) 
+	{
+		texture_need->texture_normal_resource = NULL;
+	}
+	*texture_need = matlist_need[mesh_need_normal[i].material_use];
 }
 template<typename T>
 void model_reader_assimp<T>::release()
@@ -297,6 +309,10 @@ void model_reader_assimp<T>::release()
 		for (int i = 0; i < mesh_optimization; i++)
 		{
 			mesh_need[i].point_buffer->release();
+		}
+		for (int i = 0; i < mesh_normal_optimization; i++)
+		{
+			mesh_need_normal[i].point_buffer->release();
 		}
 		mesh_scene->release();
 		//释放表资源
@@ -398,8 +414,6 @@ HRESULT model_reader_assimp<T>::optimization_mesh(bool if_adj)
 				index_rec = (UINT*)malloc(check_index * sizeof(UINT) + 100);
 				//获取几何体的顶点与索引数据
 				mesh_need[j].point_buffer->get_bufferdata(vertex_rec, index_rec);
-
-
 				//拷贝顶点
 				memcpy(now_pointer, vertex_rec, check_vertex * sizeof(T));
 				//修改索引号
@@ -439,10 +453,126 @@ HRESULT model_reader_assimp<T>::optimization_mesh(bool if_adj)
 	return S_OK;
 }
 template<typename T>
+HRESULT model_reader_assimp<T>::optimization_normalmesh(bool if_adj)
+{
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~先合并材质~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	int matlist_save[1000];
+	memset(matlist_save, 0, 1000 * sizeof(int));
+	int rec_meshtex_save[1000];
+	memset(rec_meshtex_save, 0, 1000 * sizeof(int));
+	//matlist_save[0] = mesh_need[0].material_use;
+	mesh_normal_optimization = 0;
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~合并几何体~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	int all_vertex = 0, all_index = 0;
+	for (int i = 0; i < mesh_optimization; i++)
+	{
+		bool if_change = true;
+		material_list rec_now;
+		get_texture(&rec_now, i);
+		//计算总顶点数量
+		int rec_vertex, rec_index;
+		mesh_need[i].point_buffer->get_point_num(rec_vertex, rec_index);
+		all_vertex += rec_vertex;
+		all_index += rec_index;
+		for (int j = 0; j < mesh_normal_optimization; ++j)
+		{
+			if (rec_now.texture_normal_resource != NULL && strcmp(rec_now.texture_normal, matlist_need[matlist_save[j]].texture_normal) == 0)
+			{
+				//更改索引号
+				rec_meshtex_save[i] = matlist_save[j];
+				if_change = false;
+				break;
+			}
+		}
+		if (rec_now.texture_normal_resource != NULL && if_change == true && if_alpha_array[i] == false)
+		{
+			matlist_save[mesh_normal_optimization++] = mesh_need[i].material_use;
+			rec_meshtex_save[i] = mesh_need[i].material_use;
+		}
+	}
+	for (int i = 0; i < mesh_optimization; i++) 
+	{
+		if (rec_meshtex_save[i] == 0 && if_alpha_array[i] == false)
+		{
+			matlist_save[mesh_normal_optimization++] = 0;
+			break;
+		}
+	}
+	//开启临时存储空间
+	T *vertex_rec;
+	UINT *index_rec;
+	vertex_rec = (T*)malloc(all_vertex * sizeof(T) + 100);
+	index_rec = (UINT*)malloc(all_index * sizeof(UINT) + 100);
+
+	//创建临时存储几何体的指针
+	mesh_need_normal = new mesh_list<T>[mesh_normal_optimization + 10];
+	//为新的几何体组织顶点和索引数据
+	for (int i = 0; i < mesh_normal_optimization; ++i)
+	{
+		T *now_pointer = vertex_rec;
+		UINT *now_index_pointer = index_rec;
+		int vertex_num = 0;
+		int now_count_vertex = 0;
+		int now_count_index = 0;
+		for (int j = 0; j < mesh_optimization; j++)
+		{
+			material_list rec_now;
+			get_texture(&rec_now, i);
+			//找到所有使用材质相同的网格，并将它们合并
+			if (rec_meshtex_save[j] == matlist_save[i])
+			{
+				T *vertex_rec;
+				UINT *index_rec;
+				int check_vertex = 0, check_index = 0;
+				//获取几何体的顶点与索引数目
+				mesh_need[j].point_buffer->get_point_num(check_vertex, check_index);
+				now_count_vertex += check_vertex;
+				now_count_index += check_index;
+				vertex_rec = (T*)malloc(check_vertex * sizeof(T) + 100);
+				index_rec = (UINT*)malloc(check_index * sizeof(UINT) + 100);
+				//获取几何体的顶点与索引数据
+				mesh_need[j].point_buffer->get_bufferdata(vertex_rec, index_rec);
+				//拷贝顶点
+				memcpy(now_pointer, vertex_rec, check_vertex * sizeof(T));
+				//修改索引号
+				for (int k = 0; k < check_index; ++k)
+				{
+					index_rec[k] += vertex_num;
+				}
+				//拷贝索引
+				memcpy(now_index_pointer, index_rec, check_index * sizeof(UINT));
+				//更新记录
+				now_pointer += check_vertex;
+				vertex_num += check_vertex;
+				now_index_pointer += check_index;
+				free(vertex_rec);
+				free(index_rec);
+			}
+		}
+		mesh_need_normal[i].point_buffer = new mesh_comman<T>(device_pancy, contex_pancy, now_count_vertex, now_count_index);
+		mesh_need_normal[i].material_use = matlist_save[i];
+		HRESULT hr = mesh_need_normal[i].point_buffer->create_object(vertex_rec, index_rec, if_adj);
+		if (FAILED(hr))
+		{
+			MessageBox(0, L"combine scene error", L"tip", MB_OK);
+			return hr;
+		}
+	}
+	free(vertex_rec);
+	free(index_rec);
+	return S_OK;
+}
+template<typename T>
 void model_reader_assimp<T>::draw_part(int i)
 {
 	mesh_need[i].point_buffer->get_teque(teque_pancy);
 	mesh_need[i].point_buffer->show_mesh();
+}
+template<typename T>
+void model_reader_assimp<T>::draw_normal_part(int i) 
+{
+	mesh_need_normal[i].point_buffer->get_teque(teque_pancy);
+	mesh_need_normal[i].point_buffer->show_mesh();
 }
 template<typename T>
 void model_reader_assimp<T>::draw_mesh()
@@ -575,6 +705,7 @@ public:
 	void draw_full_geometry(ID3DX11EffectTechnique *tech_common);
 	void draw_full_geometry_adj(ID3DX11EffectTechnique *tech_common);
 	void draw_transparent_part(ID3DX11EffectTechnique *tech_transparent, int transparent_part);
+	void draw_normal_part(ID3DX11EffectTechnique *tech_transparent, int normal_part);
 	bool check_if_skin() { return if_skinmesh; };
 
 	XMFLOAT4X4 get_world_matrix() { return world_matrix; };
@@ -607,7 +738,7 @@ public:
 	geometry_member *get_geometry_head() { return head; };
 	geometry_member *get_geometry_tail() { return tail; };
 	int get_geometry_num() { return number_list; };
-	void update_geometry_byname(std::string name_input, XMFLOAT4X4 world_matrix_need,float delta_time);
+	void update_geometry_byname(std::string name_input, XMFLOAT4X4 world_matrix_need, float delta_time);
 	void release();
 };
 class geometry_control

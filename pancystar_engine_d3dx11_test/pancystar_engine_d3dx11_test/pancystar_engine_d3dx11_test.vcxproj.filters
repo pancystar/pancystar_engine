@@ -57,6 +57,9 @@
     <ClInclude Include="particle_system.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="pancy_pretreatment.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="geometry.cpp">
@@ -99,6 +102,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="pancy_lighting.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="pancy_pretreatment.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

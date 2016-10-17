@@ -135,7 +135,7 @@ HRESULT scene_engine_test::display()
 	show_yuri_animation();
 	show_billboard();
 	//清空深度模板缓冲，在AO绘制阶段记录下深度信息
-	show_fire_particle();
+	//show_fire_particle();
 	return S_OK;
 }
 HRESULT scene_engine_test::display_nopost()
@@ -163,7 +163,8 @@ void scene_engine_test::show_yuri_animation()
 		{ "TANGENT"     ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "BONEINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "WEIGHTS"     ,0  ,DXGI_FORMAT_R32G32B32A32_FLOAT ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
-		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,68 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+		{ "TEXINDICES"  ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,68 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,84 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
 	};
 	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
 
@@ -198,14 +199,6 @@ void scene_engine_test::show_yuri_animation()
 		shader_test->set_trans_shadow(&shadow_matrix_pre);
 		shader_test->set_shadowtex(rec_shadow_light._Ptr->get_mapresource());
 	}
-	/*
-	XMFLOAT4X4 shadow_matrix_pre = shadowmap_part->get_ViewProjTex_matrix();
-	XMMATRIX shadow_matrix = XMLoadFloat4x4(&shadow_matrix_pre);
-	shadow_matrix = rec_world * shadow_matrix;
-	XMStoreFloat4x4(&shadow_matrix_pre, shadow_matrix);
-	shader_test->set_trans_shadow(&shadow_matrix_pre);
-	shader_test->set_shadowtex(shadowmap_part->get_mapresource());
-	*/
 	//设定总变换
 	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
 	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
@@ -227,66 +220,12 @@ void scene_engine_test::show_yuri_animation()
 	shader_test->set_trans_ssao(&ssao_matrix);
 	shader_test->set_ssaotex(ssao_part->get_aomap());
 	//获取渲染路径并渲染
-	//model_yuri->get_technique(teque_need);
-	//model_yuri->draw_mesh();
 	int yuri_render_order[11] = { 4,5,6,7,8,9,10,3,0,2,1 };
 	XMFLOAT4X4 *rec_bonematrix = model_yuri_pack->get_bone_matrix();
 	shader_test->set_bone_matrix(rec_bonematrix, model_yuri_pack->get_bone_num());
-	/*
-	for (int i = 0; i < 7; ++i)
-	{
-		//int num_bone;
-		//model_yuri->update_mesh_offset(yuri_render_order[i]);
-		//XMFLOAT4X4 *rec_bonematrix = model_yuri->get_bone_matrix(yuri_render_order[i], num_bone);
-		//shader_test->set_bone_matrix(rec_bonematrix, 100);
-		
-		//纹理设定
-		material_list rec_need;
-		model_yuri->get_texture(&rec_need, yuri_render_order[i]);
-		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
-		if (rec_need.texture_normal_resource != NULL)
-		{
-			model_yuri->get_technique(teque_normal);
-			shader_test->set_normaltex(rec_need.texture_normal_resource);
-		}
-		else
-		{
-			model_yuri->get_technique(teque_need);
-		}
-		//shader_test->set_normaltex(tex_normal);
-		model_yuri->draw_part(yuri_render_order[i]);
-	}*/
 	//alpha混合设定
 	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-	contex_pancy->OMSetBlendState(renderstate_lib->get_blend_common(), blendFactor, 0xffffffff);
-	for (int i = 8; i < model_yuri->get_meshnum(); ++i)
-	{
-		//int num_bone;	
-		//model_yuri->update_mesh_offset(yuri_render_order[i]);
-		//XMFLOAT4X4 *rec_bonematrix = model_yuri->get_bone_matrix(yuri_render_order[i], num_bone);
-		//shader_test->set_bone_matrix(rec_bonematrix, 100);
-	
-		//纹理设定
-		material_list rec_need;
-		model_yuri->get_texture(&rec_need, yuri_render_order[i]);
-		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
-		if (rec_need.texture_normal_resource != NULL)
-		{
-			model_yuri->get_technique(teque_normal);
-			shader_test->set_normaltex(rec_need.texture_normal_resource);
-		}
-		else
-		{
-			model_yuri->get_technique(teque_need);
-		}
-		model_yuri->draw_part(yuri_render_order[i]);
-	}
 	//绘制头发
-	//int num_bone;
-	//model_yuri->update_mesh_offset(yuri_render_order[7]);
-	//XMFLOAT4X4 *rec_bonematrix = model_yuri->get_bone_matrix(yuri_render_order[7], num_bone);
-	//shader_test->set_bone_matrix(rec_bonematrix, 100);
-	
 	model_yuri->get_technique(teque_hair);
 	material_list rec_need;
 	model_yuri->get_texture(&rec_need, yuri_render_order[7]);
@@ -295,24 +234,6 @@ void scene_engine_test::show_yuri_animation()
 	model_yuri->draw_part(yuri_render_order[7]);
 	contex_pancy->OMSetDepthStencilState(NULL, 0);
 	contex_pancy->OMSetBlendState(0, blendFactor, 0xffffffff);
-	/*
-	//设置阴影部分
-	geometry_member rec_mesh_need(model_yuri,true, false, -1, world_matrix, rec_bonematrix,100, NULL);
-	geometry_member rec_mesh_need_trans(model_yuri, true, true, yuri_render_order[7], world_matrix, rec_bonematrix, 100, rec_need.tex_diffuse_resource);
-	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
-	{
-		rec_shadow_light._Ptr->add_mesh(rec_mesh_need);
-		rec_shadow_light._Ptr->add_mesh(rec_mesh_need_trans);
-	}
-	//设置ssao
-	ssao_part->add_mesh(rec_mesh_need);
-	ssao_part->add_mesh(rec_mesh_need_trans);
-	//设置阴影体
-	for (auto rec_shadow_volume = shadowvalume_light_list.begin(); rec_shadow_volume != shadowvalume_light_list.end(); ++rec_shadow_volume)
-	{
-		rec_shadow_volume._Ptr->add_mesh(rec_mesh_need);
-	}
-	*/
 	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
 }
 void scene_engine_test::show_yuri_animation_deffered()
@@ -333,14 +254,15 @@ void scene_engine_test::show_yuri_animation_deffered()
 		{ "TANGENT"     ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "BONEINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
 		{ "WEIGHTS"     ,0  ,DXGI_FORMAT_R32G32B32A32_FLOAT ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
-		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,68 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+		{ "TEXINDICES"  ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,68 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,84 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
 	};
 	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
 	shader_test->get_technique(rec_point, num_member, &teque_need, "LightWithBone");
 	//地面的材质
 	pancy_material test_Mt;
 	XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_diffuse2(0.4f, 0.4f, 0.4f, 1.0f);
 	XMFLOAT4 rec_specular2(0.0f, 0.0f, 0.0f, 1.0f);
 	test_Mt.ambient = rec_ambient2;
 	test_Mt.diffuse = rec_diffuse2;
@@ -388,7 +310,14 @@ void scene_engine_test::show_yuri_animation_deffered()
 		model_yuri->get_technique(teque_need);
 		model_yuri->draw_part(yuri_render_order[i]);
 	}
-
+	for (int i = 8; i < model_yuri->get_meshnum(); ++i)
+	{
+		material_list rec_need;
+		model_yuri->get_texture(&rec_need, yuri_render_order[i]);
+		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
+		model_yuri->get_technique(teque_need);
+		model_yuri->draw_part(yuri_render_order[i]);
+	}
 	shader_test->set_ssaotex(NULL);
 	shader_test->set_diffuse_light_tex(NULL);
 	shader_test->set_specular_light_tex(NULL);

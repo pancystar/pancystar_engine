@@ -18,6 +18,14 @@ int assimp_basic::get_meshnum()
 	}
 	return mesh_optimization;
 }
+int assimp_basic::get_meshnormalnum()
+{
+	if (model_need == NULL)
+	{
+		return 0;
+	}
+	return mesh_normal_optimization;
+}
 void assimp_basic::remove_texture_path(char rec[])
 {
 	int rec_num = strlen(rec);
@@ -52,6 +60,7 @@ HRESULT assimp_basic::model_create(bool if_adj, bool if_optimize, int alpha_part
 	for (int i = 0; i < 10000; ++i)
 	{
 		if_alpha_array[i] = false;
+		if_normal_array[i] = false;
 	}
 	if (alpha_partnum != 0 && alpha_part != NULL)
 	{
@@ -113,15 +122,16 @@ HRESULT assimp_basic::model_create(bool if_adj, bool if_optimize, int alpha_part
 		MessageBox(0, L"create model error when init texture", L"tip", MB_OK);
 		return hr;
 	}
+	if (if_optimize == true)
+	{
+		optimization_mesh(if_adj);
+	}
 	hr = combine_vertex_array(alpha_partnum, alpha_part, if_adj);
+	optimization_normalmesh(if_adj);
 	if (hr != S_OK)
 	{
 		MessageBox(0, L"create model error when combine scene mesh", L"tip", MB_OK);
 		return hr;
-	}
-	if (if_optimize == true)
-	{
-		optimization_mesh(if_adj);
 	}
 	return S_OK;
 }
@@ -243,6 +253,11 @@ void geometry_member::draw_transparent_part(ID3DX11EffectTechnique *tech_transpa
 	model_data->get_technique(tech_transparent);
 	model_data->draw_part(transparent_part);
 }
+void geometry_member::draw_normal_part(ID3DX11EffectTechnique *tech_transparent, int normal_part)
+{
+	model_data->get_technique(tech_transparent);
+	model_data->draw_normal_part(normal_part);
+}
 void geometry_member::release()
 { 
 	if (if_skinmesh == true)
@@ -323,8 +338,8 @@ HRESULT geometry_control::create()
 		return hr_need;
 	}
 	//²»À´·½Ï¦Àò
-	int alpha_yuri[] = { 3 };
-	hr_need = yuri_animation_model->model_create(false, false, 1, alpha_yuri);
+	int alpha_yuri[] = { 0,1,2,3 };
+	hr_need = yuri_animation_model->model_create(false, false, 4, alpha_yuri);
 	if (FAILED(hr_need))
 	{
 		MessageBox(0, L"load model file error", L"tip", MB_OK);

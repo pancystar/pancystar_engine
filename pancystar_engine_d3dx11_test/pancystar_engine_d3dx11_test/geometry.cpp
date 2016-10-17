@@ -406,30 +406,30 @@ HRESULT mesh_cubewithtargent::find_point(point_with_tangent *vertex, UINT *index
 {
 	point_with_tangent square_test[] =
 	{
-		{ XMFLOAT3(-1.0, -1.0, -1.0), XMFLOAT3(0.0, 0.0, -1.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT2(0.0, 1.0) },
-		{ XMFLOAT3(-1.0, 1.0, -1.0), XMFLOAT3(0.0, 0.0, -1.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT2(0.0, 0.0) },
-		{ XMFLOAT3(1.0, 1.0, -1.0), XMFLOAT3(0.0, 0.0, -1.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT2(1.0, 0.0) },
-		{ XMFLOAT3(1.0, -1.0, -1.0), XMFLOAT3(0.0, 0.0, -1.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT2(1.0, 1.0) },
-		{ XMFLOAT3(-1.0, -1.0, 1.0), XMFLOAT3(-1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, -1.0), XMFLOAT2(0.0, 1.0) },
-		{ XMFLOAT3(-1.0, 1.0, 1.0), XMFLOAT3(-1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, -1.0), XMFLOAT2(0.0, 0.0) },
-		{ XMFLOAT3(-1.0, 1.0, -1.0), XMFLOAT3(-1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, -1.0), XMFLOAT2(1.0, 0.0) },
-		{ XMFLOAT3(-1.0, -1.0, -1.0), XMFLOAT3(-1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, -1.0), XMFLOAT2(1.0, 1.0) },
-		{ XMFLOAT3(1.0, -1.0, 1.0), XMFLOAT3(0.0, 0.0, 1.0), XMFLOAT3(-1.0, 0.0, 0.0), XMFLOAT2(0.0, 1.0) },
-		{ XMFLOAT3(1.0, 1.0, 1.0), XMFLOAT3(0.0, 0.0, 1.0), XMFLOAT3(-1.0, 0.0, 0.0), XMFLOAT2(0.0, 0.0) },
-		{ XMFLOAT3(-1.0, 1.0, 1.0), XMFLOAT3(0.0, 0.0, 1.0), XMFLOAT3(-1.0, 0.0, 0.0), XMFLOAT2(1.0, 0.0) },
-		{ XMFLOAT3(-1.0, -1.0, 1.0), XMFLOAT3(0.0, 0.0, 1.0), XMFLOAT3(-1.0, 0.0, 0.0), XMFLOAT2(1.0, 1.0) },
-		{ XMFLOAT3(1.0, -1.0, -1.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, 1.0), XMFLOAT2(0.0, 1.0) },
-		{ XMFLOAT3(1.0, 1.0, -1.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, 1.0), XMFLOAT2(0.0, 0.0) },
-		{ XMFLOAT3(1.0, 1.0, 1.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, 1.0), XMFLOAT2(1.0, 0.0) },
-		{ XMFLOAT3(1.0, -1.0, 1.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, 1.0), XMFLOAT2(1.0, 1.0) },
-		{ XMFLOAT3(-1.0, 1.0, -1.0), XMFLOAT3(0.0, 1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT2(0.0, 1.0) },
-		{ XMFLOAT3(-1.0, 1.0, 1.0), XMFLOAT3(0.0, 1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT2(0.0, 0.0) },
-		{ XMFLOAT3(1.0, 1.0, 1.0), XMFLOAT3(0.0, 1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT2(1.0, 0.0) },
-		{ XMFLOAT3(1.0, 1.0, -1.0), XMFLOAT3(0.0, 1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT2(1.0, 1.0) },
-		{ XMFLOAT3(-1.0, -1.0, 1.0), XMFLOAT3(0.0, -1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT2(0.0, 1.0) },
-		{ XMFLOAT3(-1.0, -1.0, -1.0), XMFLOAT3(0.0, -1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT2(0.0, 0.0) },
-		{ XMFLOAT3(1.0, -1.0, -1.0), XMFLOAT3(0.0, -1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT2(1.0, 0.0) },
-		{ XMFLOAT3(1.0, -1.0, 1.0), XMFLOAT3(0.0, -1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT2(1.0, 1.0) }
+		{ XMFLOAT3(-1.0, -1.0, -1.0), XMFLOAT3(0.0, 0.0, -1.0), XMFLOAT3(1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(0.0, 1.0) },
+		{ XMFLOAT3(-1.0, 1.0, -1.0), XMFLOAT3(0.0, 0.0, -1.0), XMFLOAT3(1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(0.0, 0.0) },
+		{ XMFLOAT3(1.0, 1.0, -1.0), XMFLOAT3(0.0, 0.0, -1.0), XMFLOAT3(1.0, 0.0, 0.0), XMUINT4(1.0f,0.0f,0.0f,0.0f),XMFLOAT2(1.0, 0.0) },
+		{ XMFLOAT3(1.0, -1.0, -1.0), XMFLOAT3(0.0, 0.0, -1.0), XMFLOAT3(1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(1.0, 1.0) },
+		{ XMFLOAT3(-1.0, -1.0, 1.0), XMFLOAT3(-1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, -1.0), XMUINT4(1.0f,0.0f,0.0f,0.0f),XMFLOAT2(0.0, 1.0) },
+		{ XMFLOAT3(-1.0, 1.0, 1.0), XMFLOAT3(-1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, -1.0), XMUINT4(1.0f,0.0f,0.0f,0.0f),XMFLOAT2(0.0, 0.0) },
+		{ XMFLOAT3(-1.0, 1.0, -1.0), XMFLOAT3(-1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, -1.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(1.0, 0.0) },
+		{ XMFLOAT3(-1.0, -1.0, -1.0), XMFLOAT3(-1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, -1.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(1.0, 1.0) },
+		{ XMFLOAT3(1.0, -1.0, 1.0), XMFLOAT3(0.0, 0.0, 1.0), XMFLOAT3(-1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(0.0, 1.0) },
+		{ XMFLOAT3(1.0, 1.0, 1.0), XMFLOAT3(0.0, 0.0, 1.0), XMFLOAT3(-1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(0.0, 0.0) },
+		{ XMFLOAT3(-1.0, 1.0, 1.0), XMFLOAT3(0.0, 0.0, 1.0), XMFLOAT3(-1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(1.0, 0.0) },
+		{ XMFLOAT3(-1.0, -1.0, 1.0), XMFLOAT3(0.0, 0.0, 1.0), XMFLOAT3(-1.0, 0.0, 0.0), XMUINT4(1.0f,0.0f,0.0f,0.0f),XMFLOAT2(1.0, 1.0) },
+		{ XMFLOAT3(1.0, -1.0, -1.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, 1.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(0.0, 1.0) },
+		{ XMFLOAT3(1.0, 1.0, -1.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, 1.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(0.0, 0.0) },
+		{ XMFLOAT3(1.0, 1.0, 1.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, 1.0), XMUINT4(1.0f,0.0f,0.0f,0.0f),XMFLOAT2(1.0, 0.0) },
+		{ XMFLOAT3(1.0, -1.0, 1.0), XMFLOAT3(1.0, 0.0, 0.0), XMFLOAT3(0.0, 0.0, 1.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(1.0, 1.0) },
+		{ XMFLOAT3(-1.0, 1.0, -1.0), XMFLOAT3(0.0, 1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(0.0, 1.0) },
+		{ XMFLOAT3(-1.0, 1.0, 1.0), XMFLOAT3(0.0, 1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(0.0, 0.0) },
+		{ XMFLOAT3(1.0, 1.0, 1.0), XMFLOAT3(0.0, 1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(1.0, 0.0) },
+		{ XMFLOAT3(1.0, 1.0, -1.0), XMFLOAT3(0.0, 1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(1.0, 1.0) },
+		{ XMFLOAT3(-1.0, -1.0, 1.0), XMFLOAT3(0.0, -1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(0.0, 1.0) },
+		{ XMFLOAT3(-1.0, -1.0, -1.0), XMFLOAT3(0.0, -1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(0.0, 0.0) },
+		{ XMFLOAT3(1.0, -1.0, -1.0), XMFLOAT3(0.0, -1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(1.0, 0.0) },
+		{ XMFLOAT3(1.0, -1.0, 1.0), XMFLOAT3(0.0, -1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(1.0, 1.0) }
 	};
 	//创建索引数组。
 	num_vertex = sizeof(square_test) / sizeof(point_with_tangent);
@@ -574,10 +574,10 @@ HRESULT mesh_square_tessellation::find_point(point_with_tangent *vertex, UINT *i
 {
 	point_with_tangent square_test[] =
 	{
-		{ XMFLOAT3(-1.0f,1.0f,1.0f), XMFLOAT3(0.0f,1.0f,0.0f), XMFLOAT3(1.0f,0.0f,0.0f), XMFLOAT2(0.0f,0.0f) },
-		{ XMFLOAT3(1.0f,1.0f,1.0f),  XMFLOAT3(0.0f,1.0f,0.0f), XMFLOAT3(1.0f,0.0f,0.0f), XMFLOAT2(1.0f,0.0f) },
-		{ XMFLOAT3(-1.0f,1.0f,-1.0f),XMFLOAT3(0.0f,1.0f,0.0f), XMFLOAT3(1.0f,0.0f,0.0f), XMFLOAT2(1.0f,1.0f) },
-		{ XMFLOAT3(1.0f,1.0f,-1.0f), XMFLOAT3(0.0f,1.0f,0.0f), XMFLOAT3(1.0f,0.0f,0.0f), XMFLOAT2(0.0f,1.0f) },
+		{ XMFLOAT3(-1.0f,1.0f,1.0f), XMFLOAT3(0.0f,1.0f,0.0f), XMFLOAT3(1.0f,0.0f,0.0f),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(0.0f,0.0f) },
+		{ XMFLOAT3(1.0f,1.0f,1.0f),  XMFLOAT3(0.0f,1.0f,0.0f), XMFLOAT3(1.0f,0.0f,0.0f),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(1.0f,0.0f) },
+		{ XMFLOAT3(-1.0f,1.0f,-1.0f),XMFLOAT3(0.0f,1.0f,0.0f), XMFLOAT3(1.0f,0.0f,0.0f),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(1.0f,1.0f) },
+		{ XMFLOAT3(1.0f,1.0f,-1.0f), XMFLOAT3(0.0f,1.0f,0.0f), XMFLOAT3(1.0f,0.0f,0.0f),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(0.0f,1.0f) },
 	};
 	for (int i = 0; i < 4; ++i)
 	{

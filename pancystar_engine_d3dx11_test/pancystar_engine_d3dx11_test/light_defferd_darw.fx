@@ -29,6 +29,7 @@ struct Vertex_IN//含法线贴图顶点
 	float3	pos 	: POSITION;     //顶点位置
 	float3	normal 	: NORMAL;       //顶点法向量
 	float3	tangent : TANGENT;      //顶点切向量
+	uint4   texid   : TEXINDICES;   //纹理索引
 	float2  tex1    : TEXCOORD;     //顶点纹理坐标
 };
 struct Vertex_IN_bone//含法线贴图顶点
@@ -38,6 +39,7 @@ struct Vertex_IN_bone//含法线贴图顶点
 	float3	tangent     : TANGENT;      //顶点切向量
 	uint4   bone_id     : BONEINDICES;  //骨骼ID号
 	float4  bone_weight : WEIGHTS;      //骨骼权重
+	uint4   texid       : TEXINDICES;   //纹理索引
 	float2  tex1        : TEXCOORD;     //顶点纹理坐标
 };
 struct VertexOut
@@ -81,13 +83,15 @@ VertexOut VS(Vertex_IN vin)
 float4 PS(VertexOut pin) :SV_TARGET
 {
 	pin.pos_ssao /= pin.pos_ssao.w;
+	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
+	clip(tex_color.a - 0.6f);
 	float4 ambient = 0.6f*float4(1.0f, 1.0f, 1.0f, 0.0f) * texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
-	float4 tex_color = material_need.ambient * texture_diffuse.Sample(samTex_liner, pin.tex);
 	float4 diffuse = material_need.diffuse * texture_light_diffuse.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f);      //漫反射光
 	float4 spec = material_need.specular * texture_light_specular.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f);       //镜面反射光
-
-	float4 final_color = tex_color * (ambient + diffuse) + spec;
+	float4 final_color = tex_color *(ambient + diffuse) + spec;
 	final_color.a = tex_color.a;
+	
+	final_color.rgb *= final_color.a;
 	return final_color;
 }
 technique11 LightTech

@@ -36,6 +36,7 @@ struct point_with_tangent
 	XMFLOAT3 position;
 	XMFLOAT3 normal;
 	XMFLOAT3 tangent;
+	XMUINT4  tex_id;
 	XMFLOAT2 tex;
 };
 //骨骼动画顶点格式(顶点坐标 + 法线 + 纹理 + 切线 + 骨骼id + 蒙皮权重)
@@ -46,6 +47,7 @@ struct point_withskin
 	XMFLOAT3 tangent;
 	XMUINT4  bone_id;
 	XMFLOAT4 bone_weight;
+	XMUINT4  tex_id;
 	XMFLOAT2 tex;
 };
 struct fire_point
