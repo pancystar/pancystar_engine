@@ -5,6 +5,8 @@ VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pancystar_engine_d3dx11_test", "pancystar_engine_d3dx11_test\pancystar_engine_d3dx11_test.vcxproj", "{0ED5F823-8797-44DA-AACA-FF7A4BC81DF6}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "material_editor", "material_editor\material_editor.vcxproj", "{75B13902-48F7-4BAD-A53B-9BCAB4FA962E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +23,14 @@ Global
 		{0ED5F823-8797-44DA-AACA-FF7A4BC81DF6}.Release|x64.Build.0 = Release|x64
 		{0ED5F823-8797-44DA-AACA-FF7A4BC81DF6}.Release|x86.ActiveCfg = Release|Win32
 		{0ED5F823-8797-44DA-AACA-FF7A4BC81DF6}.Release|x86.Build.0 = Release|Win32
+		{75B13902-48F7-4BAD-A53B-9BCAB4FA962E}.Debug|x64.ActiveCfg = Debug|x64
+		{75B13902-48F7-4BAD-A53B-9BCAB4FA962E}.Debug|x64.Build.0 = Debug|x64
+		{75B13902-48F7-4BAD-A53B-9BCAB4FA962E}.Debug|x86.ActiveCfg = Debug|Win32
+		{75B13902-48F7-4BAD-A53B-9BCAB4FA962E}.Debug|x86.Build.0 = Debug|Win32
+		{75B13902-48F7-4BAD-A53B-9BCAB4FA962E}.Release|x64.ActiveCfg = Release|x64
+		{75B13902-48F7-4BAD-A53B-9BCAB4FA962E}.Release|x64.Build.0 = Release|x64
+		{75B13902-48F7-4BAD-A53B-9BCAB4FA962E}.Release|x86.ActiveCfg = Release|Win32
+		{75B13902-48F7-4BAD-A53B-9BCAB4FA962E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

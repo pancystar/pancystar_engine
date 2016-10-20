@@ -11,6 +11,30 @@ void basic_lighting::set_light_specular(float red, float green, float blue, floa
 {
 	light_data.specular = XMFLOAT4(red, green, green, alpha);
 }
+void basic_lighting::set_light_position(float x, float y, float z) 
+{
+	light_data.position = XMFLOAT3(x, y, z);
+}
+void basic_lighting::set_light_dir(float x, float y, float z) 
+{
+	light_data.dir = XMFLOAT3(x, y, z);
+}
+void basic_lighting::set_light_decay(float x0, float x1, float x2) 
+{
+	light_data.decay = XMFLOAT3(x0, x1, x2);
+}
+void basic_lighting::set_light_range(float range_need) 
+{
+	light_data.range = range_need;
+}
+void basic_lighting::set_light_spottheata(float theta) 
+{
+	light_data.theta = theta;
+}
+void basic_lighting::set_light_spotstrenth(float spot) 
+{
+	light_data.spot = spot;
+}
 basic_lighting::basic_lighting(light_type type_need_light, shadow_type type_need_shadow, shader_control *lib_need, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, geometry_control *geometry_lib_need)
 {
 	light_source_type = type_need_light;
@@ -242,6 +266,22 @@ HRESULT light_control::create(shader_control *shader_need, geometry_control *geo
 	HRESULT hr;
 	basic_lighting rec_need(point_light, shadow_none, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
 	nonshadow_light_list.push_back(rec_need);
+	rec_need.set_light_range(5.0f);
+	rec_need.set_light_ambient(0.0f,0.0f,0.0f,0.0f);
+	rec_need.set_light_diffuse(0.3f, 0.3f, 0.0f,0.0f);
+	rec_need.set_light_specular(0.3f, 0.3f, 0.0f, 0.0f);
+	rec_need.set_light_decay(0.2f,1.2f,0.0f);
+	nonshadow_light_list.push_back(rec_need);
+	for (int i = 0; i < 6; ++i) 
+	{
+		rec_need.set_light_position(7.3f, 4.8f, 13.0f - 4.8f*i);
+		nonshadow_light_list.push_back(rec_need);
+	}
+	for (int i = 0; i < 6; ++i) 
+	{
+		rec_need.set_light_position(-7.3f, 4.8f, 12.85f - 4.8*i);
+		nonshadow_light_list.push_back(rec_need);
+	}
 	light_with_shadowmap rec_shadow(spot_light, shadow_map, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
 	hr = rec_shadow.create(1024, 1024);
 	if (FAILED(hr))

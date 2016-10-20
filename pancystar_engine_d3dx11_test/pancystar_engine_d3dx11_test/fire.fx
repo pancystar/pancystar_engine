@@ -25,7 +25,7 @@ Texture2D texture_first; //火焰纹理数据
 Texture1D texture_random;//随机向量纹理
 cbuffer cbfixed
 {
-	float3 gAccelW = { 0.0f, 0.8f, 0.0f };//火焰粒子加速度
+	float3 gAccelW = { 0.0f, 1.3f, 0.0f };//火焰粒子加速度
 										  //广告牌纹理坐标
 	float2 gTexC[4] =
 	{
@@ -69,11 +69,11 @@ float3 RandUnitVec3(float offset)
 	//根据时间获得随机数种子
 	float u = (game_time + offset);
 	//向量纹理采样
-	float3 v = texture_random.SampleLevel(samLinear, u, 0).xyz;
+	float3 v = 2.0f * texture_random.SampleLevel(samLinear, u, 0).xyz - 1.0f;
 	//归一化
 	return normalize(v);
 }
-[maxvertexcount(2)]
+[maxvertexcount(25)]
 void StreamOutGS(point Particle gin[1],
 	inout PointStream<Particle> ptStream)
 {
@@ -84,23 +84,57 @@ void StreamOutGS(point Particle gin[1],
 		// 是否应当产生新的粒子
 		if (gin[0].Age > 0.005f)
 		{
-			float3 vRandom = RandUnitVec3(0.0f);
-			vRandom.x *= 0.1f;
-			vRandom.z *= 0.1f;
-			if (vRandom.y < 0)
-				vRandom.y = -vRandom.y;
-			vRandom.y *= 0.6f;
-			Particle p;
-			p.position = position_start.xyz;
-			p.speed = 4.0f*vRandom;
-			p.SizeW = float2(1.0f, 1.0f);
-			p.Age = 0.0f;
-			p.Type = PT_FLARE;
+			for (int i = 0; i < 6; ++i)
+			{
+				for (int j = 0; j < 2; ++j)
+				{
+					float3 vRandom = RandUnitVec3(0.0f);
+					vRandom.x *= 0.5f;
+					vRandom.z *= 0.5f;
+					if (vRandom.y < 0)
+						vRandom.y = -vRandom.y;
+					//vRandom.y *= 0.6f;
+					Particle p;
+					p.position = position_start.xyz;
+					p.position.z -= 0.73*j;
+					p.position.z -= 4.76*i;
+					p.speed = 4.0f*vRandom;
+					p.SizeW = float2(0.5f, 0.5f);
+					p.Age = 0.0f;
+					p.Type = PT_FLARE;
 
-			ptStream.Append(p);
+					ptStream.Append(p);
 
-			//还原源粒子的时间
-			gin[0].Age = 0.0f;
+					//还原源粒子的时间
+					gin[0].Age = 0.0f;
+				}
+			}
+			for (int i = 0; i < 6; ++i)
+			{
+				for (int j = 0; j < 2; ++j)
+				{
+					float3 vRandom = RandUnitVec3(0.0f);
+					vRandom.x *= 0.5f;
+					vRandom.z *= 0.5f;
+					if (vRandom.y < 0)
+						vRandom.y = -vRandom.y;
+					//vRandom.y *= 0.6f;
+					Particle p;
+					p.position = position_start.xyz;
+					p.position.z -= 0.73*j;
+					p.position.z -= 4.76*i;
+					p.position.x -= 14.6;
+					p.speed = 4.0f*vRandom;
+					p.SizeW = float2(0.5f, 0.5f);
+					p.Age = 0.0f;
+					p.Type = PT_FLARE;
+
+					ptStream.Append(p);
+
+					//还原源粒子的时间
+					gin[0].Age = 0.0f;
+				}
+			}
 		}
 
 		// 将源粒子送入顶点缓冲区
@@ -109,7 +143,7 @@ void StreamOutGS(point Particle gin[1],
 	else
 	{
 		//非源粒子，若还处于活跃时期则加入顶点缓存
-		if (gin[0].Age <= 1.0f)
+		if (gin[0].Age <= 0.6f)
 			ptStream.Append(gin[0]);
 	}
 }
@@ -148,8 +182,10 @@ Vout DrawVS(Particle vin)
 {
 	Vout vout;
 	float t = vin.Age;
+	float3 rec_acce = -vin.speed * 0.8f + gAccelW;
+	rec_acce.y = gAccelW.y;
 	//计算粒子当前的位置s[i+1] = a*t^2/2 + v*t + s[i];
-	vout.position = 0.5f*t*t*gAccelW + t*vin.speed + vin.position;
+	vout.position = 0.5f*t*t*rec_acce + 0.3*t*vin.speed + vin.position;
 	//根据粒子的寿命计算颜色衰减
 	float opacity = 1.0f - smoothstep(0.0f, 1.0f, t / 1.0f);
 	vout.alpha = float4(1.0f, 1.0f, 1.0f, opacity);
@@ -193,7 +229,7 @@ void DrawGS(point Vout gin[1],
 }
 float4 DrawPS(GeoOut pin) : SV_TARGET
 {
-	return texture_first.Sample(samLinear,pin.Tex)*pin.alpha;
+	return texture_first.Sample(samLinear,pin.Tex)*(pin.alpha*0.8f);
 }
 technique11 DrawTech
 {

@@ -246,6 +246,57 @@ float4 PS_withtex(VertexOut pin) :SV_TARGET
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
 	return final_color;
 }
+float4 PS_withtexnormal(VertexOut pin) :SV_TARGET
+{
+	pin.normal = normalize(pin.normal);
+	pin.tangent = normalize(pin.tangent);
+
+	//求解图片所在自空间->模型所在统一世界空间的变换矩阵
+	float3 N = pin.normal;
+	float3 T = normalize(pin.tangent - N * pin.tangent * N);
+	float3 B = cross(N, T);
+	float3x3 T2W = float3x3(T, B, N);
+	float3 normal_map = texture_normal.Sample(samTex, pin.tex).rgb;//从法线贴图中获得法线采样
+	normal_map = 2 * normal_map - 1;                               //将向量从图片坐标[0,1]转换至真实坐标[-1,1]  
+	normal_map = normalize(mul(normal_map, T2W));                  //切线空间至世界空间
+	pin.normal = normal_map;
+
+	float4 ambient = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	float4 diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	float4 spec = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	float3 eye_direct = normalize(position_view - pin.position_bef.xyz);
+	//float3 eye_direct = normalize(position_view);
+	float4 A = 0.0f, D = 0.0f, S = 0.0f;
+	float4 A1 = 0.0f, D1 = 0.0f, S1 = 0.0f;
+	//compute_dirlight(material_need, dir_light_need[i], pin.normal, eye_direct, A, D, S);
+
+	for (int i = 0; i < 2; ++i)
+	{
+		//方向光(direction light)
+		if (light_need[i].type.x == 0)
+		{
+			compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
+		}
+		//点光源(point light)
+		else if (light_need[i].type.x == 1)
+		{
+			compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
+		}
+		//聚光灯(spot light)
+		else
+		{
+			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
+		}
+		//环境光
+		ambient += A;
+		//无阴影光
+		diffuse += D;
+		spec += S;
+	}
+	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
+	float4 final_color = tex_color * (ambient + diffuse) + spec;;
+	return final_color;
+}
 float4 PS_withshadow(VertexOut pin) :SV_TARGET
 {
 	pin.normal = normalize(pin.normal);
@@ -666,6 +717,15 @@ technique11 draw_withtexture
 		SetVertexShader(CompileShader(vs_5_0, VS()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS_withtex()));
+	}
+}
+technique11 draw_withtexturenormal
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_5_0, VS()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_5_0, PS_withtexnormal()));
 	}
 }
 technique11 draw_withshadow

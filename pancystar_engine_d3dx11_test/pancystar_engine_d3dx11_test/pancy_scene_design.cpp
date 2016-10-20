@@ -79,7 +79,7 @@ scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceCont
 {
 	//nonshadow_light_list.clear();
 	//shadowmap_light_list.clear();
-	particle_fire = new particle_system<fire_point>(device_need, contex_need, 1500, lib_need, PARTICLE_TYPE_FIRE);
+	particle_fire = new particle_system<fire_point>(device_need, contex_need, 3000, lib_need, PARTICLE_TYPE_FIRE);
 }
 HRESULT scene_engine_test::scene_create()
 {
@@ -310,6 +310,10 @@ void scene_engine_test::show_yuri_animation_deffered()
 		model_yuri->get_technique(teque_need);
 		model_yuri->draw_part(yuri_render_order[i]);
 	}
+	//alpha»ìºÏÉè¶¨
+	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	ID3D11BlendState *rec = renderstate_lib->get_blend_common();
+	contex_pancy->OMSetBlendState(rec, blendFactor, 0xffffffff);
 	for (int i = 8; i < model_yuri->get_meshnum(); ++i)
 	{
 		material_list rec_need;
@@ -318,6 +322,7 @@ void scene_engine_test::show_yuri_animation_deffered()
 		model_yuri->get_technique(teque_need);
 		model_yuri->draw_part(yuri_render_order[i]);
 	}
+	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
 	shader_test->set_ssaotex(NULL);
 	shader_test->set_diffuse_light_tex(NULL);
 	shader_test->set_specular_light_tex(NULL);
@@ -572,6 +577,7 @@ void scene_engine_test::show_lightsource()
 	XMMATRIX rec_world;
 	XMFLOAT4X4 world_matrix;
 	trans_world = XMMatrixTranslation(0.0, 2.5, 2.5);
+	//trans_world = XMMatrixTranslation(-7.3, 4.8, 12.85f);
 	scal_world = XMMatrixScaling(0.1f, 0.1f, 0.1f);
 
 	rec_world = scal_world * trans_world;
@@ -770,7 +776,7 @@ void scene_engine_test::draw_ssaomap()
 void scene_engine_test::show_fire_particle()
 {
 	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-	XMFLOAT3 st_pos = XMFLOAT3(0.0f, 0.2f, 2.0f);
+	XMFLOAT3 st_pos = XMFLOAT3(7.25f, 4.6f, 13.2f);
 	XMFLOAT3 st_dir = XMFLOAT3(0.0f, 1.0f, 0.0f);
 	particle_fire->set_particle_direct(&st_pos, &st_dir);
 	particle_fire->draw_particle();

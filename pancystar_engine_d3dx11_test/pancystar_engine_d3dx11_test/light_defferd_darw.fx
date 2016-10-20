@@ -91,7 +91,7 @@ float4 PS(VertexOut pin) :SV_TARGET
 	float4 final_color = tex_color *(ambient + diffuse) + spec;
 	final_color.a = tex_color.a;
 	
-	final_color.rgb *= final_color.a;
+	//final_color.rgb *= tex_color.a;
 	return final_color;
 }
 technique11 LightTech
