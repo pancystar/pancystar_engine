@@ -237,6 +237,7 @@ HRESULT model_reader_assimp<T>::combine_vertex_array(int alpha_partnum, int* alp
 			{
 				vertex_rec[j].tex_id.x = mesh_need[i].material_use - 1;
 				vertex_rec[j].tex_id.y = mesh_need[i].material_use - 1;
+				vertex_rec[j].tex_id.z = i;
 			}
 			//¿½±´¶¥µã
 			memcpy(now_pointer, vertex_rec, all_vertex * sizeof(T));

@@ -61,5 +61,8 @@
     <FxCompile Include="simplegui.fx">
       <Filter>源文件</Filter>
     </FxCompile>
+    <FxCompile Include="find_clip.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

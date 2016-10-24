@@ -3,28 +3,62 @@
 #include"shader_pancy.h"
 #include"pancy_model_import.h"
 #include"pancy_d3d11_basic.h"
+#include<SpriteFont.h>
 int mouse_position_x;
 int mouse_position_y;
+struct material_per_part 
+{
+	XMFLOAT4 diffuse_RGB_material;       //漫反射光强度
+	XMFLOAT4 specular_RGB_material;      //镜面反射光强度
+	XMFLOAT4 specular_reflect_material;  //反射光系数
+};
+struct material_object 
+{
+	int material_num;
+	material_per_part *material_data;
+};
 class GUI_Progress_bar
 {
+	float            now_percent_diffuse_rgb;
+	float            now_percent_specular_rgb;
+	float            now_percent_specular_volue;
+	XMFLOAT2         st_position_diffusrgb;
+	XMFLOAT2         st_position_specular_rgb;
+	XMFLOAT2         st_position_specular_volue;
+	float range_circle;
+	float length_bar;
+	
+	unique_ptr<DirectX::SpriteFont> font_out;
+	unique_ptr<DirectX::SpriteBatch> spriteBatch;
 	ID3D11Device            *device_pancy;       //d3d设备
 	ID3D11DeviceContext     *contex_pancy;       //设备描述表
 	pancy_input             *user_input;          //输入输出控制
 	shader_control          *shader_list;         //shader表
-	float            now_percent;
 	XMFLOAT2         corner_uv[4];
 	ID3D11Buffer     *button_VB;          //按钮图片顶点
 	ID3D11Buffer     *button_IB;             //图片索引
-	D3D11_VIEWPORT   draw_position;     //绘制位置
+	D3D11_VIEWPORT   draw_position_diffusrgb;     //绘制位置
+	D3D11_VIEWPORT   draw_position_specular_rgb;     //绘制位置
+	D3D11_VIEWPORT   draw_position_specular_volue;     //绘制位置
 	ID3D11ShaderResourceView *tex_ui;
+	bool if_diffusergb_clip;
+	bool if_speculargb_clip;
+	bool if_specularvolue_clip;
 public:
 	GUI_Progress_bar(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_input *user_input_need, shader_control *shader_need);
 	HRESULT create(wchar_t* texture_path);
-	HRESULT init_buffer();
-	HRESULT init_texture(wchar_t* texture_path);
+
 	void update();
 	void display();
 	void release();
+	void set_percent(material_per_part material_in);
+	void get_percent(material_per_part &material_in);
+private:
+	HRESULT init_buffer();
+	HRESULT init_texture(wchar_t* texture_path);
+	void show_bar(std::string barname, float percent_need,D3D11_VIEWPORT viewport_need);
+	void update_bar(XMFLOAT2 &st_position, float &now_percent, bool &now_check);
+	bool check_ifin_range(int x, int y, XMFLOAT2 position);
 };
 GUI_Progress_bar::GUI_Progress_bar(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_input *user_input_need, shader_control *shader_need)
 {
@@ -32,13 +66,32 @@ GUI_Progress_bar::GUI_Progress_bar(ID3D11Device *device_need, ID3D11DeviceContex
 	contex_pancy = contex_need;
 	user_input = user_input_need;
 	shader_list = shader_need;
-	now_percent = 0.0f;
+
+	range_circle = 15.0f;
+	length_bar = 100.0f;
+	st_position_diffusrgb.x = 750.0f;
+	st_position_diffusrgb.y = 121.0f;
+
+	st_position_specular_rgb.x = 750.0f;
+	st_position_specular_rgb.y = 161.0f;
+
+	st_position_specular_volue.x = 750.0f;
+	st_position_specular_volue.y = 201.0f;
+
+	now_percent_diffuse_rgb = 0.0f;
+	now_percent_specular_rgb = 0.0f;
+	now_percent_specular_volue = 0.0f;
+
+	if_diffusergb_clip = false;
+	if_speculargb_clip = false;
+	if_specularvolue_clip = false;
 }
 HRESULT GUI_Progress_bar::init_buffer()
 {
+	//rec.DrawString(,);
 	HRESULT hr;
 	float button_size = 0.3f *0.5f;
-	float line_size = 2.0f *0.5f;
+	float line_size = 2.0f *0.7f;
 	pancy_point v[8];
 	float width = 0.3725f;
 	float height = 0.843f - 0.784f;
@@ -64,9 +117,9 @@ HRESULT GUI_Progress_bar::init_buffer()
 	v[7].position = XMFLOAT3(+button_size, -button_size, 0.0f);
 
 	v[4].normal = XMFLOAT3(1.0f, 0.0f, 0.0f);
-	v[5].normal = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	v[6].normal = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	v[7].normal = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	v[5].normal = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	v[6].normal = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	v[7].normal = XMFLOAT3(1.0f, 0.0f, 0.0f);
 
 	v[4].tex = XMFLOAT2(0.588f, 0.9215f);
 	v[5].tex = XMFLOAT2(0.588f, 0.745f);
@@ -85,9 +138,9 @@ HRESULT GUI_Progress_bar::init_buffer()
 	vinitData.pSysMem = v;
 
 	hr = device_pancy->CreateBuffer(&vbd, &vinitData, &button_VB);
-	if (FAILED(hr)) 
+	if (FAILED(hr))
 	{
-		MessageBox(NULL,L"create vertex buffer error in GUI",L"tip",MB_OK);
+		MessageBox(NULL, L"create vertex buffer error in GUI", L"tip", MB_OK);
 		return hr;
 	}
 	USHORT indices[] =
@@ -117,14 +170,18 @@ HRESULT GUI_Progress_bar::init_buffer()
 }
 HRESULT GUI_Progress_bar::init_texture(wchar_t* texture_path)
 {
-	draw_position.Width  = 200;
-	draw_position.Height = 200;
-	draw_position.MaxDepth = 1.0f;
-	draw_position.MinDepth = 0.0f;
-	draw_position.TopLeftX = window_width-300;
-	draw_position.TopLeftY = 20;
+	draw_position_diffusrgb.Width = 200;
+	draw_position_diffusrgb.Height = 200;
+	draw_position_diffusrgb.MaxDepth = 1.0f;
+	draw_position_diffusrgb.MinDepth = 0.0f;
+	draw_position_diffusrgb.TopLeftX = window_width - 300;
+	draw_position_specular_rgb = draw_position_diffusrgb;
+	draw_position_specular_volue = draw_position_diffusrgb;
+	draw_position_diffusrgb.TopLeftY = 20;
+	draw_position_specular_rgb.TopLeftY = 60;
+	draw_position_specular_volue.TopLeftY = 100;
 	HRESULT hr_need = CreateDDSTextureFromFileEx(device_pancy, contex_pancy, texture_path, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, false, NULL, &tex_ui);
-	if (FAILED(hr_need)) 
+	if (FAILED(hr_need))
 	{
 		MessageBox(NULL, L"create texture error in GUI", L"tip", MB_OK);
 		return hr_need;
@@ -134,7 +191,7 @@ HRESULT GUI_Progress_bar::init_texture(wchar_t* texture_path)
 HRESULT GUI_Progress_bar::create(wchar_t* texture_path)
 {
 	HRESULT hr = init_buffer();
-	if (FAILED(hr)) 
+	if (FAILED(hr))
 	{
 		return hr;
 	}
@@ -143,23 +200,90 @@ HRESULT GUI_Progress_bar::create(wchar_t* texture_path)
 	{
 		return hr;
 	}
+	font_out.reset(new SpriteFont(device_pancy, L"myfile.spritefont"));
+	spriteBatch.reset(new SpriteBatch(contex_pancy));
 	return S_OK;
 }
-void GUI_Progress_bar::release() 
+void GUI_Progress_bar::release()
 {
 	button_VB->Release();
 	button_IB->Release();
 	tex_ui->Release();
+	font_out.reset();
+	spriteBatch.reset();
 }
-void GUI_Progress_bar::update() 
+void GUI_Progress_bar::update_bar(XMFLOAT2 &st_position,float &now_percent,bool &now_check)
 {
+	if (user_input->check_mouseDown(0))
+	{
+		XMFLOAT2 now_position = XMFLOAT2(st_position.x + length_bar * now_percent, st_position.y);
+		if (if_diffusergb_clip == false && if_speculargb_clip == false&& if_specularvolue_clip == false &&check_ifin_range(mouse_position_x, mouse_position_y, now_position))
+		{
+			now_check = true;
+		}
+	}
+	if (!user_input->check_mouseDown(0))
+	{
+		if_diffusergb_clip = false;
+		if_speculargb_clip = false;
+		if_specularvolue_clip = false;
+	}
+	if (now_check == true)
+	{
+		now_percent = (static_cast<float>(mouse_position_x) - 750.0f) / 100.0f;
+		if (now_percent < 0.001f)
+		{
+			now_percent = 0.0f;
+		}
+		if (now_percent > 1.0f)
+		{
+			now_percent = 1.0f;
+		}
+	}
 }
-void GUI_Progress_bar::display() 
+void GUI_Progress_bar::update()
 {
-	contex_pancy->RSSetViewports(1, &draw_position);
+	update_bar(st_position_diffusrgb, now_percent_diffuse_rgb,if_diffusergb_clip);
+	update_bar(st_position_specular_rgb, now_percent_specular_rgb, if_speculargb_clip);
+	update_bar(st_position_specular_volue, now_percent_specular_volue, if_specularvolue_clip);
+}
+bool GUI_Progress_bar::check_ifin_range(int x, int y, XMFLOAT2 position)
+{
+	float length_x = abs(static_cast<float>(x) - static_cast<float>(position.x)) * abs(static_cast<float>(x) - static_cast<float>(position.x));
+	float length_y = abs(static_cast<float>(y) - static_cast<float>(position.y)) * abs(static_cast<float>(y) - static_cast<float>(position.y));
+	float length = sqrt(length_x + length_y);
+	if (length > range_circle)
+	{
+		return false;
+	}
+	return true;
+}
+void GUI_Progress_bar::show_bar(std::string barname,float percent_need,D3D11_VIEWPORT viewport_need)
+{
+	//now_percent_diffuse_rgb = 1.0f;
+	std::stringstream rec_string;
+	rec_string << percent_need;
+	std::string s1 = barname + rec_string.str();
+	char rec[1000];
+	memcpy(rec, s1.c_str(), s1.length() * sizeof(float));
+	//转换文件名为unicode
+	size_t len = s1.length() + 1;
+	size_t converted = 0;
+	wchar_t *percent_now;
+	percent_now = (wchar_t*)malloc(len*sizeof(wchar_t));
+	mbstowcs_s(&converted, percent_now, len, rec, _TRUNCATE);
+
+	contex_pancy->RSSetViewports(1, &viewport_need);
 	auto shader_gui = shader_list->get_shader_GUI();
 	shader_gui->set_tex(tex_ui);
-	shader_gui->set_mov_xy(XMFLOAT2(0.0f,0.0f));
+	shader_gui->set_mov_xy(XMFLOAT2(percent_need - 0.5f, 0.0f));
+	spriteBatch->Begin();
+	DirectX::FXMVECTOR origin = font_out->MeasureString(percent_now) / 2.0f;
+	DirectX::FXMVECTOR m_fontPos = XMLoadFloat2(&XMFLOAT2(90.0f, 80.0f));
+	font_out->DrawString(spriteBatch.get(), percent_now, m_fontPos, Colors::White, 0.0f, origin, 0.4f);
+
+	spriteBatch->End();
+	contex_pancy->OMSetDepthStencilState(NULL, 0);
 	//渲染屏幕空间像素图
 	UINT stride = sizeof(pancy_point);
 	UINT offset = 0;
@@ -179,6 +303,30 @@ void GUI_Progress_bar::display()
 	}
 	shader_gui->set_tex(NULL);
 }
+void GUI_Progress_bar::display()
+{
+	show_bar("diffuseRGB:",now_percent_diffuse_rgb, draw_position_diffusrgb);
+	show_bar("specularRGB:",now_percent_specular_rgb, draw_position_specular_rgb);
+	show_bar("specularvalue:",now_percent_specular_volue, draw_position_specular_volue);
+}
+void GUI_Progress_bar::set_percent(material_per_part material_in) 
+{
+	now_percent_diffuse_rgb = material_in.diffuse_RGB_material.x;
+	now_percent_specular_rgb = material_in.specular_RGB_material.x;
+	now_percent_specular_volue = material_in.specular_RGB_material.w / 50.0f;
+}
+void GUI_Progress_bar::get_percent(material_per_part &material_in) 
+{
+	material_in.diffuse_RGB_material.x = now_percent_diffuse_rgb;
+	material_in.diffuse_RGB_material.y = now_percent_diffuse_rgb;
+	material_in.diffuse_RGB_material.z = now_percent_diffuse_rgb;
+
+	material_in.specular_RGB_material.x = now_percent_specular_rgb;
+	material_in.specular_RGB_material.y = now_percent_specular_rgb;
+	material_in.specular_RGB_material.z = now_percent_specular_rgb;
+
+	material_in.specular_RGB_material.w = now_percent_specular_volue * 50.0f;
+}
 //继承的d3d注册类
 class d3d_pancy_1 :public d3d_pancy_basic
 {
@@ -191,6 +339,14 @@ class d3d_pancy_1 :public d3d_pancy_basic
 	pancy_camera             *scene_camera;         //虚拟摄像机
 	XMFLOAT4X4               proj_matrix;
 	XMFLOAT4X4               view_matrix;
+
+	ID3D11Texture2D          *clipTex0;
+	ID3D11Texture2D          *CPU_read_buffer;
+	ID3D11ShaderResourceView *clip_SRV;
+	ID3D11RenderTargetView *clip_RTV;
+	ID3D11DepthStencilView   *clip_DSV;
+	material_object          material_castel;
+	int check_part;
 public:
 	d3d_pancy_1(HWND wind_hwnd, UINT wind_width, UINT wind_hight, HINSTANCE hInstance);
 	HRESULT init_create();
@@ -199,7 +355,11 @@ public:
 	void release();
 private:
 	void show_model();
+	int find_clip_model(int pos_x, int pos_y);
 	HRESULT camera_move();
+	HRESULT create_texture();
+	HRESULT CreateCPUaccessBuf();
+	void CreateAndCopyToDebugBuf();
 };
 HRESULT d3d_pancy_1::camera_move()
 {
@@ -248,6 +408,11 @@ HRESULT d3d_pancy_1::camera_move()
 }
 void d3d_pancy_1::release()
 {
+	clip_DSV->Release();
+	CPU_read_buffer->Release();
+	clipTex0->Release();
+	clip_SRV->Release();
+	clip_RTV->Release();
 	gui_test->release();
 	geometry_lib->release();       //几何体表
 	shader_lib->release();         //shader表
@@ -266,22 +431,22 @@ void d3d_pancy_1::release()
 	if (d3dDebug != nullptr)            d3dDebug->Release();
 #endif
 	if (device_pancy != nullptr)            device_pancy->Release();
-	
+
 }
-d3d_pancy_1::d3d_pancy_1(HWND hwnd_need, UINT width_need, UINT hight_need, HINSTANCE hInstance_need) :d3d_pancy_basic(hwnd_need,width_need,hight_need)
+d3d_pancy_1::d3d_pancy_1(HWND hwnd_need, UINT width_need, UINT hight_need, HINSTANCE hInstance_need) :d3d_pancy_basic(hwnd_need, width_need, hight_need)
 {
 	hInstance = hInstance_need;
 	shader_lib = new shader_control();
-	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, window_width*1.0f / window_hight*1.0f, 0.1f, 300.f);
+	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, (window_width-300)*1.0f / window_hight*1.0f, 0.1f, 300.f);
 	XMStoreFloat4x4(&proj_matrix, proj);
 	//游戏时间
 	delta_need = 0.0f;
+	check_part = -1;
 }
 HRESULT d3d_pancy_1::init_create()
 {
-
 	check_init = init(wind_hwnd, wind_width, wind_hight);
-	if (check_init == false) 
+	if (check_init == false)
 	{
 		MessageBox(0, L"create d3dx11 failed", L"tip", MB_OK);
 		return E_FAIL;
@@ -308,6 +473,23 @@ HRESULT d3d_pancy_1::init_create()
 	if (FAILED(hr))
 	{
 		return hr;
+	}
+	hr = create_texture();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create geometry list failed", L"tip", MB_OK);
+		return hr;
+	}
+	auto* model_castel_pack = geometry_lib->get_model_list()->get_geometry_byname("model_castel");
+	auto* model_castel = model_castel_pack->get_geometry_data();
+	material_castel.material_num = model_castel->get_meshnum();
+	material_castel.material_data = new material_per_part[material_castel.material_num];
+	for (int i = 0; i < material_castel.material_num; ++i) 
+	{
+		XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
+		XMFLOAT4 rec_specular2(1.0f, 1.0f, 1.0f, 6.0f);
+		material_castel.material_data[i].diffuse_RGB_material = rec_diffuse2;
+		material_castel.material_data[i].specular_RGB_material = rec_specular2;
 	}
 	return S_OK;
 }
@@ -346,6 +528,13 @@ void d3d_pancy_1::update()
 	light_data.light_type.x = point_light;
 	light_data.light_type.y = shadow_none;
 	shader_test->set_light(light_data, 0);
+	gui_test->update();
+	auto* model_castel_pack = geometry_lib->get_model_list()->get_geometry_byname("model_castel");
+	auto* model_castel = model_castel_pack->get_geometry_data();
+	if (check_part >= 0 && check_part < model_castel->get_meshnum()) 
+	{
+		gui_test->get_percent(material_castel.material_data[check_part]);
+	}
 	return;
 }
 void d3d_pancy_1::display()
@@ -355,13 +544,21 @@ void d3d_pancy_1::display()
 	contex_pancy->ClearRenderTargetView(m_renderTargetView, reinterpret_cast<float*>(&color));
 	contex_pancy->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 	show_model();
+	if (user_input->check_mouseDown(0))
+	{
+		if (mouse_position_x < viewPort.Width && mouse_position_y < viewPort.Height)
+		{
+			check_part = find_clip_model(mouse_position_x, mouse_position_y);
+			gui_test->set_percent(material_castel.material_data[check_part]);
+		}
+	}
 	gui_test->display();
-	contex_pancy->RSSetViewports(1,&viewPort);
+	contex_pancy->RSSetViewports(1, &viewPort);
 	//交换到屏幕
 	HRESULT hr = swapchain->Present(0, 0);
 	int a = 0;
 }
-void d3d_pancy_1::show_model() 
+void d3d_pancy_1::show_model()
 {
 	auto* shader_test = shader_lib->get_shader_prelight();
 	//几何体的打包(动画)属性
@@ -375,11 +572,11 @@ void d3d_pancy_1::show_model()
 	//材质
 	pancy_material test_Mt;
 	XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_specular2(1.0f, 1.0f, 1.0f, 6.0f);
+	//XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
+	//XMFLOAT4 rec_specular2(1.0f, 1.0f, 1.0f, 6.0f);
 	test_Mt.ambient = rec_ambient2;
-	test_Mt.diffuse = rec_diffuse2;
-	test_Mt.specular = rec_specular2;
+	//test_Mt.diffuse = rec_diffuse2;
+	//test_Mt.specular = rec_specular2;
 	shader_test->set_material(test_Mt);
 	//设定世界变换
 	XMFLOAT4X4 world_matrix = model_castel_pack->get_world_matrix();
@@ -392,9 +589,18 @@ void d3d_pancy_1::show_model()
 	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
 	XMFLOAT4X4 world_viewrec;
 	XMStoreFloat4x4(&world_viewrec, worldViewProj);
-	shader_test->set_trans_all(&world_viewrec);
+	shader_test->set_trans_all(&world_viewrec);	
+	D3D11_RASTERIZER_DESC rsDesc;
+	ZeroMemory(&rsDesc, sizeof(rsDesc));
+	rsDesc.CullMode = D3D11_CULL_BACK;
+	rsDesc.DepthClipEnable = true;
+	rsDesc.FrontCounterClockwise = false;
+	ID3D11RasterizerState *rsState(NULL);
 	for (int i = 0; i < model_castel->get_meshnum(); ++i)
 	{
+		test_Mt.diffuse = material_castel.material_data[i].diffuse_RGB_material;
+		test_Mt.specular = material_castel.material_data[i].specular_RGB_material;
+		shader_test->set_material(test_Mt);
 		//纹理设定
 		material_list rec_need;
 		model_castel->get_texture(&rec_need, i);
@@ -410,6 +616,142 @@ void d3d_pancy_1::show_model()
 		}
 		model_castel->draw_part(i);
 	}
+}
+int d3d_pancy_1::find_clip_model(int pos_x,int pos_y)
+{
+	//alpha混合设定
+	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
+	ID3D11RenderTargetView* renderTargets[1] = { clip_RTV };
+	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	contex_pancy->OMSetRenderTargets(1, renderTargets, clip_DSV);
+	contex_pancy->ClearRenderTargetView(clip_RTV, clearColor);
+	contex_pancy->ClearDepthStencilView(clip_DSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	contex_pancy->RSSetViewports(1, &viewPort);
+	auto *shader_need = shader_lib->get_shader_findclip();
+	//几何体的打包(动画)属性
+	auto* model_castel_pack = geometry_lib->get_model_list()->get_geometry_byname("model_castel");
+	//几何体的固有属性
+	auto* model_castel = model_castel_pack->get_geometry_data();
+	//设定世界变换
+	XMFLOAT4X4 world_matrix = model_castel_pack->get_world_matrix();
+	XMMATRIX rec_world = XMLoadFloat4x4(&model_castel_pack->get_world_matrix());
+	//设定总变换
+	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
+	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
+	XMFLOAT4X4 world_viewrec;
+	XMStoreFloat4x4(&world_viewrec, worldViewProj);
+	shader_need->set_trans_all(&world_viewrec);
+	//选定绘制路径
+	ID3DX11EffectTechnique *teque_need, *teque_normal;
+	shader_need->get_technique(&teque_need, "draw_clipmap");
+	model_castel->get_technique(teque_need);
+	model_castel->draw_mesh();
+	ID3D11RenderTargetView* renderTargets2[1] = { NULL };
+	contex_pancy->OMSetRenderTargets(1, renderTargets2, 0);
+	D3DX11_TECHNIQUE_DESC techDesc;
+	teque_need->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		teque_need->GetPassByIndex(p)->Apply(0, contex_pancy);
+	}
+	restore_rendertarget();
+
+	CreateAndCopyToDebugBuf();
+	D3D11_TEXTURE2D_DESC texElementDesc;
+	CPU_read_buffer->GetDesc(&texElementDesc);
+	unsigned int rec_answer;
+	for (UINT mipLevel = 0; mipLevel < texElementDesc.MipLevels; ++mipLevel)
+	{
+		D3D11_MAPPED_SUBRESOURCE mappedTex2D;
+		HRESULT hr;
+		hr = contex_pancy->Map(CPU_read_buffer, mipLevel, D3D11_MAP_READ, 0, &mappedTex2D);
+		unsigned int* rec = static_cast<unsigned int*>(mappedTex2D.pData) + (mappedTex2D.RowPitch/4) * pos_y;
+		rec_answer = rec[pos_x];
+		//contex_pancy->UpdateSubresource(texArray, D3D11CalcSubresource(mipLevel, texElement, texElementDesc.MipLevels), 0, mappedTex2D.pData, mappedTex2D.RowPitch, mappedTex2D.DepthPitch);
+		contex_pancy->Unmap(CPU_read_buffer, mipLevel);
+	}
+	return rec_answer;
+}
+HRESULT d3d_pancy_1::create_texture() 
+{
+	D3D11_TEXTURE2D_DESC dsDesc;
+	dsDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	dsDesc.Width = viewPort.Width;
+	dsDesc.Height = viewPort.Height;
+	dsDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	dsDesc.MipLevels = 1;
+	dsDesc.ArraySize = 1;
+	dsDesc.CPUAccessFlags = 0;
+	dsDesc.MiscFlags = 0;
+	dsDesc.Usage = D3D11_USAGE_DEFAULT;
+	dsDesc.SampleDesc.Count = 1;
+	dsDesc.SampleDesc.Quality = 0;
+	ID3D11Texture2D* depthStencilBuffer;
+	device_pancy->CreateTexture2D(&dsDesc, 0, &depthStencilBuffer);
+	device_pancy->CreateDepthStencilView(depthStencilBuffer, 0, &clip_DSV);
+	depthStencilBuffer->Release();
+	//clip纹理
+	D3D11_TEXTURE2D_DESC texDesc;
+	texDesc.MipLevels = 1;
+	texDesc.ArraySize = 1;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+	texDesc.CPUAccessFlags = 0;
+	texDesc.MiscFlags = 0;
+	texDesc.Width = viewPort.Width;
+	texDesc.Height = viewPort.Height;
+	texDesc.Format = DXGI_FORMAT_R32_UINT;
+	HRESULT hr = device_pancy->CreateTexture2D(&texDesc, 0, &clipTex0);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create clip map texture1 error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = device_pancy->CreateShaderResourceView(clipTex0, 0, &clip_SRV);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create clip map texture1 error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = device_pancy->CreateRenderTargetView(clipTex0, 0, &clip_RTV);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create clip map texture1 error", L"tip", MB_OK);
+		return hr;
+	}
+	CreateCPUaccessBuf();
+	return S_OK;
+}
+void d3d_pancy_1::CreateAndCopyToDebugBuf()
+{
+	contex_pancy->CopyResource(CPU_read_buffer, clipTex0);
+}
+HRESULT d3d_pancy_1::CreateCPUaccessBuf()
+{
+	D3D11_TEXTURE2D_DESC texDesc;
+	texDesc.MipLevels = 1;
+	texDesc.ArraySize = 1;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Usage = D3D11_USAGE_STAGING;
+	texDesc.BindFlags = 0;
+	texDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+	texDesc.MiscFlags = 0;
+	texDesc.Width = viewPort.Width;
+	texDesc.Height = viewPort.Height;
+	texDesc.Format = DXGI_FORMAT_R32_UINT;
+	HRESULT hr = device_pancy->CreateTexture2D(&texDesc, NULL, &CPU_read_buffer);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create CPU access read buffer error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
 }
 //endl
 class engine_windows_main
@@ -438,8 +780,13 @@ LRESULT CALLBACK engine_windows_main::WndProc(HWND hwnd, UINT message, WPARAM wP
 		if (wParam == VK_ESCAPE)    // ESC键
 			DestroyWindow(hwnd);    // 销毁窗口, 并发送一条WM_DESTROY消息
 		break;
+	case WM_MOUSEMOVE:
+		mouse_position_x = LOWORD(lParam);
+		mouse_position_y = HIWORD(lParam);
+		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
+
 		return 0;
 	}
 	return DefWindowProc(hwnd, message, wParam, lParam);
@@ -454,7 +801,7 @@ engine_windows_main::engine_windows_main(HINSTANCE hInstance_need, HINSTANCE hPr
 	viewport_width = width;
 	viewport_height = height;
 }
-HRESULT engine_windows_main::game_create() 
+HRESULT engine_windows_main::game_create()
 {
 	wndclass.style = CS_HREDRAW | CS_VREDRAW;                   //窗口类的类型（此处包括竖直与水平平移或者大小改变时时的刷新）。msdn原文介绍：Redraws the entire window if a movement or size adjustment changes the width of the client area.
 	wndclass.lpfnWndProc = WndProc;                                   //确定窗口的回调函数，当窗口获得windows的回调消息时用于处理消息的函数。
@@ -489,7 +836,7 @@ HRESULT engine_windows_main::game_create()
 		NULL,                       // window menu handle其菜单的句柄。
 		hInstance,                  // program instance handle窗口程序的实例句柄。
 		NULL);                     // creation parameters创建窗口的指针
-	if (hwnd == NULL) 
+	if (hwnd == NULL)
 	{
 		return E_FAIL;
 	}
@@ -521,7 +868,7 @@ HRESULT engine_windows_main::game_loop()
 		}
 		d3d11_test->release();
 	}
-	
+
 	return S_OK;
 }
 WPARAM engine_windows_main::game_end()

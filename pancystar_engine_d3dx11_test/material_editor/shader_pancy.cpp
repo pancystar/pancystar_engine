@@ -332,11 +332,52 @@ void gui_simple::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UIN
 		member_point[i] = rec[i];
 	}
 }
+//简单的3d拾取检测
+find_clip::find_clip(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
+{
+}
+void find_clip::init_handle()
+{
+	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();         //全套几何变换句柄
+}
+void find_clip::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT" ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
+HRESULT find_clip::set_trans_all(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(project_matrix_handle, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting project matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void find_clip::release()
+{
+	release_basic();
+}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全局shader管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_control::shader_control()
 {
 	shader_light_pre = NULL;
 	shader_GUI = NULL;
+	shader_find_clip = NULL;
 }
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
@@ -355,10 +396,18 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 		MessageBox(0, L"an error when gui shader created", L"tip", MB_OK);
 		return hr;
 	}
+	shader_find_clip = new find_clip(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\find_clip.cso", device_pancy, contex_pancy);
+	hr = shader_find_clip->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when gui shader created", L"tip", MB_OK);
+		return hr;
+	}
 	return S_OK;
 }
 void shader_control::release()
 {
 	shader_GUI->release();
 	shader_light_pre->release();
+	shader_find_clip->release();
 }

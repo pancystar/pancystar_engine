@@ -131,17 +131,31 @@ private:
 	void init_handle();                 //注册全局变量句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
+class find_clip : public shader_basic
+{
+	ID3DX11EffectMatrixVariable           *project_matrix_handle;      //全套几何变换句柄
+public:
+	find_clip(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);                            //设置总变换
+	void release();
+private:
+	void init_handle();                 //注册全局变量句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shader list~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_control
 {
+	
 	light_pre                  *shader_light_pre;                //前向光照着色器
 	gui_simple                 *shader_GUI;
 	shader_basic *shader_light_deferred;
+	find_clip    *shader_find_clip;
 public:
 	shader_control();
 	HRESULT shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy);
 	light_pre*                  get_shader_prelight() { return shader_light_pre; };
 	gui_simple*                 get_shader_GUI() { return shader_GUI; };
+	find_clip*                  get_shader_findclip() { return shader_find_clip; };
 	void release();
 };
 
