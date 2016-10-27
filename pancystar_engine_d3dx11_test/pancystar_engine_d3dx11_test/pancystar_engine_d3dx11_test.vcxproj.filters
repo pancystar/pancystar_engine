@@ -163,6 +163,9 @@
     <FxCompile Include="light_defferd_lightbuffer.fx">
       <Filter>源文件</Filter>
     </FxCompile>
+    <FxCompile Include="SSR.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram2.cd" />

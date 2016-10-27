@@ -32,6 +32,295 @@
 #include"pancy_pretreatment.h"
 #include<ShellScalingAPI.h>
 #pragma comment ( lib, "Shcore.lib")
+class render_posttreatment_SSR 
+{
+	int                      map_width;
+	int                      map_height;
+	ID3D11Device             *device_pancy;
+	ID3D11DeviceContext      *contex_pancy;
+	pancy_renderstate        *renderstate_lib;
+	pancy_camera             *camera_use;                 //摄像机
+	ID3D11Buffer             *reflectMap_VB;   //ao图片顶点缓冲区
+	ID3D11Buffer             *reflectMap_IB;   //ao图片索引缓冲区
+
+	ID3D11ShaderResourceView *normaldepth_tex; //存储法线和深度的纹理资源
+	ID3D11ShaderResourceView *depth_tex;       //存储法线和深度的纹理资源
+	ID3D11ShaderResourceView *color_tex;       //存储渲染结果的纹理资源
+
+	ID3D11RenderTargetView   *reflect_target;     //存储ssao的渲染目标
+	ID3D11ShaderResourceView *reflect_tex;        //存储ssao的纹理资源
+
+	XMFLOAT4                 FrustumFarCorner[4];  //投影视截体的远截面的四个角点
+	D3D11_VIEWPORT           render_viewport;      //视口信息
+
+	shader_control           *shader_list;         //shader表
+public:
+	render_posttreatment_SSR(pancy_camera *camera_need,pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need,int width, int height, float fovy, float farZ);
+	void set_normaldepthcolormap(ID3D11ShaderResourceView *normalspec_need, ID3D11ShaderResourceView *depth_need);
+	HRESULT create();
+	void draw_reflect(ID3D11RenderTargetView *rendertarget_input);
+	void release();
+private:
+	void set_size(int width, int height, float fovy, float farZ);
+	void build_fullscreen_picturebuff();
+	void BuildFrustumFarCorners(float fovy, float farZ);
+	HRESULT build_texture();
+	template<class T>
+	void safe_release(T t)
+	{
+		if (t != NULL)
+		{
+			t->Release();
+			t = 0;
+		}
+	}
+};
+render_posttreatment_SSR::render_posttreatment_SSR(pancy_camera *camera_need,pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, int width, int height, float fovy, float farZ)
+{
+	camera_use = camera_need;
+	device_pancy = device;
+	contex_pancy = dc;
+	set_size(width, height, fovy, farZ);
+	shader_list = shader_need;
+	renderstate_lib = renderstate_need;
+}
+HRESULT render_posttreatment_SSR::create() 
+{
+	build_fullscreen_picturebuff();
+	HRESULT hr;
+	//创建纹理
+	hr = build_texture();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT render_posttreatment_SSR::build_texture()
+{
+	HRESULT hr;
+	//创建输入资源
+	D3D11_TEXTURE2D_DESC texDesc;
+	texDesc.Width = map_width;
+	texDesc.Height = map_height;
+	texDesc.MipLevels = 1;
+	texDesc.ArraySize = 1;
+	texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	texDesc.CPUAccessFlags = 0;
+	texDesc.MiscFlags = 0;
+	ID3D11Texture2D* inputcolortex = 0;
+	hr = device_pancy->CreateTexture2D(&texDesc, 0, &inputcolortex);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create HDR_averagetex texture error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = device_pancy->CreateShaderResourceView(inputcolortex, 0, &color_tex);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create HDR_prepass texture error", L"tip", MB_OK);
+		return hr;
+	}
+	inputcolortex->Release();
+	//作为shader resource view的普通纹理(无多重采样)
+	texDesc.Width = map_width;
+	texDesc.Height = map_height;
+	texDesc.MipLevels = 1;
+	texDesc.ArraySize = 1;
+	texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+	texDesc.CPUAccessFlags = 0;
+	texDesc.MiscFlags = 0;
+	ID3D11Texture2D* reflecttex = 0;
+	hr = device_pancy->CreateTexture2D(&texDesc, 0, &reflecttex);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create reflect map texture1 error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = device_pancy->CreateShaderResourceView(reflecttex, 0, &reflect_tex);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create reflect map texture1 error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = device_pancy->CreateRenderTargetView(reflecttex, 0, &reflect_target);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create reflect map texture1 error", L"tip", MB_OK);
+		return hr;
+	}
+	reflecttex->Release();
+	return S_OK;
+}
+void render_posttreatment_SSR::BuildFrustumFarCorners(float fovy, float farZ)
+{
+	float aspect = (float)map_width / (float)map_height;
+
+	float halfHeight = farZ * tanf(0.5f*fovy);
+	float halfWidth = aspect * halfHeight;
+
+	FrustumFarCorner[0] = XMFLOAT4(-halfWidth, -halfHeight, farZ, 0.0f);
+	FrustumFarCorner[1] = XMFLOAT4(-halfWidth, +halfHeight, farZ, 0.0f);
+	FrustumFarCorner[2] = XMFLOAT4(+halfWidth, +halfHeight, farZ, 0.0f);
+	FrustumFarCorner[3] = XMFLOAT4(+halfWidth, -halfHeight, farZ, 0.0f);
+}
+void render_posttreatment_SSR::set_size(int width, int height, float fovy, float farZ)
+{
+	map_width = width;
+	map_height = height;
+	//半屏幕渲染
+	render_viewport.TopLeftX = 0.0f;
+	render_viewport.TopLeftY = 0.0f;
+	render_viewport.Width = static_cast<float>(width);
+	render_viewport.Height = static_cast<float>(height);
+	render_viewport.MinDepth = 0.0f;
+	render_viewport.MaxDepth = 1.0f;
+	BuildFrustumFarCorners(fovy, farZ);
+}
+void render_posttreatment_SSR::build_fullscreen_picturebuff()
+{
+	pancy_point v[4];
+
+	v[0].position = XMFLOAT3(-1.0f, -1.0f, 0.0f);
+	v[1].position = XMFLOAT3(-1.0f, +1.0f, 0.0f);
+	v[2].position = XMFLOAT3(+1.0f, +1.0f, 0.0f);
+	v[3].position = XMFLOAT3(+1.0f, -1.0f, 0.0f);
+
+	// Store far plane frustum corner indices in Normal.x slot.
+	v[0].normal = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	v[1].normal = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	v[2].normal = XMFLOAT3(2.0f, 0.0f, 0.0f);
+	v[3].normal = XMFLOAT3(3.0f, 0.0f, 0.0f);
+
+	v[0].tex = XMFLOAT2(0.0f, 1.0f);
+	v[1].tex = XMFLOAT2(0.0f, 0.0f);
+	v[2].tex = XMFLOAT2(1.0f, 0.0f);
+	v[3].tex = XMFLOAT2(1.0f, 1.0f);
+
+	D3D11_BUFFER_DESC vbd;
+	vbd.Usage = D3D11_USAGE_IMMUTABLE;
+	vbd.ByteWidth = sizeof(pancy_point) * 4;
+	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vbd.CPUAccessFlags = 0;
+	vbd.MiscFlags = 0;
+	vbd.StructureByteStride = 0;
+
+	D3D11_SUBRESOURCE_DATA vinitData;
+	vinitData.pSysMem = v;
+
+	device_pancy->CreateBuffer(&vbd, &vinitData, &reflectMap_VB);
+
+	USHORT indices[6] =
+	{
+		0, 1, 2,
+		0, 2, 3
+	};
+
+	D3D11_BUFFER_DESC ibd;
+	ibd.Usage = D3D11_USAGE_IMMUTABLE;
+	ibd.ByteWidth = sizeof(USHORT) * 6;
+	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	ibd.CPUAccessFlags = 0;
+	ibd.StructureByteStride = 0;
+	ibd.MiscFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA iinitData;
+	iinitData.pSysMem = indices;
+
+	device_pancy->CreateBuffer(&ibd, &iinitData, &reflectMap_IB);
+}
+void render_posttreatment_SSR::set_normaldepthcolormap(ID3D11ShaderResourceView *normalspec_need, ID3D11ShaderResourceView *depth_need)
+{
+	normaldepth_tex = normalspec_need;
+	depth_tex = depth_need;
+}
+void render_posttreatment_SSR::release()
+{
+	safe_release(reflectMap_VB);
+	safe_release(reflectMap_IB);
+	safe_release(reflect_target);
+	safe_release(reflect_tex);
+	safe_release(color_tex);
+}
+void render_posttreatment_SSR::draw_reflect(ID3D11RenderTargetView *rendertarget_input)
+{
+	ID3D11Resource *rendertargetTex = 0;
+	ID3D11Resource *rendertargetTex_singlesample = 0;
+	rendertarget_input->GetResource(&rendertargetTex);
+	color_tex->GetResource(&rendertargetTex_singlesample);
+	//将多重采样纹理转换至非多重纹理
+	contex_pancy->ResolveSubresource(rendertargetTex_singlesample, D3D11CalcSubresource(0, 0, 1), rendertargetTex, D3D11CalcSubresource(0, 0, 1), DXGI_FORMAT_R16G16B16A16_FLOAT);
+	color_tex->Release();
+	color_tex = NULL;
+	device_pancy->CreateShaderResourceView(rendertargetTex_singlesample, 0, &color_tex);
+	rendertargetTex->Release();
+	rendertargetTex_singlesample->Release();
+	//绑定渲染目标纹理，不设置深度模缓冲区因为这里不需要
+	ID3D11RenderTargetView* renderTargets[1] = { reflect_target };
+	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	//contex_pancy->OMSetRenderTargets(1, renderTargets, 0);
+	//contex_pancy->ClearRenderTargetView(reflect_target, clearColor);
+	//contex_pancy->RSSetViewports(1, &render_viewport);
+	renderstate_lib->clear_posttreatmentcrendertarget();
+	//设置渲染状态
+	static const XMMATRIX T(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f);
+
+	XMMATRIX P = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, map_width*1.0f / map_height*1.0f, 0.1f, 300.0f);
+	XMFLOAT4X4 PT;
+	XMStoreFloat4x4(&PT, P*T);
+	auto *shader_reflectpass = shader_list->get_shader_ssreflect();
+	XMFLOAT4X4 invview_mat, view_mat;
+	XMFLOAT3 view_pos;
+	camera_use->count_invview_matrix(&invview_mat);
+	camera_use->count_view_matrix(&view_mat);
+	camera_use->get_view_position(&view_pos);
+	shader_reflectpass->set_invview_matrix(&invview_mat);
+	shader_reflectpass->set_view_matrix(&view_mat);
+	shader_reflectpass->set_view_pos(view_pos);
+	shader_reflectpass->set_ViewToTexSpace(&PT);
+	shader_reflectpass->set_FrustumCorners(FrustumFarCorner);
+	shader_reflectpass->set_NormalDepthtex(normaldepth_tex);
+	shader_reflectpass->set_Depthtex(depth_tex);
+	shader_reflectpass->set_diffusetex(color_tex);
+	//渲染屏幕空间像素图
+	UINT stride = sizeof(pancy_point);
+	UINT offset = 0;
+	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	contex_pancy->IASetVertexBuffers(0, 1, &reflectMap_VB, &stride, &offset);
+	contex_pancy->IASetIndexBuffer(reflectMap_IB, DXGI_FORMAT_R16_UINT, 0);
+
+	ID3DX11EffectTechnique* tech;
+	//选定绘制路径
+	shader_reflectpass->get_technique(&tech, "draw_ssrmap");
+	D3DX11_TECHNIQUE_DESC techDesc;
+	tech->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+		contex_pancy->DrawIndexed(6, 0, 0);
+	}
+	shader_reflectpass->set_NormalDepthtex(NULL);
+	shader_reflectpass->set_diffusetex(NULL);
+	ID3D11RenderTargetView* NULL_target[1] = { NULL };
+	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+	}
+	renderstate_lib->clear_basicrendertarget();
+}
 //继承的d3d注册类
 class d3d_pancy_1 :public d3d_pancy_basic
 {
@@ -46,7 +335,9 @@ class d3d_pancy_1 :public d3d_pancy_basic
 	float                    delta_need;
 	HINSTANCE                hInstance;
 	render_posttreatment_HDR *posttreat_scene;     //场景后处理
+	render_posttreatment_SSR *posttreat_reflect;   //反射后处理
 	Pretreatment_gbuffer     *pretreat_scene;      //场景预处理
+	
 public:
 	d3d_pancy_1(HWND wind_hwnd, UINT wind_width, UINT wind_hight, HINSTANCE hInstance);
 	HRESULT init_create();
@@ -56,6 +347,7 @@ public:
 };
 void d3d_pancy_1::release()
 {
+	posttreat_reflect->release();
 	geometry_list->release();
 	render_state->release();
 	shader_list->release();
@@ -83,6 +375,7 @@ d3d_pancy_1::d3d_pancy_1(HWND hwnd_need, UINT width_need, UINT hight_need, HINST
 	time_game = 0.0f;
 	shader_list = new shader_control();
 	posttreat_scene = NULL;
+	posttreat_reflect = NULL;
 	pretreat_scene = NULL;
 	hInstance = hInstance_need;
 	render_state = NULL;
@@ -134,6 +427,13 @@ HRESULT d3d_pancy_1::init_create()
 		MessageBox(0, L"create posttreat_class failed", L"tip", MB_OK);
 		return hr;
 	}
+	posttreat_reflect = new render_posttreatment_SSR(test_camera,render_state,device_pancy, contex_pancy,  shader_list, wind_width, wind_hight, XM_PI*0.25f, 300.0f);
+	hr = posttreat_reflect->create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create posttreat_reflect failed", L"tip", MB_OK);
+		return hr;
+	}
 	pretreat_scene = new Pretreatment_gbuffer(wind_width, wind_hight, device_pancy, contex_pancy, render_state, shader_list, geometry_list, test_camera, light_list);
 	hr = pretreat_scene->create();
 	if (FAILED(hr))
@@ -162,6 +462,9 @@ void d3d_pancy_1::display()
 	first_scene_test->get_lbuffer(pretreat_scene->get_gbuffer_difusse(), pretreat_scene->get_gbuffer_specular());
 	//render_state->set_posttreatment_rendertarget();
 	first_scene_test->display();
+	render_state->set_posttreatment_rendertarget();
+	posttreat_reflect->set_normaldepthcolormap(pretreat_scene->get_gbuffer_normalspec(), pretreat_scene->get_gbuffer_depth());
+	posttreat_reflect->draw_reflect(render_state->get_postrendertarget());
 	render_state->restore_rendertarget();
 	posttreat_scene->display();
 	first_scene_test->display_nopost();

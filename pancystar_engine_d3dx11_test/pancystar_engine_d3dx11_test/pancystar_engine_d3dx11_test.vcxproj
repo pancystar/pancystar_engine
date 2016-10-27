@@ -224,6 +224,7 @@
     <FxCompile Include="ssao_blur_map.fx" />
     <FxCompile Include="ssao_draw_aomap.fx" />
     <FxCompile Include="gbuffer_normaldepth_map.fx" />
+    <FxCompile Include="SSR.fx" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram2.cd" />

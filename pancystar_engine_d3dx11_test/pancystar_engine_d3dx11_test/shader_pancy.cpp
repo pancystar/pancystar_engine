@@ -1675,12 +1675,126 @@ void light_defered_draw::init_handle()
 	BoneTransforms = fx_need->GetVariableByName("gBoneTransforms")->AsMatrix();
 	material_need = fx_need->GetVariableByName("material_need");
 }
-
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~屏幕空间局部反射~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ssr_reflect::ssr_reflect(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+{
+}
+void ssr_reflect::init_handle()
+{
+	view_pos_handle = fx_need->GetVariableByName("view_position");
+	view_matrix_handle = fx_need->GetVariableByName("view_matrix")->AsMatrix();       //取景变换句柄	
+	ViewToTexSpace = fx_need->GetVariableByName("gViewToTexSpace")->AsMatrix();
+	FrustumCorners = fx_need->GetVariableByName("gFrustumCorners")->AsVector();
+	invview_matrix_handle = fx_need->GetVariableByName("invview_matrix")->AsMatrix(); //取景变换逆变换句柄
+	NormalDepthMap = fx_need->GetVariableByName("gNormalDepthMap")->AsShaderResource();
+	DepthMap = fx_need->GetVariableByName("gdepth_map")->AsShaderResource();
+	texture_diffuse_handle = fx_need->GetVariableByName("gcolorMap")->AsShaderResource();
+}
+void ssr_reflect::release()
+{
+	release_basic();
+}
+HRESULT ssr_reflect::set_ViewToTexSpace(XMFLOAT4X4 *mat)
+{
+	HRESULT hr = set_matrix(ViewToTexSpace, mat);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set viewtotex matrix error in rlr draw part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT ssr_reflect::set_view_matrix(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(view_matrix_handle, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting project matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT ssr_reflect::set_view_pos(XMFLOAT3 eye_pos)
+{
+	HRESULT hr = view_pos_handle->SetRawValue((void*)&eye_pos, 0, sizeof(eye_pos));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting view position", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT ssr_reflect::set_FrustumCorners(const XMFLOAT4 v[4])
+{
+	HRESULT hr = FrustumCorners->SetFloatVectorArray(reinterpret_cast<const float*>(v), 0, 4);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set FrustumCorners error in rlr draw part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT ssr_reflect::set_NormalDepthtex(ID3D11ShaderResourceView* srv)
+{
+	HRESULT hr = NormalDepthMap->SetResource(srv);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set NormalDepthtex error in rlr draw part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT ssr_reflect::set_Depthtex(ID3D11ShaderResourceView* srv)
+{
+	HRESULT hr = DepthMap->SetResource(srv);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set NormalDepthtex error in ssao draw part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT ssr_reflect::set_diffusetex(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = texture_diffuse_handle->SetResource(tex_in);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting diffuse texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT ssr_reflect::set_invview_matrix(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(invview_matrix_handle, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting project matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void ssr_reflect::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全局shader管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_control::shader_control()
 {
 	shader_light_pre = NULL;
-	shader_light_deferred = NULL;
+	//shader_light_deferred = NULL;
 	shader_shadowmap = NULL;
 	shader_cubemap = NULL;
 	shader_gbuffer_depthnormal = NULL;
@@ -1697,6 +1811,7 @@ shader_control::shader_control()
 	shader_resolve_depthstencil = NULL;
 	shader_light_deffered_lbuffer = NULL;
 	shader_light_deffered_draw = NULL;
+	shader_ssreflect = NULL;
 }
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
@@ -1824,7 +1939,14 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 	hr = shader_resolve_depthstencil->shder_create();
 	if (FAILED(hr))
 	{
-		MessageBox(0, L"an error when grass billboard shader created", L"tip", MB_OK);
+		MessageBox(0, L"an error when grass resolve_depthstencil shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_ssreflect = new ssr_reflect(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\SSR.cso", device_pancy, contex_pancy);
+	hr = shader_ssreflect->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when grass ssreflect shader created", L"tip", MB_OK);
 		return hr;
 	}
 	return S_OK;
@@ -1848,4 +1970,5 @@ void shader_control::release()
 	shader_grass_billboard->release();
 	shader_resolve_depthstencil->release();
 	shader_light_deffered_draw->release();
+	shader_ssreflect->release();
 }

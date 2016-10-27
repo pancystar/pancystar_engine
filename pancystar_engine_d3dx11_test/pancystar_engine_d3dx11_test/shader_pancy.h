@@ -420,7 +420,7 @@ private:
 	void init_handle();                 //注册全局变量句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~deffered lighting draw~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~deffered lighting draw~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class light_defered_draw : public shader_basic
 {
 	ID3DX11EffectVariable                 *material_need;            //材质
@@ -446,6 +446,32 @@ private:
 	void init_handle();                 //注册全局变量句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~real time local reflection~~~~~~~~~~~~~~~~~~~~~~~
+class ssr_reflect : public shader_basic 
+{
+	ID3DX11EffectVariable*       view_pos_handle;            //视点位置
+	ID3DX11EffectMatrixVariable* ViewToTexSpace;
+	ID3DX11EffectMatrixVariable* view_matrix_handle;         //取景变换句柄
+	ID3DX11EffectMatrixVariable* invview_matrix_handle;      //取景变换逆变换句柄
+	ID3DX11EffectVectorVariable* FrustumCorners;
+	ID3DX11EffectShaderResourceVariable* NormalDepthMap;
+	ID3DX11EffectShaderResourceVariable* DepthMap;
+	ID3DX11EffectShaderResourceVariable* texture_diffuse_handle;
+public:
+	ssr_reflect(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_ViewToTexSpace(XMFLOAT4X4 *mat);
+	HRESULT set_FrustumCorners(const XMFLOAT4 v[4]);
+	HRESULT set_NormalDepthtex(ID3D11ShaderResourceView* srv);
+	HRESULT set_Depthtex(ID3D11ShaderResourceView* srv);
+	HRESULT set_diffusetex(ID3D11ShaderResourceView* srv);
+	HRESULT set_invview_matrix(XMFLOAT4X4 *mat_need);                  //设置取景逆变换
+	HRESULT set_view_matrix(XMFLOAT4X4 *mat_need);                     //设置取景变换
+	HRESULT set_view_pos(XMFLOAT3 eye_pos);
+	void release();
+private:
+	void init_handle();//注册shader中所有全局变量的句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shader list~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_control
 {
@@ -466,8 +492,8 @@ class shader_control
 	shader_HDRfinal            *shader_HDR_final;                //HDR最终结果
 	shader_particle            *particle_fire;                   //粒子系统着色器
 	shader_grass               *shader_grass_billboard;          //草地公告板
-
-	shader_basic *shader_light_deferred;
+	ssr_reflect                *shader_ssreflect;                //屏幕空间反射
+	//shader_basic *shader_light_deferred;
 public:
 	shader_control();
 	HRESULT shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy);
@@ -488,7 +514,7 @@ public:
 	shader_grass*               get_shader_grass_billboard() { return shader_grass_billboard; };
 	light_defered_lightbuffer*  get_shader_defferedlight_lightbuffer() { return shader_light_deffered_lbuffer; };
 	light_defered_draw*         get_shader_light_deffered_draw() { return  shader_light_deffered_draw; };
+	ssr_reflect*                get_shader_ssreflect() { return shader_ssreflect; };
 
 	void release();
 };
-
