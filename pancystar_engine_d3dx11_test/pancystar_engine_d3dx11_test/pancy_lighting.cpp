@@ -135,7 +135,7 @@ void light_with_shadowmap::set_shadow_range(XMFLOAT3 center, float range)
 void light_with_shadowmap::draw_shadow()
 {
 	//更新渲染状态
-	contex_pancy->RSSetState(renderstate_lib->get_CULL_front_rs());
+	//contex_pancy->RSSetState(renderstate_lib->get_CULL_front_rs());
 	shadowmap_deal->set_renderstate(light_data.position, light_data.dir, cube_range, spot_light);
 	//绘制阴影
 	scene_geometry_list *list = geometry_lib->get_model_list();
@@ -393,10 +393,13 @@ void light_control::update_and_setlight()
 	int shadow_num;
 	get_shadow_map_matrix(mat_shadow, shadow_num);
 	auto shader_deffered = shader_lib->get_shader_defferedlight_lightbuffer();
+	auto shader_pre = shader_lib->get_shader_prelight();
 	shader_deffered->set_shadow_matrix(mat_shadow, shadow_num);
 	//shader_deffered->set_shadow_tex(shadow_map_resource);
 	XMUINT3 shadownum = XMUINT3(count_shadow_dir, count_shadow_point, count_shadow_spot);
 	XMUINT3 lightnum = XMUINT3(count_light_dir, count_light_point, count_light_spot);
+	shader_pre->set_light_num(lightnum);
+	shader_pre->set_shadow_num(shadownum);
 	shader_deffered->set_light_num(lightnum);
 	shader_deffered->set_shadow_num(shadownum);
 }

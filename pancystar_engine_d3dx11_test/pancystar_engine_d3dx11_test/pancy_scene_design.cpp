@@ -65,6 +65,15 @@ HRESULT scene_root::camera_move()
 	//XMStoreFloat4x4(&view_matrix, view);
 	return S_OK;
 }
+void scene_root::set_proj_matrix(XMFLOAT4X4 proj_mat_need) 
+{
+	proj_matrix = proj_mat_need;
+}
+void scene_root::reset_proj_matrix() 
+{
+	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, scene_window_width*1.0f / scene_window_height*1.0f, 0.1f, 300.f);
+	XMStoreFloat4x4(&proj_matrix, proj);
+}
 void scene_root::get_gbuffer(ID3D11ShaderResourceView *normalspec_need, ID3D11ShaderResourceView *depth_need)
 {
 	gbuffer_normalspec = normalspec_need;
@@ -115,27 +124,41 @@ HRESULT scene_engine_test::scene_create()
 	}
 	return S_OK;
 }
-HRESULT scene_engine_test::display()
+HRESULT scene_engine_test::display_shadowao(bool if_shadow, bool if_ao)
 {
 	renderstate_lib->clear_posttreatmentcrendertarget();
-	//contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
-	draw_ssaomap();
-	draw_shadowmap();
-	//contex_pancy->ClearDepthStencilView(ssao_part->get_depthstencilmap(), D3D11_CLEAR_DEPTH, 1.f, 0);
-	//renderstate_lib->set_posttreatment_rendertarget(ssao_part->get_depthstencilmap());
-	renderstate_lib->set_posttreatment_rendertarget();
+	if (if_ao)
+	{
+		draw_ssaomap();
+	}
+	if (if_shadow) 
+	{
+		draw_shadowmap();
+	}
+	return S_OK;
+}
+HRESULT scene_engine_test::display()
+{
 	show_ball();
 	show_lightsource();
 	show_floor();
-	show_castel_deffered();
+	show_castel_deffered("LightTech");
 	//show_castel();
 	//show_aotestproj();
 	//show_yuri();
 	show_yuri_animation_deffered();
 	show_yuri_animation();
-	show_billboard();
+	//show_billboard();
 	//清空深度模板缓冲，在AO绘制阶段记录下深度信息
 	//show_fire_particle();
+	return S_OK;
+}
+HRESULT scene_engine_test::display_enviroment() 
+{
+	//show_ball();
+	show_lightsource();
+	show_floor();
+	show_castel("draw_withtexture", "draw_withtexturenormal");
 	return S_OK;
 }
 HRESULT scene_engine_test::display_nopost()
@@ -333,7 +356,7 @@ void scene_engine_test::show_yuri_animation_deffered()
 		teque_need->GetPassByIndex(p)->Apply(0, contex_pancy);
 	}
 }
-void scene_engine_test::show_castel()
+void scene_engine_test::show_castel(LPCSTR techname,LPCSTR technamenormal)
 {
 	auto* shader_test = shader_lib->get_shader_prelight();
 	//几何体的打包(动画)属性
@@ -342,8 +365,8 @@ void scene_engine_test::show_castel()
 	auto* model_castel = model_castel_pack->get_geometry_data();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need,*teque_normal;
-	shader_test->get_technique(&teque_need, "draw_withshadowssao");
-	shader_test->get_technique(&teque_normal, "draw_withshadowssaonormal");
+	shader_test->get_technique(&teque_need, techname);
+	shader_test->get_technique(&teque_normal, technamenormal);
 	//地面的材质
 	pancy_material test_Mt;
 	XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
@@ -443,8 +466,9 @@ void scene_engine_test::show_castel()
 	ssao_part->add_mesh(rec_mesh_need);
 	*/
 }
-void scene_engine_test::show_castel_deffered() 
+void scene_engine_test::show_castel_deffered(LPCSTR techname) 
 {
+	
 	auto* shader_test = shader_lib->get_shader_light_deffered_draw();
 	//几何体的打包(动画)属性
 	auto* model_castel_pack = geometry_lib->get_model_list()->get_geometry_byname("model_castel");
@@ -452,7 +476,7 @@ void scene_engine_test::show_castel_deffered()
 	auto* model_castel = model_castel_pack->get_geometry_data();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
-	shader_test->get_technique(&teque_need, "LightTech");
+	shader_test->get_technique(&teque_need, techname);
 	//地面的材质
 	pancy_material test_Mt;
 	XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
@@ -490,6 +514,8 @@ void scene_engine_test::show_castel_deffered()
 	shader_test->set_ssaotex(ssao_part->get_aomap());
 	shader_test->set_diffuse_light_tex(lbuffer_diffuse);
 	shader_test->set_specular_light_tex(lbuffer_specular);
+	//shader_test->set_enviroment_tex(environment_map);
+	shader_test->set_trans_world(&world_matrix);
 	for (int i = 0; i < model_castel->get_meshnum(); ++i)
 	{
 		//纹理设定
@@ -509,6 +535,8 @@ void scene_engine_test::show_castel_deffered()
 	{
 		teque_need->GetPassByIndex(p)->Apply(0, contex_pancy);
 	}
+	
+	contex_pancy->RSSetState(NULL);
 }
 void scene_engine_test::show_ball()
 {
@@ -518,7 +546,7 @@ void scene_engine_test::show_ball()
 	auto* tex_skycube = geometry_lib->get_sky_cube_tex();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
-	shader_test->get_technique(&teque_need, "draw_inside");
+	shader_test->get_technique(&teque_need, "draw_reflect");
 
 	//设定世界变换
 	XMMATRIX trans_world;
@@ -820,10 +848,14 @@ HRESULT scene_engine_test::update(float delta_time)
 	}
 	XMFLOAT3 eyePos_rec;
 	scene_camera->get_view_position(&eyePos_rec);
+	auto* shader_ref = shader_lib->get_shader_reflect();
+	shader_ref->set_view_pos(eyePos_rec);
 	auto* shader_test = shader_lib->get_shader_prelight();
 	shader_test->set_view_pos(eyePos_rec);
 	auto* shader_grass = shader_lib->get_shader_grass_billboard();
 	shader_grass->set_view_pos(eyePos_rec);
+	auto* shader_deff = shader_lib->get_shader_light_deffered_draw();
+	shader_deff->set_view_pos(eyePos_rec);
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~更新几何体世界变换~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	auto* model_list = geometry_lib->get_model_list();
 	//更新yuri世界变换

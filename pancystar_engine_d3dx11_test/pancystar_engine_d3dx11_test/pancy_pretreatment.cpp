@@ -610,13 +610,13 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 		tech_need->GetPassByIndex(p)->Apply(0, contex_pancy);
 	}
 }
-void Pretreatment_gbuffer::display()
+void Pretreatment_gbuffer::display(bool if_shadow)
 {
 	XMFLOAT4X4 view_matrix_gbuffer, invview_matrix_lbuffer;         //È¡¾°±ä»»&Äæ±ä»»
 	camera_use->count_view_matrix(&view_matrix_gbuffer);
 	camera_use->count_invview_matrix(&invview_matrix_lbuffer);
 	render_gbuffer(view_matrix_gbuffer, proj_matrix_gbuffer);
-	render_lbuffer(view_matrix_gbuffer, invview_matrix_lbuffer);
+	render_lbuffer(view_matrix_gbuffer, invview_matrix_lbuffer, if_shadow);
 }
 void Pretreatment_gbuffer::resolve_depth_render(ID3DX11EffectTechnique* tech)
 {
@@ -667,7 +667,7 @@ void Pretreatment_gbuffer::release()
 	safe_release(depthmap_single_tex);
 	safe_release(depthbuffer_VB);
 }
-void Pretreatment_gbuffer::render_lbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 invview_matrix)
+void Pretreatment_gbuffer::render_lbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 invview_matrix, bool if_shadow)
 {
 	contex_pancy->RSSetViewports(1, &render_viewport);
 	set_multirender_target();
@@ -679,7 +679,14 @@ void Pretreatment_gbuffer::render_lbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 inv
 	lbuffer_shader->set_invview_matrix(&invview_matrix);
 	lbuffer_shader->set_shadow_tex(light_list->get_shadow_map_resource());
 	ID3DX11EffectTechnique *tech_need;
-	lbuffer_shader->get_technique(&tech_need, "draw_common");
+	if (if_shadow == true) 
+	{
+		lbuffer_shader->get_technique(&tech_need, "draw_common");
+	}
+	else 
+	{
+		lbuffer_shader->get_technique(&tech_need, "draw_withoutshadow");
+	}
 	light_buffer_render(tech_need);
 	ID3D11RenderTargetView* NULL_target[2] = { NULL,NULL };
 	contex_pancy->OMSetRenderTargets(2, NULL_target, 0);

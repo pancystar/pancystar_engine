@@ -3,6 +3,8 @@
 cbuffer perobject
 {
 	pancy_material   material_need;    //材质
+	float4x4         world_matrix;     //世界变换
+	float3           position_view;         //视点位置
 	float4x4         final_matrix;     //总变换
 	float4x4         ssao_matrix;      //ssao变换
 	float4x4         gBoneTransforms[100];//骨骼变换矩阵
@@ -11,6 +13,7 @@ Texture2D        texture_light_diffuse;      //漫反射光照贴图
 Texture2D        texture_light_specular;     //镜面反射光照贴图
 Texture2D        texture_diffuse;            //漫反射贴图
 Texture2D        texture_ssao;               //ssao贴图
+TextureCube      texture_cube;
 SamplerState samTex
 {
 	Filter = ANISOTROPIC;
@@ -44,9 +47,10 @@ struct Vertex_IN_bone//含法线贴图顶点
 };
 struct VertexOut
 {
-	float4 position      : SV_POSITION;    //变换后的顶点坐标
-	float2 tex           : TEXCOORD;       //纹理坐标
-	float4 pos_ssao      : POSITION1;      //阴影顶点坐标
+	float3 position_before : POSITION;
+	float4 position        : SV_POSITION;    //变换后的顶点坐标
+	float2 tex             : TEXCOORD;       //纹理坐标
+	float4 pos_ssao        : POSITION1;      //阴影顶点坐标
 };
 VertexOut VS_bone(Vertex_IN_bone vin)
 {
@@ -67,6 +71,7 @@ VertexOut VS_bone(Vertex_IN_bone vin)
 		normalL += weights[i] * mul(vin.normal, (float3x3)gBoneTransforms[vin.bone_id[i]]);
 		tangentL += weights[i] * mul(vin.tangent.xyz, (float3x3)gBoneTransforms[vin.bone_id[i]]);
 	}
+	vout.position_before = mul(float4(posL, 1.0f), world_matrix);
 	vout.position = mul(float4(posL, 1.0f), final_matrix);
 	vout.tex = vin.tex1;
 	vout.pos_ssao = mul(float4(posL, 1.0f), ssao_matrix);
@@ -75,6 +80,7 @@ VertexOut VS_bone(Vertex_IN_bone vin)
 VertexOut VS(Vertex_IN vin)
 {
 	VertexOut vout;
+	vout.position_before = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
 	vout.position = mul(float4(vin.pos, 1.0f), final_matrix);
 	vout.tex = vin.tex1;
 	vout.pos_ssao = mul(float4(vin.pos, 1.0f), ssao_matrix);
@@ -94,6 +100,17 @@ float4 PS(VertexOut pin) :SV_TARGET
 	//final_color.rgb *= tex_color.a;
 	return final_color;
 }
+float4 PS_without_ao(VertexOut pin) :SV_TARGET
+{
+	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
+	clip(tex_color.a - 0.6f);
+	float4 ambient = 0.6f*float4(1.0f, 1.0f, 1.0f, 0.0f);
+	float4 diffuse = material_need.diffuse * texture_light_diffuse.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f);      //漫反射光
+	float4 spec = material_need.specular * texture_light_specular.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f);       //镜面反射光
+	float4 final_color = tex_color *(ambient + diffuse) + spec;
+	final_color.a = tex_color.a;
+	return final_color;
+}
 technique11 LightTech
 {
 	pass P0
@@ -101,6 +118,15 @@ technique11 LightTech
 		SetVertexShader(CompileShader(vs_5_0, VS()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS()));
+	}
+}
+technique11 LightTech_without_ao
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_5_0, VS()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_5_0, PS_without_ao()));
 	}
 }
 technique11 LightWithBone

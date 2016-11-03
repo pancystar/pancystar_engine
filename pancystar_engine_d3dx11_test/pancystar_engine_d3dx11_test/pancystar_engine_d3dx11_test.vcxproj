@@ -217,6 +217,7 @@
     <FxCompile Include="light_define.fx" />
     <FxCompile Include="light_pre.fx" />
     <FxCompile Include="light_reflect.fx" />
+    <FxCompile Include="reset_cube_alpha.fx" />
     <FxCompile Include="ResolveMSAAdepthstencil.fx" />
     <FxCompile Include="shadowmap.fx" />
     <FxCompile Include="shadow_volume.fx" />

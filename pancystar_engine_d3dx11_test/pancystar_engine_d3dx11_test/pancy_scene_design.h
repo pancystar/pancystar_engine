@@ -34,6 +34,7 @@ protected:
 	ID3D11ShaderResourceView  *gbuffer_depth;
 	ID3D11ShaderResourceView  *lbuffer_diffuse;
 	ID3D11ShaderResourceView  *lbuffer_specular;
+	ID3D11ShaderResourceView  *environment_map;
 
 public:
 	scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need,int width,int height);
@@ -41,9 +42,14 @@ public:
 	void get_gbuffer(ID3D11ShaderResourceView *normalspec_need, ID3D11ShaderResourceView *depth_need);
 	void get_lbuffer(ID3D11ShaderResourceView *diffuse_need, ID3D11ShaderResourceView *specular_need);
 	virtual HRESULT display() = 0;
+	virtual HRESULT display_enviroment() = 0;
 	virtual HRESULT display_nopost() = 0;
+	virtual HRESULT display_shadowao(bool if_shadow, bool if_ao) = 0;
 	virtual HRESULT update(float delta_time) = 0;
 	virtual HRESULT release() = 0;
+	void set_proj_matrix(XMFLOAT4X4 proj_mat_need);
+	void reset_proj_matrix();
+	void get_environment_map(ID3D11ShaderResourceView  *input) { environment_map = input; };
 protected:
 	virtual HRESULT camera_move();
 
@@ -60,16 +66,17 @@ public:
 	scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height);
 	HRESULT scene_create();
 	HRESULT display();
-	
 	HRESULT display_nopost();
+	HRESULT display_shadowao(bool if_shadow, bool if_ao);
+	HRESULT display_enviroment();
 	HRESULT update(float delta_time);
 	HRESULT release();
 private:
 	void show_ball();
 	void show_floor();
 	void show_aotestproj();
-	void show_castel();
-	void show_castel_deffered();
+	void show_castel(LPCSTR techname, LPCSTR technamenormal);
+	void show_castel_deffered(LPCSTR techname);
 	void show_lightsource();
 	void draw_shadowmap();
 	void draw_ssaomap();

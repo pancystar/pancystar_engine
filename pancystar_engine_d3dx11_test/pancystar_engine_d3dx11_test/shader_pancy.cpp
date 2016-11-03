@@ -115,7 +115,6 @@ void light_pre::init_handle()
 	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();         //全套几何变换句柄
 	world_matrix_handle = fx_need->GetVariableByName("world_matrix")->AsMatrix();           //世界变换句柄
 	normal_matrix_handle = fx_need->GetVariableByName("normal_matrix")->AsMatrix();         //法线变换句柄
-																							//texture_matrix_handle = fx_need->GetVariableByName("position_view")->AsMatrix();      //纹理变换句柄
 	shadowmap_matrix_handle = fx_need->GetVariableByName("shadowmap_matrix")->AsMatrix();   //shadowmap矩阵变换句柄
 	ssao_matrix_handle = fx_need->GetVariableByName("ssao_matrix")->AsMatrix();             //ssao矩阵变换句柄
 																							//视点及材质
@@ -124,6 +123,8 @@ void light_pre::init_handle()
 	material_need = fx_need->GetVariableByName("material_need");
 	//光照句柄
 	light_list = fx_need->GetVariableByName("light_need");                   //灯光
+	light_num_handle = fx_need->GetVariableByName("light_num");                       //光源数量句柄
+	shadow_num_handle = fx_need->GetVariableByName("shadow_num");                     //阴影数量句柄
 }
 void light_pre::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
 {
@@ -274,6 +275,26 @@ HRESULT light_pre::set_light(pancy_light_basic light_need, int light_num)
 	if (hr != S_OK)
 	{
 		MessageBox(0, L"an error when setting light", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_pre::set_light_num(XMUINT3 all_light_num)
+{
+	HRESULT hr = light_num_handle->SetRawValue((void*)&all_light_num, 0, sizeof(all_light_num));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting light num", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_pre::set_shadow_num(XMUINT3 all_light_num)
+{
+	HRESULT hr = shadow_num_handle->SetRawValue((void*)&all_light_num, 0, sizeof(all_light_num));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting light num", L"tip", MB_OK);
 		return hr;
 	}
 	return S_OK;
@@ -1562,6 +1583,26 @@ void light_defered_lightbuffer::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *me
 light_defered_draw::light_defered_draw(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
 {
 }
+HRESULT light_defered_draw::set_view_pos(XMFLOAT3 eye_pos)
+{
+	HRESULT hr = view_pos_handle->SetRawValue((void*)&eye_pos, 0, sizeof(eye_pos));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting view position", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_draw::set_trans_world(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(world_matrix_handle, mat_need);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting world matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 HRESULT light_defered_draw::set_trans_ssao(XMFLOAT4X4 *mat_need)
 {
 	HRESULT hr = set_matrix(ssao_matrix_handle, mat_need);;
@@ -1641,6 +1682,16 @@ HRESULT light_defered_draw::set_specular_light_tex(ID3D11ShaderResourceView *tex
 	}
 	return S_OK;
 }
+HRESULT light_defered_draw::set_enviroment_tex(ID3D11ShaderResourceView* srv)
+{
+	HRESULT hr = texture_cube_handle->SetResource(srv);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting cube texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 void light_defered_draw::release()
 {
 	release_basic();
@@ -1669,7 +1720,10 @@ void light_defered_draw::init_handle()
 	tex_light_diffuse_handle = fx_need->GetVariableByName("texture_light_diffuse")->AsShaderResource();    //法线贴图纹理
 	tex_light_specular_handle = fx_need->GetVariableByName("texture_light_specular")->AsShaderResource();    //阴影贴图句柄
 	texture_ssao_handle = fx_need->GetVariableByName("texture_ssao")->AsShaderResource();        //环境光贴图句柄
-																								 //几何变换句柄
+	texture_cube_handle = fx_need->GetVariableByName("texture_cube")->AsShaderResource();
+	//几何变换句柄
+	view_pos_handle = fx_need->GetVariableByName("position_view");
+	world_matrix_handle = fx_need->GetVariableByName("world_matrix")->AsMatrix();           //世界变换句柄
 	final_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();         //全套几何变换句柄
 	ssao_matrix_handle = fx_need->GetVariableByName("ssao_matrix")->AsMatrix();             //ssao矩阵变换句柄
 	BoneTransforms = fx_need->GetVariableByName("gBoneTransforms")->AsMatrix();
@@ -1686,9 +1740,12 @@ void ssr_reflect::init_handle()
 	ViewToTexSpace = fx_need->GetVariableByName("gViewToTexSpace")->AsMatrix();
 	FrustumCorners = fx_need->GetVariableByName("gFrustumCorners")->AsVector();
 	invview_matrix_handle = fx_need->GetVariableByName("invview_matrix")->AsMatrix(); //取景变换逆变换句柄
+	cubeview_matrix_handle = fx_need->GetVariableByName("view_matrix_cube")->AsMatrix();
 	NormalDepthMap = fx_need->GetVariableByName("gNormalDepthMap")->AsShaderResource();
 	DepthMap = fx_need->GetVariableByName("gdepth_map")->AsShaderResource();
 	texture_diffuse_handle = fx_need->GetVariableByName("gcolorMap")->AsShaderResource();
+	texture_cube_handle = fx_need->GetVariableByName("texture_cube")->AsShaderResource();
+	texture_depthcube_handle = fx_need->GetVariableByName("depth_cube")->AsShaderResource();
 }
 void ssr_reflect::release()
 {
@@ -1764,6 +1821,26 @@ HRESULT ssr_reflect::set_diffusetex(ID3D11ShaderResourceView *tex_in)
 	}
 	return S_OK;
 }
+HRESULT ssr_reflect::set_enviroment_tex(ID3D11ShaderResourceView* srv)
+{
+	HRESULT hr = texture_cube_handle->SetResource(srv);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting cube texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT ssr_reflect::set_enviroment_depth(ID3D11ShaderResourceView* srv)
+{
+	HRESULT hr = texture_depthcube_handle->SetResource(srv);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting cube depthtexture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 HRESULT ssr_reflect::set_invview_matrix(XMFLOAT4X4 *mat_need)
 {
 	HRESULT hr = set_matrix(invview_matrix_handle, mat_need);;
@@ -1774,7 +1851,66 @@ HRESULT ssr_reflect::set_invview_matrix(XMFLOAT4X4 *mat_need)
 	}
 	return S_OK;
 }
+HRESULT ssr_reflect::set_cubeview_matrix(const XMFLOAT4X4* M, int cnt) 
+{
+	HRESULT hr = cubeview_matrix_handle->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
 void ssr_reflect::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~记录cubemap方向到alpha像素~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_save_cube::shader_save_cube(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT shader_save_cube::set_texture_input(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = texture_input->SetResource(tex_in);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set cube texture error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_save_cube::release()
+{
+	release_basic();
+}
+void shader_save_cube::init_handle()
+{
+	//纹理信息句柄
+	texture_input = fx_need->GetVariableByName("tex_input")->AsShaderResource();
+	cube_count_handle = fx_need->GetVariableByName("cube_count");
+}
+HRESULT shader_save_cube::set_cube_count(XMFLOAT3 cube_count)
+{
+	HRESULT hr = cube_count_handle->SetRawValue((void*)&cube_count, 0, sizeof(cube_count));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting cube_count_handle", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_save_cube::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
 {
 	//设置顶点声明
 	D3D11_INPUT_ELEMENT_DESC rec[] =
@@ -1812,6 +1948,7 @@ shader_control::shader_control()
 	shader_light_deffered_lbuffer = NULL;
 	shader_light_deffered_draw = NULL;
 	shader_ssreflect = NULL;
+	shader_reset_alpha = NULL;
 }
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
@@ -1946,7 +2083,14 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 	hr = shader_ssreflect->shder_create();
 	if (FAILED(hr))
 	{
-		MessageBox(0, L"an error when grass ssreflect shader created", L"tip", MB_OK);
+		MessageBox(0, L"an error when ssreflect shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_reset_alpha = new shader_save_cube(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\reset_cube_alpha.cso", device_pancy, contex_pancy);
+	hr = shader_reset_alpha->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when save_cube shader created", L"tip", MB_OK);
 		return hr;
 	}
 	return S_OK;
@@ -1971,4 +2115,5 @@ void shader_control::release()
 	shader_resolve_depthstencil->release();
 	shader_light_deffered_draw->release();
 	shader_ssreflect->release();
+	shader_reset_alpha->release();
 }

@@ -39,26 +39,43 @@ class render_posttreatment_SSR
 	ID3D11Device             *device_pancy;
 	ID3D11DeviceContext      *contex_pancy;
 	pancy_renderstate        *renderstate_lib;
+	geometry_control         *geometry_lib;
 	pancy_camera             *camera_use;                 //摄像机
-	ID3D11Buffer             *reflectMap_VB;   //ao图片顶点缓冲区
-	ID3D11Buffer             *reflectMap_IB;   //ao图片索引缓冲区
+	ID3D11Buffer             *reflectMap_VB;              //ao图片顶点缓冲区
+	ID3D11Buffer             *reflectMap_IB;              //ao图片索引缓冲区
 
-	ID3D11ShaderResourceView *normaldepth_tex; //存储法线和深度的纹理资源
-	ID3D11ShaderResourceView *depth_tex;       //存储法线和深度的纹理资源
-	ID3D11ShaderResourceView *color_tex;       //存储渲染结果的纹理资源
+	ID3D11ShaderResourceView *normaldepth_tex;            //存储法线和深度的纹理资源
+	ID3D11ShaderResourceView *depth_tex;                  //存储法线和深度的纹理资源
+	ID3D11ShaderResourceView *color_tex;                  //存储渲染结果的纹理资源
 
-	ID3D11RenderTargetView   *reflect_target;     //存储ssao的渲染目标
-	ID3D11ShaderResourceView *reflect_tex;        //存储ssao的纹理资源
+	ID3D11RenderTargetView   *reflect_target;             //存储动态屏幕空间反射的渲染目标
+	ID3D11ShaderResourceView *reflect_tex;                //存储动态屏幕空间反射的纹理资源
 
-	XMFLOAT4                 FrustumFarCorner[4];  //投影视截体的远截面的四个角点
-	D3D11_VIEWPORT           render_viewport;      //视口信息
+	ID3D11RenderTargetView   *mask_target;                //存储动态屏幕空间反射掩码的渲染目标
+	ID3D11ShaderResourceView *mask_tex;                   //存储动态屏幕空间反射掩码的纹理资源
 
-	shader_control           *shader_list;         //shader表
+	ID3D11ShaderResourceView *reflect_cube_SRV;           //存储静态cubemapping的纹理资源
+	ID3D11RenderTargetView   *reflect_cube_RTV[6];        //存储静态cubemapping的渲染目标
+	ID3D11ShaderResourceView *reflect_cubeinput_SRV[6];   //存储静态cubemapping的输入纹理
+	ID3D11RenderTargetView   *reflect_cubeinput_RTV[6];   //存储静态cubemapping的输入目标
+
+	ID3D11DepthStencilView   *reflect_DSV[6];             //深度缓冲区目标
+	ID3D11ShaderResourceView *reflect_depthcube_SRV;      //深度立方贴图
+
+	XMFLOAT4                 FrustumFarCorner[4];         //投影视截体的远截面的四个角点
+	D3D11_VIEWPORT           render_viewport;             //视口信息
+
+	XMFLOAT4X4               static_cube_view_matrix[6];  //立方贴图的六个方向的取景变换
+	shader_control           *shader_list;                //shader表
 public:
-	render_posttreatment_SSR(pancy_camera *camera_need,pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need,int width, int height, float fovy, float farZ);
+	render_posttreatment_SSR(pancy_camera *camera_need,pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, geometry_control *geometry_need,int width, int height, float fovy, float farZ);
 	void set_normaldepthcolormap(ID3D11ShaderResourceView *normalspec_need, ID3D11ShaderResourceView *depth_need);
 	HRESULT create();
 	void draw_reflect(ID3D11RenderTargetView *rendertarget_input);
+	void draw_static_cube(int count_cube);
+	void set_static_cube_rendertarget(int count_cube,XMFLOAT4X4 &mat_project);
+	void set_static_cube_view_matrix(int count_cube,XMFLOAT4X4 mat_input);
+	ID3D11ShaderResourceView *get_cubemap() { return reflect_cube_SRV; };
 	void release();
 private:
 	void set_size(int width, int height, float fovy, float farZ);
@@ -75,7 +92,7 @@ private:
 		}
 	}
 };
-render_posttreatment_SSR::render_posttreatment_SSR(pancy_camera *camera_need,pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, int width, int height, float fovy, float farZ)
+render_posttreatment_SSR::render_posttreatment_SSR(pancy_camera *camera_need,pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, geometry_control *geometry_need, int width, int height, float fovy, float farZ)
 {
 	camera_use = camera_need;
 	device_pancy = device;
@@ -83,6 +100,24 @@ render_posttreatment_SSR::render_posttreatment_SSR(pancy_camera *camera_need,pan
 	set_size(width, height, fovy, farZ);
 	shader_list = shader_need;
 	renderstate_lib = renderstate_need;
+	geometry_lib = geometry_need;
+	reflectMap_VB = NULL;
+	reflectMap_IB = NULL;
+	color_tex = NULL;
+	reflect_target = NULL;
+	reflect_tex = NULL;
+	reflect_cube_SRV = NULL;
+	reflect_depthcube_SRV = NULL;
+	mask_target = NULL;
+	mask_tex = NULL;
+	for (int i = 0; i < 6; ++i)
+	{
+		reflect_cubeinput_RTV[i] = NULL;
+		reflect_cubeinput_SRV[i] = NULL;
+		reflect_cube_RTV[i] = NULL;
+		reflect_DSV[i] = NULL;
+	}
+	
 }
 HRESULT render_posttreatment_SSR::create() 
 {
@@ -158,7 +193,223 @@ HRESULT render_posttreatment_SSR::build_texture()
 		return hr;
 	}
 	reflecttex->Release();
+	
+	ID3D11Texture2D* reflectmasktex = 0;
+	hr = device_pancy->CreateTexture2D(&texDesc, 0, &reflectmasktex);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create reflect map texture1 error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = device_pancy->CreateShaderResourceView(reflectmasktex, 0, &mask_tex);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create reflect map texture1 error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = device_pancy->CreateRenderTargetView(reflectmasktex, 0, &mask_target);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create reflect map texture1 error", L"tip", MB_OK);
+		return hr;
+	}
+	reflectmasktex->Release();
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~静态cubemap输入资源~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	texDesc.Width = 1024;
+	texDesc.Height = 1024;
+	texDesc.MipLevels = 1;
+	texDesc.ArraySize = 1;
+	texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+	texDesc.CPUAccessFlags = 0;
+	texDesc.MiscFlags = 0;
+	ID3D11Texture2D* tex_cubeinput[6];
+	for (int i = 0; i < 6; ++i) 
+	{
+		hr = device_pancy->CreateTexture2D(&texDesc, 0, &tex_cubeinput[i]);
+		if (FAILED(hr))
+		{
+			MessageBox(0, L"create reflect cubemap depthtex error", L"tip", MB_OK);
+			return hr;
+		}
+		hr = device_pancy->CreateShaderResourceView(tex_cubeinput[i], 0, &reflect_cubeinput_SRV[i]);
+		if (FAILED(hr))
+		{
+			MessageBox(0, L"create reflect map texture1 error", L"tip", MB_OK);
+			return hr;
+		}
+		hr = device_pancy->CreateRenderTargetView(tex_cubeinput[i], 0, &reflect_cubeinput_RTV[i]);
+		if (FAILED(hr))
+		{
+			MessageBox(0, L"create reflect map texture1 error", L"tip", MB_OK);
+			return hr;
+		}
+		tex_cubeinput[i]->Release();
+	}
+	
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~静态cubemap深度缓冲~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	D3D11_TEXTURE2D_DESC dsDesc;
+	dsDesc.Width = 1024;
+	dsDesc.Height = 1024;
+	dsDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	dsDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+	dsDesc.ArraySize = 6;
+	dsDesc.Usage = D3D11_USAGE_DEFAULT;
+	dsDesc.CPUAccessFlags = 0;
+	dsDesc.MipLevels = 0;
+	dsDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+	dsDesc.SampleDesc.Count = 1;
+	dsDesc.SampleDesc.Quality = 0;
+	ID3D11Texture2D* depthStencilBuffer;
+	hr = device_pancy->CreateTexture2D(&dsDesc, 0, &depthStencilBuffer);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create reflect cubemap depthtex error", L"tip", MB_OK);
+		return hr;
+	}
+	D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc =
+	{
+		DXGI_FORMAT_D32_FLOAT,
+		D3D11_DSV_DIMENSION_TEXTURE2DARRAY
+	};
+	dsvDesc.Texture2DArray.ArraySize = 1;
+	dsvDesc.Texture2DArray.MipSlice = 0;
+	for (int i = 0; i < 6; ++i) 
+	{
+		dsvDesc.Texture2DArray.FirstArraySlice = i;
+		hr = device_pancy->CreateDepthStencilView(depthStencilBuffer, &dsvDesc, &reflect_DSV[i]);
+		if (FAILED(hr))
+		{
+			MessageBox(0, L"create reflect cubemap depthbuffer error", L"tip", MB_OK);
+			return hr;
+		}
+	}
+	D3D11_SHADER_RESOURCE_VIEW_DESC depthsrvDesc;
+	depthsrvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	depthsrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+	depthsrvDesc.TextureCube.MipLevels = -1;
+	depthsrvDesc.TextureCube.MostDetailedMip = 0;
+	hr = device_pancy->CreateShaderResourceView(depthStencilBuffer, &depthsrvDesc, &reflect_depthcube_SRV);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create reflect cubemap depthtex error", L"tip", MB_OK);
+		return hr;
+	}
+	depthStencilBuffer->Release();
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~静态cubemap纹理~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	//渲染目标
+	D3D11_TEXTURE2D_DESC cubeMapDesc;
+	cubeMapDesc.Width = 1024;  
+	cubeMapDesc.Height = 1024;
+	cubeMapDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	cubeMapDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	cubeMapDesc.ArraySize = 6;
+	cubeMapDesc.Usage = D3D11_USAGE_DEFAULT;
+	cubeMapDesc.CPUAccessFlags = 0;
+	cubeMapDesc.MipLevels = 0;
+	cubeMapDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
+	cubeMapDesc.SampleDesc.Count = 1;
+	cubeMapDesc.SampleDesc.Quality = 0;
+	//使用以上描述创建纹理
+	ID3D11Texture2D *cubeMap(NULL);
+	hr = device_pancy->CreateTexture2D(&cubeMapDesc, 0, &cubeMap);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create reflect cubemap texture1 error", L"tip", MB_OK);
+		return hr;
+	}
+	//创建六个rendertarget
+	D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
+	rtvDesc.Format = cubeMapDesc.Format;
+	rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+	rtvDesc.Texture2DArray.ArraySize = 1;
+	rtvDesc.Texture2DArray.MipSlice = 0;
+	for (UINT i = 0; i<6; ++i)
+	{
+		rtvDesc.Texture2DArray.FirstArraySlice = i;
+		hr = device_pancy->CreateRenderTargetView(cubeMap, &rtvDesc, &reflect_cube_RTV[i]);
+		if (FAILED(hr))
+		{
+			MessageBox(0, L"create reflect cubemap RTV error", L"tip", MB_OK);
+			return hr;
+		}
+	}
+	//创建一个SRV
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	srvDesc.Format = cubeMapDesc.Format;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+	srvDesc.TextureCube.MipLevels = -1;
+	srvDesc.TextureCube.MostDetailedMip = 0;
+	hr = device_pancy->CreateShaderResourceView(cubeMap, &srvDesc, &reflect_cube_SRV);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create reflect cubemap SRV error", L"tip", MB_OK);
+		return hr;
+	}
+	cubeMap->Release();
 	return S_OK;
+}
+void render_posttreatment_SSR::set_static_cube_rendertarget(int count_cube, XMFLOAT4X4 &mat_project)
+{
+	ID3D11RenderTargetView* renderTargets[1] = { reflect_cubeinput_RTV[count_cube] };
+	contex_pancy->OMSetRenderTargets(1, renderTargets, reflect_DSV[count_cube]);
+	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1e5f };
+	contex_pancy->ClearRenderTargetView(reflect_cubeinput_RTV[count_cube], clearColor);
+	contex_pancy->ClearDepthStencilView(reflect_DSV[count_cube], D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, count_cube);
+	D3D11_VIEWPORT shadow_map_VP;
+	shadow_map_VP.TopLeftX = 0.0f;
+	shadow_map_VP.TopLeftY = 0.0f;
+	shadow_map_VP.Width = 1024.0f;
+	shadow_map_VP.Height = 1024.0f;
+	shadow_map_VP.MinDepth = 0.0f;
+	shadow_map_VP.MaxDepth = 1.0f;
+	contex_pancy->RSSetViewports(1, &shadow_map_VP);
+	XMMATRIX P = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.5f, 1.0f, 0.1f, 300.0f);
+	XMStoreFloat4x4(&mat_project, P);
+}
+void render_posttreatment_SSR::draw_static_cube(int count_cube)
+{
+	ID3D11RenderTargetView* renderTargets[1] = { reflect_cube_RTV[count_cube] };
+	contex_pancy->OMSetRenderTargets(1, renderTargets, NULL);
+	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1e5f };
+	contex_pancy->ClearRenderTargetView(reflect_cube_RTV[count_cube], clearColor);
+	D3D11_VIEWPORT shadow_map_VP;
+	shadow_map_VP.TopLeftX = 0.0f;
+	shadow_map_VP.TopLeftY = 0.0f;
+	shadow_map_VP.Width = 1024.0f;
+	shadow_map_VP.Height = 1024.0f;
+	shadow_map_VP.MinDepth = 0.0f;
+	shadow_map_VP.MaxDepth = 1.0f;
+	auto shader_draw = shader_list->get_shader_cubesave();
+	XMFLOAT3 cubecount_vec = XMFLOAT3(static_cast<float>(count_cube),0.0f,0.0f);
+	shader_draw->set_cube_count(cubecount_vec);
+	shader_draw->set_texture_input(reflect_cubeinput_SRV[count_cube]);
+	//渲染屏幕空间像素图
+	UINT stride = sizeof(pancy_point);
+	UINT offset = 0;
+	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	contex_pancy->IASetVertexBuffers(0, 1, &reflectMap_VB, &stride, &offset);
+	contex_pancy->IASetIndexBuffer(reflectMap_IB, DXGI_FORMAT_R16_UINT, 0);
+	ID3DX11EffectTechnique* tech;
+	//选定绘制路径
+	shader_draw->get_technique(&tech, "resolove_alpha");
+	D3DX11_TECHNIQUE_DESC techDesc;
+	tech->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+		contex_pancy->DrawIndexed(6, 0, 0);
+	}
+	shader_draw->set_texture_input(NULL);
+	ID3D11RenderTargetView* NULL_target[1] = { NULL };
+	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+	}
 }
 void render_posttreatment_SSR::BuildFrustumFarCorners(float fovy, float farZ)
 {
@@ -244,11 +495,22 @@ void render_posttreatment_SSR::set_normaldepthcolormap(ID3D11ShaderResourceView 
 }
 void render_posttreatment_SSR::release()
 {
+	safe_release(mask_tex);
+	safe_release(mask_target);
 	safe_release(reflectMap_VB);
 	safe_release(reflectMap_IB);
 	safe_release(reflect_target);
 	safe_release(reflect_tex);
 	safe_release(color_tex);
+	safe_release(reflect_cube_SRV);
+	safe_release(reflect_depthcube_SRV);
+	for (int i = 0; i < 6; ++i) 
+	{
+		safe_release(reflect_cubeinput_RTV[i]);
+		safe_release(reflect_cubeinput_SRV[i]);
+		safe_release(reflect_cube_RTV[i]);
+		safe_release(reflect_DSV[i]);
+	}
 }
 void render_posttreatment_SSR::draw_reflect(ID3D11RenderTargetView *rendertarget_input)
 {
@@ -264,9 +526,9 @@ void render_posttreatment_SSR::draw_reflect(ID3D11RenderTargetView *rendertarget
 	rendertargetTex->Release();
 	rendertargetTex_singlesample->Release();
 	//绑定渲染目标纹理，不设置深度模缓冲区因为这里不需要
-	ID3D11RenderTargetView* renderTargets[1] = { reflect_target };
+	ID3D11RenderTargetView* renderTargets[2] = { reflect_target,mask_target };
 	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	//contex_pancy->OMSetRenderTargets(1, renderTargets, 0);
+	//contex_pancy->OMSetRenderTargets(2, renderTargets, 0);
 	//contex_pancy->ClearRenderTargetView(reflect_target, clearColor);
 	//contex_pancy->RSSetViewports(1, &render_viewport);
 	renderstate_lib->clear_posttreatmentcrendertarget();
@@ -285,6 +547,8 @@ void render_posttreatment_SSR::draw_reflect(ID3D11RenderTargetView *rendertarget
 	XMFLOAT3 view_pos;
 	camera_use->count_invview_matrix(&invview_mat);
 	camera_use->count_view_matrix(&view_mat);
+	XMMATRIX rec_need = XMLoadFloat4x4(&invview_mat) * XMLoadFloat4x4(&view_mat);
+
 	camera_use->get_view_position(&view_pos);
 	shader_reflectpass->set_invview_matrix(&invview_mat);
 	shader_reflectpass->set_view_matrix(&view_mat);
@@ -294,6 +558,10 @@ void render_posttreatment_SSR::draw_reflect(ID3D11RenderTargetView *rendertarget
 	shader_reflectpass->set_NormalDepthtex(normaldepth_tex);
 	shader_reflectpass->set_Depthtex(depth_tex);
 	shader_reflectpass->set_diffusetex(color_tex);
+
+	shader_reflectpass->set_cubeview_matrix(static_cube_view_matrix,6);
+	shader_reflectpass->set_enviroment_depth(reflect_depthcube_SRV);
+	shader_reflectpass->set_enviroment_tex(reflect_cube_SRV);
 	//渲染屏幕空间像素图
 	UINT stride = sizeof(pancy_point);
 	UINT offset = 0;
@@ -313,6 +581,7 @@ void render_posttreatment_SSR::draw_reflect(ID3D11RenderTargetView *rendertarget
 	}
 	shader_reflectpass->set_NormalDepthtex(NULL);
 	shader_reflectpass->set_diffusetex(NULL);
+	shader_reflectpass->set_enviroment_tex(NULL);
 	ID3D11RenderTargetView* NULL_target[1] = { NULL };
 	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
 	for (UINT p = 0; p < techDesc.Passes; ++p)
@@ -320,6 +589,10 @@ void render_posttreatment_SSR::draw_reflect(ID3D11RenderTargetView *rendertarget
 		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
 	}
 	renderstate_lib->clear_basicrendertarget();
+}
+void render_posttreatment_SSR::set_static_cube_view_matrix(int count_cube, XMFLOAT4X4 mat_input)
+{
+	static_cube_view_matrix[count_cube] = mat_input;
 }
 //继承的d3d注册类
 class d3d_pancy_1 :public d3d_pancy_basic
@@ -344,6 +617,8 @@ public:
 	void update();
 	void display();
 	void release();
+private:
+	void render_static_enviroment_map();
 };
 void d3d_pancy_1::release()
 {
@@ -427,7 +702,7 @@ HRESULT d3d_pancy_1::init_create()
 		MessageBox(0, L"create posttreat_class failed", L"tip", MB_OK);
 		return hr;
 	}
-	posttreat_reflect = new render_posttreatment_SSR(test_camera,render_state,device_pancy, contex_pancy,  shader_list, wind_width, wind_hight, XM_PI*0.25f, 300.0f);
+	posttreat_reflect = new render_posttreatment_SSR(test_camera,render_state,device_pancy, contex_pancy,  shader_list,geometry_list, wind_width, wind_hight, XM_PI*0.25f, 300.0f);
 	hr = posttreat_reflect->create();
 	if (FAILED(hr))
 	{
@@ -441,7 +716,49 @@ HRESULT d3d_pancy_1::init_create()
 		MessageBox(0, L"create pretreat_class failed", L"tip", MB_OK);
 		return hr;
 	}
+	render_static_enviroment_map();
 	return S_OK;
+}
+void d3d_pancy_1::render_static_enviroment_map()
+{
+	XMFLOAT3 look_vec, up_vec, position_vec;
+	XMFLOAT4X4 proj_matrix;
+	XMFLOAT3 up[6] =
+	{
+		XMFLOAT3(0.0f, 1.0f, 0.0f),
+		XMFLOAT3(0.0f, 1.0f, 0.0f),
+		XMFLOAT3(0.0f, 0.0f,-1.0f),
+		XMFLOAT3(0.0f, 0.0f, 1.0f),
+		XMFLOAT3(0.0f, 1.0f, 0.0f),
+		XMFLOAT3(0.0f, 1.0f, 0.0f)
+	};
+	XMFLOAT3 look[6] =
+	{
+		XMFLOAT3(1.0f, 0.0f, 0.0f),
+		XMFLOAT3(-1.0f, 0.0f, 0.0f),
+		XMFLOAT3(0.0f, 1.0f, 0.0f),
+		XMFLOAT3(0.0f,-1.0f, 0.0f),
+		XMFLOAT3(0.0f, 0.0f, 1.0f),
+		XMFLOAT3(0.0f, 0.0f,-1.0f)
+	};
+	position_vec = XMFLOAT3(0.0f,5.0f,0.0f);
+	for (int i = 0; i < 6; ++i) 
+	{
+		posttreat_reflect->set_static_cube_rendertarget(i, proj_matrix);
+		look_vec = look[i];
+		up_vec = up[i];
+		test_camera->set_camera(look_vec, up_vec, position_vec);
+		first_scene_test->set_proj_matrix(proj_matrix);
+		XMFLOAT4X4 rec_viewmat;
+		test_camera->count_view_matrix(&rec_viewmat);
+		posttreat_reflect->set_static_cube_view_matrix(i, rec_viewmat);
+		update();
+		first_scene_test->display_enviroment();
+		posttreat_reflect->draw_static_cube(i);
+	}
+	pretreat_scene->restore_proj_matrix();
+	first_scene_test->reset_proj_matrix();
+	test_camera->reset_camera();
 }
 void d3d_pancy_1::update()
 {
@@ -454,13 +771,18 @@ void d3d_pancy_1::update()
 }
 void d3d_pancy_1::display()
 {
+	//render_static_enviroment_map();
 	//初始化
-	pretreat_scene->display();
+	pretreat_scene->display(true);
 	render_state->clear_basicrendertarget();
+	
 	render_state->clear_posttreatmentcrendertarget();
 	first_scene_test->get_gbuffer(pretreat_scene->get_gbuffer_normalspec(), pretreat_scene->get_gbuffer_depth());
 	first_scene_test->get_lbuffer(pretreat_scene->get_gbuffer_difusse(), pretreat_scene->get_gbuffer_specular());
 	//render_state->set_posttreatment_rendertarget();
+	//first_scene_test->get_environment_map(posttreat_reflect->get_cubemap());
+	first_scene_test->display_shadowao(true,true);
+	render_state->set_posttreatment_rendertarget();
 	first_scene_test->display();
 	render_state->set_posttreatment_rendertarget();
 	posttreat_reflect->set_normaldepthcolormap(pretreat_scene->get_gbuffer_normalspec(), pretreat_scene->get_gbuffer_depth());

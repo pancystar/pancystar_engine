@@ -1023,35 +1023,27 @@ void skin_mesh::update_anim_data(animation_data *now)
 }
 void skin_mesh::Interpolate(quaternion_animation& pOut, quaternion_animation pStart, quaternion_animation pEnd, float pFactor)
 {
-	// calc cosine theta
 	float cosom = pStart.main_key[0] * pEnd.main_key[0] + pStart.main_key[1] * pEnd.main_key[1] + pStart.main_key[2] * pEnd.main_key[2] + pStart.main_key[3] * pEnd.main_key[3];
-
-
-	// adjust signs (if necessary)
 	quaternion_animation end = pEnd;
 	if (cosom < static_cast<float>(0.0))
 	{
 		cosom = -cosom;
-		end.main_key[0] = -end.main_key[0];   // Reverse all signs
+		end.main_key[0] = -end.main_key[0];
 		end.main_key[1] = -end.main_key[1];
 		end.main_key[2] = -end.main_key[2];
 		end.main_key[3] = -end.main_key[3];
 	}
-
-	// Calculate coefficients
 	float sclp, sclq;
-	if ((static_cast<float>(1.0) - cosom) > static_cast<float>(0.0001)) // 0.0001 -> some epsillon
+	if ((static_cast<float>(1.0) - cosom) > static_cast<float>(0.0001))
 	{
-		// Standard case (slerp)
 		float omega, sinom;
-		omega = acos(cosom); // extract theta from dot product's cos theta
+		omega = acos(cosom);
 		sinom = sin(omega);
 		sclp = sin((static_cast<float>(1.0) - pFactor) * omega) / sinom;
 		sclq = sin(pFactor * omega) / sinom;
 	}
 	else
 	{
-		// Very close, do linear interp (because it's faster)
 		sclp = static_cast<float>(1.0) - pFactor;
 		sclq = pFactor;
 	}

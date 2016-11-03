@@ -84,9 +84,11 @@ protected:
 };
 class light_pre : public shader_basic 
 {
-	ID3DX11EffectVariable   *view_pos_handle;            //视点位置
-	ID3DX11EffectVariable   *material_need;              //材质
-	ID3DX11EffectVariable   *light_list;                 //灯光
+	ID3DX11EffectVariable                 *view_pos_handle;            //视点位置
+	ID3DX11EffectVariable                 *material_need;              //材质
+	ID3DX11EffectVariable                 *light_list;                 //灯光
+	ID3DX11EffectVariable                 *light_num_handle;           //光源数量
+	ID3DX11EffectVariable                 *shadow_num_handle;           //光源数量
 	ID3DX11EffectShaderResourceVariable   *texture_diffuse_handle;     //shader中的纹理资源句柄
 	ID3DX11EffectShaderResourceVariable   *texture_normal_handle;      //法线贴图纹理
 	ID3DX11EffectShaderResourceVariable   *texture_shadow_handle;      //阴影贴图句柄
@@ -106,6 +108,8 @@ public:
 	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);                            //设置总变换
 	HRESULT set_trans_shadow(XMFLOAT4X4 *mat_need);                         //设置阴影变换
 	HRESULT set_trans_ssao(XMFLOAT4X4 *mat_need);                           //设置环境光变换
+	HRESULT set_light_num(XMUINT3 all_light_num);                   //设置光源数量
+	HRESULT set_shadow_num(XMUINT3 all_light_num);                  //设置光源数量
 	virtual HRESULT set_material(pancy_material material_in);				//设置材质
 	virtual HRESULT set_ssaotex(ID3D11ShaderResourceView *tex_in);			//设置ssaomap
 	virtual HRESULT set_shadowtex(ID3D11ShaderResourceView *tex_in);		//设置shadowmap
@@ -424,6 +428,8 @@ private:
 class light_defered_draw : public shader_basic
 {
 	ID3DX11EffectVariable                 *material_need;            //材质
+	ID3DX11EffectVariable                 *view_pos_handle;          //视点位置
+	ID3DX11EffectMatrixVariable           *world_matrix_handle;      //世界变换句柄
 	ID3DX11EffectMatrixVariable           *final_matrix_handle;      //全套几何变换句柄
 	ID3DX11EffectMatrixVariable           *ssao_matrix_handle;       //ssao矩阵变换句柄
 	ID3DX11EffectMatrixVariable           *BoneTransforms;           //骨骼变换矩阵
@@ -431,15 +437,19 @@ class light_defered_draw : public shader_basic
 	ID3DX11EffectShaderResourceVariable   *tex_light_specular_handle;//镜面光纹理资源句柄
 	ID3DX11EffectShaderResourceVariable   *texture_ssao_handle;      //环境光纹理资源句柄
 	ID3DX11EffectShaderResourceVariable   *texture_diffuse_handle;   //漫反射纹理资源句柄
+	ID3DX11EffectShaderResourceVariable   *texture_cube_handle;
 public:
 	light_defered_draw(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_view_pos(XMFLOAT3 eye_pos);
 	HRESULT set_trans_ssao(XMFLOAT4X4 *mat_need);                   //设置环境光变换
+	HRESULT set_trans_world(XMFLOAT4X4 *mat_need);                  //设置世界变换
 	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);                    //设置总变换
 	HRESULT set_material(pancy_material material_in);				//设置材质
 	HRESULT set_ssaotex(ID3D11ShaderResourceView *tex_in);			//设置ssaomap
 	HRESULT set_diffusetex(ID3D11ShaderResourceView *tex_in);		//设置漫反射纹理
 	HRESULT set_diffuse_light_tex(ID3D11ShaderResourceView *tex_in);//设置漫反射光纹理
 	HRESULT set_specular_light_tex(ID3D11ShaderResourceView *tex_in);//设置镜面反射光纹理
+	HRESULT set_enviroment_tex(ID3D11ShaderResourceView* srv);
 	virtual HRESULT set_bone_matrix(const XMFLOAT4X4* M, int cnt);	 //设置骨骼变换矩阵
 	void release();
 private:
@@ -453,10 +463,14 @@ class ssr_reflect : public shader_basic
 	ID3DX11EffectMatrixVariable* ViewToTexSpace;
 	ID3DX11EffectMatrixVariable* view_matrix_handle;         //取景变换句柄
 	ID3DX11EffectMatrixVariable* invview_matrix_handle;      //取景变换逆变换句柄
+	ID3DX11EffectMatrixVariable* cubeview_matrix_handle;     //cubemap的六个取景变换矩阵
 	ID3DX11EffectVectorVariable* FrustumCorners;
 	ID3DX11EffectShaderResourceVariable* NormalDepthMap;
 	ID3DX11EffectShaderResourceVariable* DepthMap;
 	ID3DX11EffectShaderResourceVariable* texture_diffuse_handle;
+	ID3DX11EffectShaderResourceVariable* texture_cube_handle;
+	ID3DX11EffectShaderResourceVariable* texture_depthcube_handle;
+	
 public:
 	ssr_reflect(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_ViewToTexSpace(XMFLOAT4X4 *mat);
@@ -464,12 +478,29 @@ public:
 	HRESULT set_NormalDepthtex(ID3D11ShaderResourceView* srv);
 	HRESULT set_Depthtex(ID3D11ShaderResourceView* srv);
 	HRESULT set_diffusetex(ID3D11ShaderResourceView* srv);
+	HRESULT set_enviroment_tex(ID3D11ShaderResourceView* srv);
+	HRESULT set_enviroment_depth(ID3D11ShaderResourceView* srv);
 	HRESULT set_invview_matrix(XMFLOAT4X4 *mat_need);                  //设置取景逆变换
 	HRESULT set_view_matrix(XMFLOAT4X4 *mat_need);                     //设置取景变换
+	HRESULT set_cubeview_matrix(const XMFLOAT4X4* M, int cnt);	       //设置立方取景矩阵
 	HRESULT set_view_pos(XMFLOAT3 eye_pos);
 	void release();
 private:
 	void init_handle();//注册shader中所有全局变量的句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~save cube to alpha~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_save_cube : public shader_basic
+{
+	ID3DX11EffectVariable         *cube_count_handle;
+	ID3DX11EffectShaderResourceVariable   *texture_input;
+public:
+	shader_save_cube(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_texture_input(ID3D11ShaderResourceView *tex_in);
+	HRESULT set_cube_count(XMFLOAT3 cube_count);
+	void release();
+private:
+	void init_handle();                 //注册全局变量句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shader list~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -493,6 +524,7 @@ class shader_control
 	shader_particle            *particle_fire;                   //粒子系统着色器
 	shader_grass               *shader_grass_billboard;          //草地公告板
 	ssr_reflect                *shader_ssreflect;                //屏幕空间反射
+	shader_save_cube           *shader_reset_alpha;              //存储cube方向到alpha
 	//shader_basic *shader_light_deferred;
 public:
 	shader_control();
@@ -515,6 +547,7 @@ public:
 	light_defered_lightbuffer*  get_shader_defferedlight_lightbuffer() { return shader_light_deffered_lbuffer; };
 	light_defered_draw*         get_shader_light_deffered_draw() { return  shader_light_deffered_draw; };
 	ssr_reflect*                get_shader_ssreflect() { return shader_ssreflect; };
+	shader_save_cube*           get_shader_cubesave() { return shader_reset_alpha; };
 
 	void release();
 };

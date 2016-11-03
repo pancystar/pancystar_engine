@@ -166,6 +166,9 @@
     <FxCompile Include="SSR.fx">
       <Filter>源文件</Filter>
     </FxCompile>
+    <FxCompile Include="reset_cube_alpha.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram2.cd" />

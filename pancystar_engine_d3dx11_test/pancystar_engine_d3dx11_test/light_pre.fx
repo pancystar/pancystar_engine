@@ -4,7 +4,8 @@ cbuffer perframe
 {
 	pancy_light_basic   light_need[100];   //聚光灯光源
 	float3             position_view;         //视点位置
-	int4 num_dir;
+	uint3               light_num;            //光源数量
+	uint3               shadow_num;           //阴影数量
 	float4x4 gBoneTransforms[100];//骨骼变换矩阵
 };
 cbuffer perobject
@@ -214,34 +215,36 @@ float4 PS_withtex(VertexOut pin) :SV_TARGET
 	float4 diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float4 spec = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float3 eye_direct = normalize(position_view - pin.position_bef.xyz);
-	//float3 eye_direct = normalize(position_view);
 	float4 A = 0.0f, D = 0.0f, S = 0.0f;
-	float4 A1 = 0.0f, D1 = 0.0f, S1 = 0.0f;
-	//compute_dirlight(material_need, dir_light_need[i], pin.normal, eye_direct, A, D, S);
-
-	for (int i = 0; i < 2; ++i)
+	//~~~~~~~~~~~~~~~~~~~视线空间着色~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	//[unroll]
+	int count_all = 0;
+	for (uint i = 0; i < shadow_num.z; ++i)
 	{
-		//方向光(direction light)
-		if (light_need[i].type.x == 0)
-		{
-			compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
-		}
-		//点光源(point light)
-		else if (light_need[i].type.x == 1)
-		{
-			compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
-		}
-		//聚光灯(spot light)
-		else
-		{
-			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
-		}
-		//环境光
-		ambient += A;
-		//无阴影光
+		count_all += 1;
+	}
+	for (uint i = 0; i < light_num.x; ++i)
+	{
+		count_all += 1;
+		compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
 		diffuse += D;
 		spec += S;
 	}
+	for (uint i = 0; i < light_num.y; ++i)
+	{
+		count_all += 1;
+		compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
+		diffuse += D;
+		spec += S;
+	}
+	for (uint i = 0; i < light_num.z; ++i)
+	{
+		count_all += 1;
+		compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
+		diffuse += D;
+		spec += S;
+	}
+	ambient = 0.4f*float4(1.0f, 1.0f, 1.0f, 0.0f);
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
 	return final_color;
@@ -265,36 +268,38 @@ float4 PS_withtexnormal(VertexOut pin) :SV_TARGET
 	float4 diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float4 spec = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float3 eye_direct = normalize(position_view - pin.position_bef.xyz);
-	//float3 eye_direct = normalize(position_view);
 	float4 A = 0.0f, D = 0.0f, S = 0.0f;
-	float4 A1 = 0.0f, D1 = 0.0f, S1 = 0.0f;
-	//compute_dirlight(material_need, dir_light_need[i], pin.normal, eye_direct, A, D, S);
-
-	for (int i = 0; i < 2; ++i)
+	//~~~~~~~~~~~~~~~~~~~视线空间着色~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	//[unroll]
+	int count_all = 0;
+	for (uint i = 0; i < shadow_num.z; ++i)
 	{
-		//方向光(direction light)
-		if (light_need[i].type.x == 0)
-		{
-			compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
-		}
-		//点光源(point light)
-		else if (light_need[i].type.x == 1)
-		{
-			compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
-		}
-		//聚光灯(spot light)
-		else
-		{
-			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
-		}
-		//环境光
-		ambient += A;
-		//无阴影光
+		count_all += 1;
+	}
+	for (uint i = 0; i < light_num.x; ++i)
+	{
+		count_all += 1;
+		compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
 		diffuse += D;
 		spec += S;
 	}
+	for (uint i = 0; i < light_num.y; ++i)
+	{
+		count_all += 1;
+		compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
+		diffuse += D;
+		spec += S;
+	}
+	for (uint i = 0; i < light_num.z; ++i)
+	{
+		count_all += 1;
+		compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
+		diffuse += D;
+		spec += S;
+	}
+	ambient = 0.4f*float4(1.0f, 1.0f, 1.0f, 0.0f);
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
-	float4 final_color = tex_color * (ambient + diffuse) + spec;;
+	float4 final_color = tex_color * (ambient + diffuse) + spec;
 	return final_color;
 }
 float4 PS_withshadow(VertexOut pin) :SV_TARGET

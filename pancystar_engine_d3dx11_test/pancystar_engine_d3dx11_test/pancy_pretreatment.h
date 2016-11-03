@@ -45,8 +45,10 @@ public:
 	Pretreatment_gbuffer(int width_need, int height_need, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *renderstate_need, shader_control *shader_need, geometry_control *geometry_need, pancy_camera *camera_need, light_control *light_need);
 	HRESULT create();
 	//void update();
-	void display();
+	void display(bool if_shadow);
 	void release();
+	void set_proj_matrix(XMFLOAT4X4 proj_mat_need) { proj_matrix_gbuffer = proj_mat_need; };
+	void restore_proj_matrix() { XMStoreFloat4x4(&proj_matrix_gbuffer, DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, map_width*1.0f / map_height*1.0f, 0.1f, 300.0f)); };
 	ID3D11ShaderResourceView *get_gbuffer_normalspec() { return normalspec_tex; };
 	ID3D11ShaderResourceView *get_gbuffer_depth() { return depthmap_single_tex; };
 	ID3D11ShaderResourceView *get_gbuffer_difusse() { return gbuffer_diffuse_tex; };
@@ -60,7 +62,7 @@ private:
 	void set_resolvdepth_target();
 	void BuildFrustumFarCorners(float fovy, float farZ);
 	void render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix);
-	void render_lbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 invview_matrix);
+	void render_lbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 invview_matrix, bool if_shadow);
 	ID3DX11EffectTechnique* get_technique();
 	ID3DX11EffectTechnique* get_technique_transparent();
 	ID3DX11EffectTechnique* get_technique_normal();

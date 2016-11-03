@@ -38,7 +38,7 @@ float4 PS_reflect(VertexOut pin) :SV_TARGET
 {
 	float4 tex_color = float4(0.0f,0.0f,0.0f,0.0f);
 	float4 color_fog = float4(0.75f, 0.75f, 0.75f, 1.0f);
-	float3 view_direct = normalize(position_view - pin.position_bef);
+	float3 view_direct = pin.position_bef;
 	float3 map_direct = view_direct.xyz;//视线向量
 
 	tex_color = texture_cube.Sample(samTex, map_direct);
