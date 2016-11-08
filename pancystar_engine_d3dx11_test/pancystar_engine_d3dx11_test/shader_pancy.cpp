@@ -1745,7 +1745,11 @@ void ssr_reflect::init_handle()
 	DepthMap = fx_need->GetVariableByName("gdepth_map")->AsShaderResource();
 	texture_diffuse_handle = fx_need->GetVariableByName("gcolorMap")->AsShaderResource();
 	texture_cube_handle = fx_need->GetVariableByName("texture_cube")->AsShaderResource();
-	texture_depthcube_handle = fx_need->GetVariableByName("depth_cube")->AsShaderResource();
+	//texture_depthcube_handle = fx_need->GetVariableByName("depth_cube")->AsShaderResource();
+	texture_stencilcube_handle = fx_need->GetVariableByName("stencil_cube")->AsShaderResource();
+	texture_color_mask = fx_need->GetVariableByName("mask_input")->AsShaderResource();;
+	texture_color_ssr = fx_need->GetVariableByName("ssrcolor_input")->AsShaderResource();;
+	camera_positions = fx_need->GetVariableByName("center_position")->AsVector();
 }
 void ssr_reflect::release()
 {
@@ -1791,6 +1795,16 @@ HRESULT ssr_reflect::set_FrustumCorners(const XMFLOAT4 v[4])
 	}
 	return S_OK;
 }
+HRESULT ssr_reflect::set_camera_positions(XMFLOAT3 v) 
+{
+	HRESULT hr = camera_positions->SetRawValue((void*)&v, 0, sizeof(v));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting view position", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 HRESULT ssr_reflect::set_NormalDepthtex(ID3D11ShaderResourceView* srv)
 {
 	HRESULT hr = NormalDepthMap->SetResource(srv);
@@ -1831,9 +1845,41 @@ HRESULT ssr_reflect::set_enviroment_tex(ID3D11ShaderResourceView* srv)
 	}
 	return S_OK;
 }
+/*
 HRESULT ssr_reflect::set_enviroment_depth(ID3D11ShaderResourceView* srv)
 {
 	HRESULT hr = texture_depthcube_handle->SetResource(srv);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting cube depthtexture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+*/
+HRESULT ssr_reflect::set_color_mask_tex(ID3D11ShaderResourceView* srv)
+{
+	HRESULT hr = texture_color_mask->SetResource(srv);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting cube depthtexture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT ssr_reflect::set_color_ssr_tex(ID3D11ShaderResourceView* srv) 
+{
+	HRESULT hr = texture_color_ssr->SetResource(srv);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting cube depthtexture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT ssr_reflect::set_enviroment_stencil(ID3D11ShaderResourceView* srv)
+{
+	HRESULT hr = texture_stencilcube_handle->SetResource(srv);
 	if (hr != S_OK)
 	{
 		MessageBox(0, L"an error when setting cube depthtexture", L"tip", MB_OK);
@@ -1890,6 +1936,16 @@ HRESULT shader_save_cube::set_texture_input(ID3D11ShaderResourceView *tex_in)
 	}
 	return S_OK;
 }
+HRESULT shader_save_cube::set_depthtex_input(ID3D11ShaderResourceView *tex_in) 
+{
+	HRESULT hr = depth_input->SetResource(tex_in);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set cube depth error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 void shader_save_cube::release()
 {
 	release_basic();
@@ -1898,6 +1954,7 @@ void shader_save_cube::init_handle()
 {
 	//纹理信息句柄
 	texture_input = fx_need->GetVariableByName("tex_input")->AsShaderResource();
+	depth_input = fx_need->GetVariableByName("depth_input")->AsShaderResource();
 	cube_count_handle = fx_need->GetVariableByName("cube_count");
 }
 HRESULT shader_save_cube::set_cube_count(XMFLOAT3 cube_count)
@@ -1926,6 +1983,144 @@ void shader_save_cube::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_poin
 		member_point[i] = rec[i];
 	}
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~反射效果模糊~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_SSRblur::shader_SSRblur(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT shader_SSRblur::set_tex_resource(ID3D11ShaderResourceView *buffer_input)
+{
+	HRESULT hr;
+	hr = tex_input->SetResource(buffer_input);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set SSR blur texture error in HDR mapping", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_SSRblur::set_image_size(XMFLOAT4 range)
+{
+	HRESULT hr;
+	hr = Texelrange->SetRawValue((void*)&range, 0, sizeof(range));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set image_size error in SSR blur part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_SSRblur::release()
+{
+	release_basic();
+}
+void shader_SSRblur::init_handle()
+{
+	Texelrange = fx_need->GetVariableByName("tex_range_color_normal");
+	tex_input = fx_need->GetVariableByName("gInputImage")->AsShaderResource();
+	tex_normal_input = fx_need->GetVariableByName("normal_tex")->AsShaderResource();
+	tex_depth_input = fx_need->GetVariableByName("depth_tex")->AsShaderResource();
+}
+void shader_SSRblur::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
+HRESULT shader_SSRblur::set_tex_normal_resource(ID3D11ShaderResourceView *buffer_input) 
+{
+	HRESULT hr;
+	hr = tex_normal_input->SetResource(buffer_input);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set SSR blur texture error in HDR mapping", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_SSRblur::set_tex_depth_resource(ID3D11ShaderResourceView *buffer_input) 
+{
+	HRESULT hr;
+	hr = tex_depth_input->SetResource(buffer_input);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set SSR blur texture error in HDR mapping", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~最终反射叠加~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_reflectfinal::shader_reflectfinal(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
+{
+}
+void shader_reflectfinal::release()
+{
+	release_basic();
+}
+void shader_reflectfinal::init_handle()
+{
+	Texelrange = fx_need->GetVariableByName("tex_range_color_normal");
+	tex_color_input = fx_need->GetVariableByName("gInputImage")->AsShaderResource();
+	tex_reflect_input = fx_need->GetVariableByName("gInputReflect")->AsShaderResource();
+}
+void shader_reflectfinal::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
+HRESULT shader_reflectfinal::set_tex_color_resource(ID3D11ShaderResourceView *buffer_input)
+{
+	HRESULT hr;
+	hr = tex_color_input->SetResource(buffer_input);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set SSR color texture error in SSR final mapping", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_reflectfinal::set_tex_reflect_resource(ID3D11ShaderResourceView *buffer_input)
+{
+	HRESULT hr;
+	hr = tex_reflect_input->SetResource(buffer_input);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set SSR reflect texture error in SSR final mapping", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_reflectfinal::set_image_size(XMFLOAT4 range)
+{
+	HRESULT hr;
+	hr = Texelrange->SetRawValue((void*)&range, 0, sizeof(range));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set image_size error in SSR final part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全局shader管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_control::shader_control()
 {
@@ -1949,6 +2144,8 @@ shader_control::shader_control()
 	shader_light_deffered_draw = NULL;
 	shader_ssreflect = NULL;
 	shader_reset_alpha = NULL;
+	shader_reflect_blur = NULL;
+	shader_reflect_final = NULL;
 }
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
@@ -2093,6 +2290,20 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 		MessageBox(0, L"an error when save_cube shader created", L"tip", MB_OK);
 		return hr;
 	}
+	shader_reflect_blur = new shader_SSRblur(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\reflect_blur.cso", device_pancy, contex_pancy);
+	hr = shader_reflect_blur->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when shader_reflect_blur created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_reflect_final = new shader_reflectfinal(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\reflect_final_pass.cso", device_pancy, contex_pancy);
+	hr = shader_reflect_final->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when shader_reflect_final created", L"tip", MB_OK);
+		return hr;
+	}
 	return S_OK;
 }
 void shader_control::release()
@@ -2116,4 +2327,6 @@ void shader_control::release()
 	shader_light_deffered_draw->release();
 	shader_ssreflect->release();
 	shader_reset_alpha->release();
+	shader_reflect_blur->release();
+	shader_reflect_final->release();
 }

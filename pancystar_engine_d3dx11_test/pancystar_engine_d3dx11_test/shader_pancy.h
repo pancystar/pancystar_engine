@@ -465,21 +465,29 @@ class ssr_reflect : public shader_basic
 	ID3DX11EffectMatrixVariable* invview_matrix_handle;      //取景变换逆变换句柄
 	ID3DX11EffectMatrixVariable* cubeview_matrix_handle;     //cubemap的六个取景变换矩阵
 	ID3DX11EffectVectorVariable* FrustumCorners;
+	ID3DX11EffectVectorVariable* camera_positions;
 	ID3DX11EffectShaderResourceVariable* NormalDepthMap;
 	ID3DX11EffectShaderResourceVariable* DepthMap;
 	ID3DX11EffectShaderResourceVariable* texture_diffuse_handle;
 	ID3DX11EffectShaderResourceVariable* texture_cube_handle;
-	ID3DX11EffectShaderResourceVariable* texture_depthcube_handle;
-	
+	//ID3DX11EffectShaderResourceVariable* texture_depthcube_handle;
+	ID3DX11EffectShaderResourceVariable* texture_stencilcube_handle;
+
+	ID3DX11EffectShaderResourceVariable* texture_color_mask;
+	ID3DX11EffectShaderResourceVariable* texture_color_ssr;
 public:
 	ssr_reflect(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_ViewToTexSpace(XMFLOAT4X4 *mat);
 	HRESULT set_FrustumCorners(const XMFLOAT4 v[4]);
+	HRESULT set_camera_positions(XMFLOAT3 v);
 	HRESULT set_NormalDepthtex(ID3D11ShaderResourceView* srv);
 	HRESULT set_Depthtex(ID3D11ShaderResourceView* srv);
 	HRESULT set_diffusetex(ID3D11ShaderResourceView* srv);
 	HRESULT set_enviroment_tex(ID3D11ShaderResourceView* srv);
-	HRESULT set_enviroment_depth(ID3D11ShaderResourceView* srv);
+	//HRESULT set_enviroment_depth(ID3D11ShaderResourceView* srv);
+	HRESULT set_enviroment_stencil(ID3D11ShaderResourceView* srv);
+	HRESULT set_color_mask_tex(ID3D11ShaderResourceView* srv);
+	HRESULT set_color_ssr_tex(ID3D11ShaderResourceView* srv);
 	HRESULT set_invview_matrix(XMFLOAT4X4 *mat_need);                  //设置取景逆变换
 	HRESULT set_view_matrix(XMFLOAT4X4 *mat_need);                     //设置取景变换
 	HRESULT set_cubeview_matrix(const XMFLOAT4X4* M, int cnt);	       //设置立方取景矩阵
@@ -494,13 +502,50 @@ class shader_save_cube : public shader_basic
 {
 	ID3DX11EffectVariable         *cube_count_handle;
 	ID3DX11EffectShaderResourceVariable   *texture_input;
+	ID3DX11EffectShaderResourceVariable   *depth_input;
 public:
 	shader_save_cube(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_texture_input(ID3D11ShaderResourceView *tex_in);
+	HRESULT set_depthtex_input(ID3D11ShaderResourceView *tex_in);
 	HRESULT set_cube_count(XMFLOAT3 cube_count);
 	void release();
 private:
 	void init_handle();                 //注册全局变量句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssr reflect blur~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_SSRblur : public shader_basic
+{
+	ID3DX11EffectVariable*             Texelrange;
+	ID3DX11EffectShaderResourceVariable      *tex_input;      //shader中的纹理资源句柄
+	ID3DX11EffectShaderResourceVariable      *tex_normal_input;      //shader中的纹理资源句柄
+	ID3DX11EffectShaderResourceVariable      *tex_depth_input;      //shader中的纹理资源句柄
+public:
+	shader_SSRblur(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_tex_resource(ID3D11ShaderResourceView *buffer_input);
+	HRESULT set_tex_normal_resource(ID3D11ShaderResourceView *buffer_input);
+	HRESULT set_tex_depth_resource(ID3D11ShaderResourceView *buffer_input);
+	HRESULT set_image_size(XMFLOAT4 texel_range);
+
+	void release();
+private:
+	void init_handle();//注册shader中所有全局变量的句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~reflect final pass~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_reflectfinal : public shader_basic
+{
+	ID3DX11EffectVariable                    *Texelrange;
+	ID3DX11EffectShaderResourceVariable      *tex_color_input;      //shader中的纹理资源句柄
+	ID3DX11EffectShaderResourceVariable      *tex_reflect_input;      //shader中的纹理资源句柄
+public:
+	shader_reflectfinal(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_tex_color_resource(ID3D11ShaderResourceView *buffer_input);
+	HRESULT set_tex_reflect_resource(ID3D11ShaderResourceView *buffer_input);
+	HRESULT set_image_size(XMFLOAT4 texel_range);
+	void release();
+private:
+	void init_handle();//注册shader中所有全局变量的句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shader list~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -525,6 +570,8 @@ class shader_control
 	shader_grass               *shader_grass_billboard;          //草地公告板
 	ssr_reflect                *shader_ssreflect;                //屏幕空间反射
 	shader_save_cube           *shader_reset_alpha;              //存储cube方向到alpha
+	shader_SSRblur             *shader_reflect_blur;             //反射贴图高斯模糊
+	shader_reflectfinal        *shader_reflect_final;            //最终的反射合成
 	//shader_basic *shader_light_deferred;
 public:
 	shader_control();
@@ -548,6 +595,7 @@ public:
 	light_defered_draw*         get_shader_light_deffered_draw() { return  shader_light_deffered_draw; };
 	ssr_reflect*                get_shader_ssreflect() { return shader_ssreflect; };
 	shader_save_cube*           get_shader_cubesave() { return shader_reset_alpha; };
-
+	shader_SSRblur*             get_shader_reflect_blur() { return shader_reflect_blur; };
+	shader_reflectfinal*        get_shader_reflect_final() { return shader_reflect_final; };
 	void release();
 };

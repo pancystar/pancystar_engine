@@ -376,7 +376,8 @@ HRESULT geometry_control::create()
 		MessageBox(0, L"load texture file error", L"tip", MB_OK);
 		return hr_need;
 	}
-
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc1;
+	tex_skycube->GetDesc(&srvDesc1);
 	hr_need = CreateDDSTextureFromFileEx(device_pancy, contex_pancy, L"RoughBlades.dds", 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0., false, NULL, &tex_grass);
 	//hr_need = CreateDDSTextureFromFile(device_pancy, , 0, &tex_grass, 0, 0);
 	if (FAILED(hr_need))

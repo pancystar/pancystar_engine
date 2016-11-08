@@ -247,6 +247,7 @@ float4 PS_withtex(VertexOut pin) :SV_TARGET
 	ambient = 0.4f*float4(1.0f, 1.0f, 1.0f, 0.0f);
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
+	final_color.a = tex_color.a;
 	return final_color;
 }
 float4 PS_withtexnormal(VertexOut pin) :SV_TARGET
@@ -300,6 +301,7 @@ float4 PS_withtexnormal(VertexOut pin) :SV_TARGET
 	ambient = 0.4f*float4(1.0f, 1.0f, 1.0f, 0.0f);
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
+	final_color.a = tex_color.a;
 	return final_color;
 }
 float4 PS_withshadow(VertexOut pin) :SV_TARGET

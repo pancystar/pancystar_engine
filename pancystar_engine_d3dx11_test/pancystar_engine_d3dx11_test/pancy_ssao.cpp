@@ -573,7 +573,7 @@ HRESULT ssao_pancy::build_randomtex()
 }
 void ssao_pancy::blur_ssaomap()
 {
-	for (int i = 0; i < 4; ++i)
+	for (int i = 0; i < 1; ++i)
 	{
 		basic_blur(ambient_tex0, ambient_target1, true);
 		basic_blur(ambient_tex1, ambient_target0, false);

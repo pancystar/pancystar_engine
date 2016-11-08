@@ -528,6 +528,7 @@ void d3d_pancy_1::update()
 	light_data.light_type.x = point_light;
 	light_data.light_type.y = shadow_none;
 	shader_test->set_light(light_data, 0);
+
 	gui_test->update();
 	auto* model_castel_pack = geometry_lib->get_model_list()->get_geometry_byname("model_castel");
 	auto* model_castel = model_castel_pack->get_geometry_data();
@@ -589,7 +590,7 @@ void d3d_pancy_1::show_model()
 	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
 	XMFLOAT4X4 world_viewrec;
 	XMStoreFloat4x4(&world_viewrec, worldViewProj);
-	shader_test->set_trans_all(&world_viewrec);	
+	shader_test->set_trans_all(&world_viewrec);
 	D3D11_RASTERIZER_DESC rsDesc;
 	ZeroMemory(&rsDesc, sizeof(rsDesc));
 	rsDesc.CullMode = D3D11_CULL_BACK;

@@ -217,6 +217,8 @@
     <FxCompile Include="light_define.fx" />
     <FxCompile Include="light_pre.fx" />
     <FxCompile Include="light_reflect.fx" />
+    <FxCompile Include="reflect_blur.fx" />
+    <FxCompile Include="reflect_final_pass.fx" />
     <FxCompile Include="reset_cube_alpha.fx" />
     <FxCompile Include="ResolveMSAAdepthstencil.fx" />
     <FxCompile Include="shadowmap.fx" />
@@ -225,7 +227,9 @@
     <FxCompile Include="ssao_blur_map.fx" />
     <FxCompile Include="ssao_draw_aomap.fx" />
     <FxCompile Include="gbuffer_normaldepth_map.fx" />
-    <FxCompile Include="SSR.fx" />
+    <FxCompile Include="SSR.fx">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram2.cd" />

@@ -169,6 +169,12 @@
     <FxCompile Include="reset_cube_alpha.fx">
       <Filter>源文件</Filter>
     </FxCompile>
+    <FxCompile Include="reflect_blur.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
+    <FxCompile Include="reflect_final_pass.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram2.cd" />

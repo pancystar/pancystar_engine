@@ -6,12 +6,17 @@ cbuffer PerFrame
 	float3   view_position;        //视点位置
 	float4   gFrustumCorners[4];   //3D重建的四个角，用于借助光栅化插值
 	float4x4 view_matrix_cube[6];
+	float3   center_position;
 };
 Texture2D gNormalDepthMap;
 Texture2D gdepth_map;
 Texture2D gcolorMap;
+//Texture for pass 2
 TextureCube texture_cube;
-TextureCube depth_cube;
+//TextureCube depth_cube;
+TextureCube stencil_cube;
+Texture2D ssrcolor_input;
+Texture2D mask_input;
 SamplerState samp
 {
 	Filter = MIN_MAG_MIP_POINT;
@@ -63,6 +68,131 @@ VertexOut VS(VertexIn vin)
 	return vout;
 }
 //根据两点间的距离对遮挡情况赋予权值
+
+float2 get_depth(float now_distance, float3 ray_dir, float3 position)
+{
+	float3 now_3D_point = position + ray_dir * now_distance;
+	float3 cube_ray_now = normalize(now_3D_point - center_position);
+	float2 rzAstencil = stencil_cube.Sample(samNormalDepth, cube_ray_now);
+	float rz = rzAstencil.g;
+	rz = 1.0f / (9.996f - rz * 9.996f);
+	uint cube_stencil = round(rzAstencil.r);
+	float depth_3D_point = mul(float4(now_3D_point, 1.0f), view_matrix_cube[cube_stencil]).z;
+	return float2(rz, depth_3D_point);
+}
+
+void compute_light_range(
+	float st_find,
+	float ed_find,
+	float3 ray_dir,
+	float3 position,
+	out float ray_st,
+	out float ray_end)
+{
+	ray_st = st_find;
+	ray_end = ed_find;
+	[unroll]
+	for (int i = 0; i < 5; ++i)
+	{
+		float length_final_rec = (ray_st + ray_end) / 2.0f;
+		float2 check_depth = get_depth(length_final_rec, ray_dir, position);
+		if (check_depth.x > 99999.0f || check_depth.x < check_depth.y)
+		{
+			//线段外
+			ray_end = length_final_rec;
+		}
+		else
+		{
+			//线段内
+			ray_st = length_final_rec;
+		}
+	}
+}
+
+void compute_light_step(
+	float ray_st,
+	float ray_end,
+	float3 ray_dir,
+	float3 position,
+	out float end_find)
+{
+	float step = 1.0f / 5;
+	end_find = 0;
+	float now_distance;
+	float2 check_depth;
+
+	//步长移近一位
+	now_distance = ray_end * step * 1;
+	check_depth = get_depth(now_distance, ray_dir, position);
+	if (check_depth.x < check_depth.y)
+	{
+		end_find = now_distance;
+	}
+	else 
+	{
+		now_distance = ray_end * step * 2;
+		check_depth = get_depth(now_distance, ray_dir, position);
+		if (check_depth.x < check_depth.y)
+		{
+			end_find = now_distance;
+		}
+		else 
+		{
+			now_distance = ray_end * step * 3;
+			check_depth = get_depth(now_distance, ray_dir, position);
+			if (check_depth.x < check_depth.y)
+			{
+				end_find = now_distance;
+			}
+			else
+			{
+				now_distance = ray_end * step * 4;
+				check_depth = get_depth(now_distance, ray_dir, position);
+				if (check_depth.x < check_depth.y)
+				{
+					end_find = now_distance;
+				}
+				else
+				{
+					now_distance = ray_end * step * 5;
+					check_depth = get_depth(now_distance, ray_dir, position);
+					if (check_depth.x < check_depth.y)
+					{
+						end_find = now_distance;
+					}
+				}
+			}
+		}
+	}
+	
+}
+
+void compute_light_pos(
+	float st_find,
+	float end_find,
+	float3 ray_dir,
+	float3 position,
+	out float now_distance,
+    out float3 now_3D_point)
+{
+	[unroll]
+	for (int i = 0; i < 10; ++i)
+	{
+		now_distance = (st_find + end_find) / 2.0f;
+		float2 check_depth = get_depth(now_distance, ray_dir, position);
+		if (check_depth.x < check_depth.y)
+		{
+			end_find = now_distance;
+		}
+		else
+		{
+			st_find = now_distance;
+		}
+	}
+	now_3D_point = position + ray_dir * now_distance;
+}
+
+
 [earlydepthstencil]
 pixelOut PS(VertexOut pin) : SV_Target
 {
@@ -79,22 +209,7 @@ pixelOut PS(VertexOut pin) : SV_Target
 	float st_find = 0.0f, end_find = 1000.0f;
 	float2 answer_sampleloc;
 	//发射反射光线
-	//position = mul(float4(position.xyz,1.0f),invview_matrix);
-	//float3 ray_dir = reflect(normalize(position), n);
-	//float3 cube_ray = reflect(mul(float4(normalize(position), 0.0f), invview_matrix).xyz, mul(float4(n, 0.0f), invview_matrix).xyz);
-	//float4 view_pos_need = mul(float4(0.0f, 0.0f, 0.0f, 1.0f), invview_matrix);
-	//float3 cube_ray = normalize(mul(float4(position, 1.0f), invview_matrix).xyz - float3(0.0f,5.0f,0.0f));
 	float3 ray_dir = reflect(normalize(position), n);
-	//float4 cube_color = texture_cube.SampleLevel(samTex_liner, ray_dir,0);
-	//return cube_color;
-	//return gcolorMap.Sample(samTex_liner, pin.Tex);
-	/*
-	float rec_step_alpha = dot(-normalize(position), n);
-	if (rec_step_alpha > 0.9f)
-	{
-		return gcolorMap.Sample(samTex_liner, pin.Tex);
-	}
-	*/
 	float ray_st = 0.0f,ray_end = 1000.0f;
 	//二分探测射线段的精确长度
 	[unroll]
@@ -116,7 +231,6 @@ pixelOut PS(VertexOut pin) : SV_Target
 			ray_st = length_final_rec;
 		}
 	}
-	// *(1 - rec_step_alpha);
 	//按步长寻找第一个交点所在的区域
 	[unroll]
 	for (int i = 1; i <= 20; i++)
@@ -162,116 +276,70 @@ pixelOut PS(VertexOut pin) : SV_Target
 		}
 		delta_save = abs(rz - now_3D_point.z);
 	}
-	float alpha_fade = 0.7f * saturate(pow(((5.0f - now_distance) / 5.0f),3));
+	float alpha_fade = pow(saturate(((20.0f - now_distance) / 20.0f)),4);
 	float3 normal_test_sample = gNormalDepthMap.Sample(samNormalDepth, answer_sampleloc).xyz;
 	float test_dot = dot(normalize(normal_test_sample), ray_dir);
-	out_color.color_need = gcolorMap.Sample(samTex_liner, pin.Tex);
 	if (delta_save < 0.00005f)
 	{
-		//float3 cube_ray = normalize(mul(float4(now_3D_point, 1.0f), invview_matrix).xyz - float3(0.0f, 5.0f, 0.0f));
-		//float4 cube_color = depth_cube.SampleLevel(samTex_liner, cube_ray, 0) + texture_cube.SampleLevel(samTex_liner, cube_ray,0);
-		//return cube_color;
-		//float4 outputColor = (1.0f - alpha_fade) * gcolorMap.Sample(samTex_liner, pin.Tex) + alpha_fade * gcolorMap.Sample(samTex_liner, answer_sampleloc);
 		float4 outputColor = gcolorMap.Sample(samTex_liner, answer_sampleloc);
 		out_color.color_need = outputColor;
+		out_color.color_need.a = alpha_fade;
 		out_color.mask_need = float4(1.0f, 0.0f, 0.0f, 0.0f);
-		//return outputColor;
 	}
-	
 	return out_color;
 	//return gcolorMap.Sample(samTex_liner, pin.Tex);
 }
 float4 PS_cube(VertexOut pin) : SV_Target
 {
-	//还原点的世界坐标
-	float4 normalDepth = gNormalDepthMap.Sample(samNormalDepth, pin.Tex);
-	float3 n = normalDepth.xyz;
-	float pz = gdepth_map.Sample(samNormalDepth, pin.Tex).r;
-	float3 position = (pz / pin.ToFarPlane.z)*pin.ToFarPlane;
-	float step = 1.0f / 10;
-	float st_find = 0.0f, end_find = 1000.0f;
-	float2 answer_sampleloc;
-	position = mul(float4(position, 1.0f), invview_matrix).xyz;
-	n = mul(float4(n, 0.0f), invview_matrix).xyz;
-	float3 ray_dir = reflect(normalize(position - view_position), n);
-	float ray_st = 0.0f,ray_end = 1000.0f;
-	//二分探测射线段的精确长度
-	[unroll]
-	for (int i = 0; i < 5; ++i)
+	float4 mask_color = mask_input.Sample(samNormalDepth, pin.Tex);
+	float rec_ifuse = mask_color.r;
+	if (rec_ifuse < 0.01f)
 	{
-		float length_final_rec = (ray_st + ray_end) / 2.0f;
-		float3 now_3D_point = position + ray_dir * length_final_rec;
-		float3 cube_ray_now = normalize(now_3D_point - float3(0.0f, 5.0f, 0.0f));
-		float rz = depth_cube.SampleLevel(samTex_liner, cube_ray_now, 0).r;
-		rz = 1.0f / (9.996f - rz * 9.996f);
-		uint cube_stencil = round(texture_cube.SampleLevel(samNormalDepth, cube_ray_now, 0).a);
-		float depth_3D_point = mul(float4(now_3D_point, 1.0f), view_matrix_cube[cube_stencil]).z;
-		if (rz > 99999.0f || rz < depth_3D_point)
-		{
-		//线段外
-			ray_end = length_final_rec;
-		}
-		else
-		{
-			//线段内
-			ray_st = length_final_rec;
-		}
-	}
-	//按步长寻找第一个交点所在的区域
-	[unroll]
-	for (int i = 1; i <= 10; i++)
-	{
-		//步长移近一位
-		float now_distance = ray_end * step * i;
-		float3 now_3D_point = position + ray_dir * now_distance;
-		float3 cube_ray_now = normalize(now_3D_point - float3(0.0f, 5.0f, 0.0f));
-		float rz = depth_cube.SampleLevel(samTex_liner, cube_ray_now, 0);
-		rz = 1.0f / (9.996f - rz * 9.996f);
-		uint cube_stencil = round(texture_cube.SampleLevel(samNormalDepth, cube_ray_now, 0).a);
-		float depth_3D_point = mul(float4(now_3D_point, 1.0f), view_matrix_cube[cube_stencil]).z;
-		if (rz > 99999.0f)
-		{
-			step /= 2.0f;
-		}
-		if (rz < depth_3D_point)
-		{
-			end_find = now_distance;
-			break;
-		}
-	}
-	//二分精确寻找第一个交点的详细位置
-	float delta_save;
-	float now_distance;
-	float3 now_3D_point;
-	[unroll]
-	for (int i = 0; i < 15; ++i)
-	{
-		now_distance = (st_find + end_find) / 2.0f;
-		now_3D_point = position + ray_dir * now_distance;
-		float3 cube_ray_now = normalize(now_3D_point - float3(0.0f, 5.0f, 0.0f));
-		float rz = depth_cube.SampleLevel(samTex_liner, cube_ray_now, 0);
-		rz = 1.0f / (9.996f - rz * 9.996f);
-		uint cube_stencil = round(texture_cube.SampleLevel(samNormalDepth, cube_ray_now, 0).a);
-		float depth_3D_point = mul(float4(now_3D_point, 1.0f), view_matrix_cube[cube_stencil]).z;
-		if (rz < depth_3D_point)
-		{
-			end_find = now_distance;
-		}
-		else
-		{
-			st_find = now_distance;
-		}
-		delta_save = abs(rz - now_3D_point.z);
-	}
-	float3 cube_ray2 = normalize(now_3D_point - float3(0.0f, 5.0f, 0.0f));
-	//float4 cube_color = texture_cube.SampleLevel(samTex_liner, cube_ray2,0);
+		//还原点的世界坐标
+		float4 normalDepth = gNormalDepthMap.Sample(samNormalDepth, pin.Tex);
+		float3 n = normalDepth.xyz;
+		float pz = gdepth_map.Sample(samNormalDepth, pin.Tex).r;
+		float3 position = (pz / pin.ToFarPlane.z)*pin.ToFarPlane;
+		float st_find = 0.0f, end_find = 1000.0f;
+		float2 answer_sampleloc;
+		position = mul(float4(position, 1.0f), invview_matrix).xyz;
+		n = mul(float4(n, 0.0f), invview_matrix).xyz;
+		float3 ray_dir = reflect(normalize(position - view_position), n);
+		float ray_st = 0.0f, ray_end = 1000.0f;
 
-	float alpha_fade = 0.7f * saturate(pow(((5.0f - now_distance) / 5.0f),3));
-	return texture_cube.SampleLevel(samTex_liner, cube_ray2, 0);
+		compute_light_range(st_find, end_find, ray_dir, position, ray_st, ray_end);
+		//按步长寻找第一个交点所在的区域
+		compute_light_step(ray_st, ray_end, ray_dir, position, end_find);
+		float now_distance;
+		float3 now_3D_point;
+		compute_light_pos(st_find, end_find, ray_dir, position, now_distance, now_3D_point);
+
+		float3 cube_ray2 = normalize(now_3D_point - center_position);
+		//float4 cube_color = texture_cube.SampleLevel(samTex_liner, cube_ray2,0);
+		float alpha_fade = pow(saturate(((20.0f - now_distance) / 20.0f)), 4);
+
+		float4 final_color = texture_cube.SampleLevel(samTex_liner, cube_ray2, 0);
+		final_color.a = alpha_fade;
+		return final_color;
+	}	
+	else
+	{
+		//float4 color_rec_map = gcolorMap.Sample(samNormalDepth, pin.Tex);
+		float4 color_ssr_map = ssrcolor_input.Sample(samNormalDepth, pin.Tex);
+		//float4 now_color = color_ssr_map.a * color_ssr_map;
+		return color_ssr_map;
+	}
+	return float4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 technique11 draw_ssrmap
 {
 	pass P0
+	{
+		SetVertexShader(CompileShader(vs_5_0, VS()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_5_0, PS()));
+	}
+	pass P1
 	{
 		SetVertexShader(CompileShader(vs_5_0, VS()));
 		SetGeometryShader(NULL);

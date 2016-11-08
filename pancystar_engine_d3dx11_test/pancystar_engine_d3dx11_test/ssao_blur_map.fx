@@ -21,8 +21,11 @@ SamplerState samNormalDepth
 {
 	Filter = MIN_MAG_LINEAR_MIP_POINT;
 
-	AddressU = CLAMP;
-	AddressV = CLAMP;
+	// Set a very far depth value if sampling outside of the NormalDepth map
+	// so we do not get false occlusions.
+	AddressU = BORDER;
+	AddressV = BORDER;
+	BorderColor = float4(1e5f, 0.0f, 0.0f, 1e5f);
 };
 SamplerState samInputImage
 {
