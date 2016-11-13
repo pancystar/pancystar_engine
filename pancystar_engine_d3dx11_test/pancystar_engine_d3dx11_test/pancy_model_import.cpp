@@ -133,6 +133,7 @@ HRESULT assimp_basic::model_create(bool if_adj, bool if_optimize, int alpha_part
 		MessageBox(0, L"create model error when combine scene mesh", L"tip", MB_OK);
 		return hr;
 	}
+	copy_Geometry_Resource();
 	return S_OK;
 }
 HRESULT assimp_basic::init_texture()
@@ -225,41 +226,105 @@ void assimp_basic::release_basic()
 	}*/
 }
 
+modelview_basic_assimp::modelview_basic_assimp(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, char* filename, char* texture_path) : assimp_basic(device_need, contex_need, filename, texture_path)
+{
+}
+void modelview_basic_assimp::release()
+{
+	//释放纹理资源
+	if (model_need != NULL)
+	{
+		for (int i = 0; i < material_optimization; ++i)
+		{
+			if (matlist_need[i].tex_diffuse_resource != NULL)
+			{
+				matlist_need[i].tex_diffuse_resource->Release();
+				matlist_need[i].tex_diffuse_resource = NULL;
+			}
+			if (matlist_need[i].texture_normal_resource != NULL)
+			{
+				matlist_need[i].texture_normal_resource->Release();
+				matlist_need[i].texture_normal_resource = NULL;
+			}
+		}
+		//release_basic();
+		//释放缓冲区资源
+		for (int i = 0; i < mesh_optimization; i++)
+		{
+			mesh_need_view[i].point_buffer->release();
+		}
+		for (int i = 0; i < mesh_normal_optimization; i++)
+		{
+			mesh_need_normal_view[i].point_buffer->release();
+		}
+		mesh_scene_view->release();
+		//释放表资源
+		delete[] mesh_need_view;
+		//释放表资源
+		delete[] matlist_need;
+		model_need->~aiScene();
+	}
+}
+void modelview_basic_assimp::draw_part(int i)
+{
+	mesh_need_view[i].point_buffer->get_teque(teque_pancy);
+	mesh_need_view[i].point_buffer->show_mesh();
+}
+void modelview_basic_assimp::draw_normal_part(int i)
+{
+	mesh_need_normal_view[i].point_buffer->get_teque(teque_pancy);
+	mesh_need_normal_view[i].point_buffer->show_mesh();
+}
+void modelview_basic_assimp::draw_mesh()
+{
+	mesh_scene_view->get_teque(teque_pancy);
+	mesh_scene_view->show_mesh();
+}
+void modelview_basic_assimp::draw_mesh_adj()
+{
+	mesh_scene_view->get_teque(teque_pancy);
+	mesh_scene_view->show_mesh_adj();
+}
 
-geometry_member::geometry_member(assimp_basic *model_input, bool if_skin, XMFLOAT4X4 matrix_need,XMFLOAT4X4 *matrix_bone, int bone_num_need, std::string name_need, int indexnum_need)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~assimp导入模型~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+assimpmodel_resource_view::assimpmodel_resource_view(assimp_basic *model_input, bool if_skin, std::string name_need)
 {
 	model_data = model_input;
 	if_skinmesh = if_skin;
-	bone_matrix = matrix_bone;
-	bone_num = bone_num_need;
+	//bone_matrix = matrix_bone;
+	bone_matrix = NULL;
+	bone_num = 0;
 	geometry_name = name_need;
-	indexnum_geometry = indexnum_need;
-	next = NULL;
-	pre = NULL;
-	world_matrix = matrix_need;
+	indexnum_geometry = -1;
+	//next = NULL;
+	//pre = NULL;
+	//XMFLOAT4X4 world_matrix;
+	XMStoreFloat4x4(&world_matrix, XMMatrixIdentity());
+	//world_matrix = matrix_need;
 }
-void geometry_member::draw_full_geometry(ID3DX11EffectTechnique *tech_common)
+void assimpmodel_resource_view::draw_full_geometry(ID3DX11EffectTechnique *tech_common)
 {
 	model_data->get_technique(tech_common);
 	model_data->draw_mesh();
 }
-void geometry_member::draw_full_geometry_adj(ID3DX11EffectTechnique *tech_common)
+void assimpmodel_resource_view::draw_full_geometry_adj(ID3DX11EffectTechnique *tech_common)
 {
 	model_data->get_technique(tech_common);
 	model_data->draw_mesh_adj();
 }
-void geometry_member::draw_transparent_part(ID3DX11EffectTechnique *tech_transparent,int transparent_part)
+void assimpmodel_resource_view::draw_mesh_part(ID3DX11EffectTechnique *tech_transparent,int transparent_part)
 {
 	model_data->get_technique(tech_transparent);
 	model_data->draw_part(transparent_part);
 }
-void geometry_member::draw_normal_part(ID3DX11EffectTechnique *tech_transparent, int normal_part)
+void assimpmodel_resource_view::draw_normal_part(ID3DX11EffectTechnique *tech_transparent, int normal_part)
 {
 	model_data->get_technique(tech_transparent);
 	model_data->draw_normal_part(normal_part);
 }
-void geometry_member::release()
+void assimpmodel_resource_view::release()
 { 
+	/*
 	if (if_skinmesh == true)
 	{
 		skin_mesh *model_animation = static_cast<skin_mesh *>(model_data);
@@ -269,26 +334,9 @@ void geometry_member::release()
 	{
 		model_data->release();
 	}
+	*/
 };
-geometry_control::geometry_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need)
-{
-	device_pancy = device_need;
-	contex_pancy = contex_need;
-	list_model_assimp = new scene_geometry_list();
-	floor_need = new mesh_cubewithtargent(device_need, contex_need);
-	sky_need = new mesh_ball(device_need, contex_need, 50, 50);
-	grass_billboard = new mesh_billboard(device_need, contex_need);
-	
-
-	tex_floor = NULL;
-	tex_normal = NULL;
-	tex_skycube = NULL;
-
-	tex_grass = NULL;
-	tex_grassnormal = NULL;
-	tex_grassspec = NULL;
-}
-void geometry_member::update(XMFLOAT4X4 world_matrix_need, float delta_time)
+void assimpmodel_resource_view::update(XMFLOAT4X4 world_matrix_need, float delta_time)
 {
 	reset_world_matrix(world_matrix_need);
 	if (if_skinmesh == true)
@@ -301,16 +349,198 @@ void geometry_member::update(XMFLOAT4X4 world_matrix_need, float delta_time)
 		reset_bone_matrix(rec_bonematrix, rec_bone_num);
 	}
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~内置几何体~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+void buildin_geometry_resource_view::update(XMFLOAT4X4 world_matrix_need, float delta_time)
+{
+	reset_world_matrix(world_matrix_need);
+}
+buildin_geometry_resource_view::buildin_geometry_resource_view(Geometry_basic *model_input, std::string name_need)
+{
+	model_data = model_input;
+	geometry_name = name_need;
+	indexnum_geometry = -1;
+	XMStoreFloat4x4(&world_matrix, XMMatrixIdentity());
+}
+void buildin_geometry_resource_view::draw_full_geometry(ID3DX11EffectTechnique *tech_common)
+{
+	model_data->get_teque(tech_common);
+	model_data->show_mesh();
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~几何体管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+geometry_control::geometry_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need)
+{
+	device_pancy = device_need;
+	contex_pancy = contex_need;
+	list_model_resource = new geometry_resource_list<model_resource_data>();
+	list_model_assimp = new geometry_ResourceView_list<assimpmodel_resource_view>();
+	list_buildin_geometry_resource = new geometry_resource_list<BuiltIngeometry_resource_data>();
+	list_buildin_model_view = new geometry_ResourceView_list<buildin_geometry_resource_view>();
+	grass_billboard = new mesh_billboard(device_need, contex_need);
+	
+
+	tex_floor = NULL;
+	tex_normal = NULL;
+	tex_skycube = NULL;
+
+	tex_grass = NULL;
+	tex_grassnormal = NULL;
+	tex_grassspec = NULL;
+}
+HRESULT geometry_control::load_modelresource_from_file(char* filename, char* texture_path, bool if_animation,bool if_optimized,bool if_create_adj, int alpha_part_num, int*alpha_part_index, std::string resource_name, int &index_output)
+{
+	model_resource_data *data_check = list_model_resource->get_resource_by_name(resource_name);
+	if (data_check != NULL) 
+	{
+		MessageBox(0, L"find another assimp model resource which have a same name as Specified assimp model resource", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	model_resource_data data_need;
+	data_need.resource_name = resource_name;
+	if (!if_animation) 
+	{
+		data_need.if_skin = false;
+		data_need.data = new model_reader_assimp<point_with_tangent>(device_pancy, contex_pancy, filename, texture_path);
+	}
+	else 
+	{
+		data_need.if_skin = true;
+		data_need.data = new skin_mesh(device_pancy, contex_pancy, filename, texture_path);
+	}
+	HRESULT hr_need = data_need.data->model_create(if_create_adj, if_optimized, alpha_part_num, alpha_part_index);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model file error", L"tip", MB_OK);
+		return hr_need;
+	}
+	index_output = list_model_resource->add_resource(data_need);
+	return S_OK;
+}
+HRESULT geometry_control::add_assimp_modelview_by_name(std::string model_name,std::string model_view_name)
+{
+	
+	model_resource_data *data_need = list_model_resource->get_resource_by_name(model_name);
+	if (data_need == NULL)
+	{
+		MessageBox(0, L"could not find the Specified assimp model in resource list", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	assimpmodel_resource_view *rec_mesh_check = list_model_assimp->get_geometry_byname(model_view_name);
+	if (rec_mesh_check != NULL)
+	{
+		MessageBox(0, L"find another assimp model view which have a same name as Specified assimp model view", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	assimpmodel_resource_view *rec_mesh_castel = new assimpmodel_resource_view(data_need->data, data_need->if_skin, model_view_name);
+	list_model_assimp->add_new_geometry(*rec_mesh_castel);
+	delete rec_mesh_castel;
+	return S_OK;
+}
+HRESULT geometry_control::add_assimp_modelview_by_index(int model_ID, std::string model_view_name)
+{
+	model_resource_data *data_need = list_model_resource->get_resource_by_index(model_ID);
+	if (data_need == NULL) 
+	{
+		MessageBox(0, L"could not find the Specified assimp model in resource list", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	assimpmodel_resource_view *rec_mesh_castel = new assimpmodel_resource_view(data_need->data, data_need->if_skin, model_view_name);
+	list_model_assimp->add_new_geometry(*rec_mesh_castel);
+	delete rec_mesh_castel;
+	return S_OK;
+}
+assimpmodel_resource_view* geometry_control::get_assimp_ModelResourceView_by_name(std::string model_view_name) 
+{
+	return list_model_assimp->get_geometry_byname(model_view_name);
+}
+assimpmodel_resource_view* geometry_control::get_assimp_ModelResourceView_by_index(int model_view_idnex) 
+{
+	return list_model_assimp->get_geometry_byindex(model_view_idnex);
+}
+
+HRESULT geometry_control::init_buildin_geometry(Geometry_basic *data_in, std::string geometry_name, int &geometry_index)
+{
+	BuiltIngeometry_resource_data *data_check = list_buildin_geometry_resource->get_resource_by_name(geometry_name);
+	if (data_check != NULL)
+	{
+		MessageBox(0, L"find another buildin model resource which have a same name as Specified assimp model resource", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	BuiltIngeometry_resource_data data_need;
+	data_need.resource_name = geometry_name;
+	if (data_in == NULL) 
+	{
+		return E_FAIL;
+	}
+	data_need.data = data_in;
+	data_need.resource_index = list_buildin_geometry_resource->add_resource(data_need);
+	geometry_index = data_need.resource_index;
+	return S_OK;
+}
+HRESULT geometry_control::add_buildin_modelview_by_name(std::string model_name, std::string model_view_name)
+{
+	BuiltIngeometry_resource_data *data_need = list_buildin_geometry_resource->get_resource_by_name(model_name);
+	if (data_need == NULL)
+	{
+		MessageBox(0, L"could not find the Specified buildin model in resource list", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	buildin_geometry_resource_view *rec_mesh_check = list_buildin_model_view->get_geometry_byname(model_view_name);
+	if (rec_mesh_check != NULL)
+	{
+		MessageBox(0, L"find another assimp model view which have a same name as Specified buildin model view", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	buildin_geometry_resource_view *rec_mesh_castel = new buildin_geometry_resource_view(data_need->data, model_view_name);
+	list_buildin_model_view->add_new_geometry(*rec_mesh_castel);
+	delete rec_mesh_castel;
+	return S_OK;
+}
+HRESULT geometry_control::add_buildin_modelview_by_index(int model_ID, std::string model_view_name)
+{
+	BuiltIngeometry_resource_data *data_need = list_buildin_geometry_resource->get_resource_by_index(model_ID);
+	if (data_need == NULL)
+	{
+		MessageBox(0, L"could not find the Specified buildin model in resource list", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	buildin_geometry_resource_view *rec_mesh_castel = new buildin_geometry_resource_view(data_need->data, model_view_name);
+	list_buildin_model_view->add_new_geometry(*rec_mesh_castel);
+	delete rec_mesh_castel;
+	return S_OK;
+}
+buildin_geometry_resource_view* geometry_control::get_buildin_GeometryResourceView_by_name(std::string model_view_name) 
+{
+	return list_buildin_model_view->get_geometry_byname(model_view_name);
+}
+buildin_geometry_resource_view* geometry_control::get_buildin_GeometryResourceView_by_index(int model_view_idnex) 
+{
+	return list_buildin_model_view->get_geometry_byindex(model_view_idnex);
+}
+
 HRESULT geometry_control::create()
 {
 	HRESULT hr_need;
-	//盒子模型(地面)
+	int index_buildin_rec;
+	Geometry<point_with_tangent>  *floor_need = new mesh_cubewithtargent(device_pancy, contex_pancy);          //盒子模型
+	//盒子模型
 	hr_need = floor_need->create_object();
 	if (FAILED(hr_need))
 	{
 		MessageBox(0, L"load object error", L"tip", MB_OK);
 		return hr_need;
 	}
+	init_buildin_geometry(floor_need,"geometry_cube", index_buildin_rec);
+	add_buildin_modelview_by_index(index_buildin_rec,"geometry_floor");
+	Geometry<point_with_tangent>  *sky_need = new mesh_ball(device_pancy, contex_pancy, 50, 50);            //球体模型
+	//球体模型
+	hr_need = sky_need->create_object();
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load object error", L"tip", MB_OK);
+		return hr_need;
+	}
+	init_buildin_geometry(sky_need, "geometry_ball", index_buildin_rec);
+	add_buildin_modelview_by_index(index_buildin_rec, "geometry_sky");
 	//草地模型
 	hr_need = grass_billboard->create_object();
 	if (FAILED(hr_need))
@@ -318,16 +548,8 @@ HRESULT geometry_control::create()
 		MessageBox(0, L"load object error", L"tip", MB_OK);
 		return hr_need;
 	}
-	//球体模型(天空)
-	hr_need = sky_need->create_object();
-	if (FAILED(hr_need))
-	{
-		MessageBox(0, L"load object error", L"tip", MB_OK);
-		return hr_need;
-	}
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~填充几何体列表~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	model_reader_assimp<point_with_tangent> *castel_model;
-	skin_mesh           *yuri_animation_model;
+	/*
 	castel_model = new model_reader_assimp<point_with_tangent>(device_pancy, contex_pancy, "castelmodel\\castel.obj", "castelmodel\\");
 	yuri_animation_model = new skin_mesh(device_pancy, contex_pancy, "yurimodel_skin\\yuri.FBX", "yurimodel_skin\\");
 	//城堡模型
@@ -346,17 +568,25 @@ HRESULT geometry_control::create()
 		return hr_need;
 	}
 	//添加场景几何体部分
-	XMFLOAT4X4 world_matrix;
-	XMStoreFloat4x4(&world_matrix,XMMatrixIdentity());
-	geometry_member *rec_mesh_need = new geometry_member(yuri_animation_model, true, world_matrix, NULL, 0,"model_yuri",0);
+	//XMFLOAT4X4 world_matrix;
+	//XMStoreFloat4x4(&world_matrix,XMMatrixIdentity());
+	assimpmodel_resource_view *rec_mesh_need = new assimpmodel_resource_view(yuri_animation_model, true,"model_yuri");
 	material_list rec_tex;
 	yuri_animation_model->get_texture(&rec_tex, 3);
-	//geometry_member *rec_mesh_need_trans = new geometry_member(yuri_animation_model, true, true,3, world_matrix, NULL, 0, rec_tex.tex_diffuse_resource,"model_yuri", 0);
-	geometry_member *rec_mesh_castel = new geometry_member(castel_model, false, world_matrix, NULL, 0, "model_castel", 0);
-	list_model_assimp->add_new_geometry(rec_mesh_need);
+	//assimpmodel_resource_view *rec_mesh_need_trans = new assimpmodel_resource_view(yuri_animation_model, true, true,3, world_matrix, NULL, 0, rec_tex.tex_diffuse_resource,"model_yuri", 0);
+	assimpmodel_resource_view *rec_mesh_castel = new assimpmodel_resource_view(castel_model, false, "model_castel");
+	list_model_assimp->add_new_geometry(*rec_mesh_need);
 	//list_model_assimp->add_new_geometry(rec_mesh_need_trans);
-	list_model_assimp->add_new_geometry(rec_mesh_castel);
-
+	list_model_assimp->add_new_geometry(*rec_mesh_castel);
+	delete rec_mesh_need;
+	delete rec_mesh_castel;
+	*/
+	int index_model_rec;
+	load_modelresource_from_file("castelmodel\\castel.obj", "castelmodel\\",false,true,false,0,NULL,"castel_model_resource",index_model_rec);
+	add_assimp_modelview_by_index(index_model_rec,"model_castel");
+	int alpha_yuri[] = { 0,1,2,3 };
+	load_modelresource_from_file("yurimodel_skin\\yuri.FBX", "yurimodel_skin\\", true, false, false, 4, alpha_yuri, "yuri_model_resource", index_model_rec);
+	add_assimp_modelview_by_index(index_model_rec, "model_yuri");
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~纹理注册~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	hr_need = CreateDDSTextureFromFile(device_pancy, L"floor.dds", 0, &tex_floor, 0, 0);
 	if (FAILED(hr_need))
@@ -403,7 +633,9 @@ HRESULT geometry_control::create()
 }
 void geometry_control::release()
 {
-	floor_need->release();
+	list_model_resource->release();
+	list_buildin_geometry_resource->release();
+	//floor_need->release();
 	tex_floor->Release();
 	tex_normal->Release();
 	tex_skycube->Release();
@@ -411,121 +643,11 @@ void geometry_control::release()
 	//yuri_model->release();
 	//yuri_animation_model->release();
 	//castel_model->release();
-	sky_need->release();
+	//sky_need->release();
 	grass_billboard->release();
 	tex_grass->Release();
 	tex_grassnormal->Release();
 	tex_grassspec->Release();
-}
-
-scene_geometry_list::scene_geometry_list()
-{
-	head = NULL;
-	tail = NULL;
-	number_list = 0;
-}
-void scene_geometry_list::add_new_geometry(geometry_member *data_input)
-{
-	if (tail == NULL)
-	{
-		head = data_input;
-		tail = data_input;
-		tail->set_next_member(NULL);
-		tail->set_pre_member(NULL);
-	}
-	else
-	{
-		data_input->set_pre_member(tail);
-		tail->set_next_member(data_input);
-		tail = tail->get_next_member();
-	}
-	number_list += 1;
-}
-void scene_geometry_list::delete_geometry_byname(std::string name_input)
-{
-	geometry_member *find_ptr = head;
-	for (int i = 0; i < number_list; ++i)
-	{
-		std::string name = find_ptr->get_geometry_name();
-		if (name == name_input)
-		{
-			if (find_ptr->get_last_member() == NULL)
-			{
-				if (find_ptr->get_next_member() == NULL)
-				{
-					head = NULL;
-					tail = NULL;
-					delete find_ptr;
-					number_list -= 1;
-				}
-				else
-				{
-					head = find_ptr->get_next_member();
-					head->set_pre_member(NULL);
-					delete find_ptr;
-					number_list -= 1;
-				}
-			}
-			else
-			{
-				if (find_ptr->get_next_member() == NULL)
-				{
-					tail = find_ptr->get_last_member();
-					tail->set_next_member(NULL);
-					delete find_ptr;
-					number_list -= 1;
-				}
-				else
-				{
-					find_ptr->get_last_member()->set_next_member(find_ptr->get_next_member());
-					find_ptr->get_next_member()->set_pre_member(find_ptr->get_last_member());
-					delete find_ptr;
-					number_list -= 1;
-				}
-			}
-			break;
-		}
-		find_ptr = find_ptr->get_next_member();
-	}
-}
-geometry_member *scene_geometry_list::get_geometry_byname(std::string name_input)
-{
-	geometry_member *find_ptr = head;
-	for (int i = 0; i < number_list; ++i)
-	{
-		std::string name = find_ptr->get_geometry_name();
-		if (name == name_input)
-		{
-			return find_ptr;
-		}
-		find_ptr = find_ptr->get_next_member();
-	}
-	return NULL;
-}
-void scene_geometry_list::update_geometry_byname(std::string name_input, XMFLOAT4X4 world_matrix_need, float delta_time)
-{
-	geometry_member *find_ptr = head;
-	for (int i = 0; i < number_list; ++i)
-	{
-		std::string name = find_ptr->get_geometry_name();
-		if (name == name_input)
-		{
-			find_ptr->update(world_matrix_need, delta_time);
-			break;
-		}
-		find_ptr = find_ptr->get_next_member();
-	}
-}
-void scene_geometry_list::release()
-{
-	geometry_member *find_ptr = head;
-	for (int i = 0; i < number_list; ++i)
-	{
-		geometry_member *now_rec = find_ptr;
-		find_ptr = find_ptr->get_next_member();
-		now_rec->release();
-		delete now_rec;
-	}
 }
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~骨骼动画~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 skin_mesh::skin_mesh(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, char* filename, char* texture_path) : model_reader_assimp(device_need, contex_need, filename, texture_path)

@@ -13,7 +13,7 @@ d3d_pancy_basic::d3d_pancy_basic(HWND hwnd_need, UINT width_need, UINT hight_nee
 bool d3d_pancy_basic::init(HWND hwnd_need, UINT width_need, UINT hight_need)
 {
 	UINT create_flag = 0;
-	bool if_use_HIGHCARD = true;
+	bool if_use_HIGHCARD = false;
 	//debug格式下选择返回调试信息
 #if defined(DEBUG) || defined(_DEBUG)
 	create_flag = D3D11_CREATE_DEVICE_DEBUG;

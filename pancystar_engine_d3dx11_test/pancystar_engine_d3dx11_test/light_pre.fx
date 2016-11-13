@@ -14,12 +14,12 @@ cbuffer perobject
 	float4x4         world_matrix;     //世界变换
 	float4x4         normal_matrix;    //法线变换
 	float4x4         final_matrix;     //总变换
-	float4x4         shadowmap_matrix; //阴影贴图变换
+	float4x4         shadowmap_matrix[20]; //阴影贴图变换
 	float4x4         ssao_matrix;      //ssao变换
 };
 Texture2D        texture_diffuse;  //漫反射贴图
 Texture2D        texture_normal;   //法线贴图
-Texture2D        texture_shadow;   //阴影贴图
+Texture2DArray   texture_shadow;   //阴影贴图
 Texture2D        texture_ssao;     //ssao贴图
 SamplerState samTex
 {
@@ -65,7 +65,7 @@ DepthStencilState NoDepthWrites
 	DepthEnable = TRUE;
 	DepthWriteMask = ZERO;
 };
-float CalcShadowFactor(SamplerComparisonState samShadow, Texture2D shadowMap, float4 shadowPosH)
+float CalcShadowFactor(SamplerComparisonState samShadow, Texture2DArray shadowMap, int shadowtex_num, float4 shadowPosH)
 {
 	//归一化
 	shadowPosH.xyz /= shadowPosH.w;
@@ -93,7 +93,7 @@ float CalcShadowFactor(SamplerComparisonState samShadow, Texture2D shadowMap, fl
 		}
 		else
 		{
-			percentLit += shadowMap.SampleCmpLevelZero(samShadow, rec_pos, depth).r;
+			percentLit += shadowMap.SampleCmpLevelZero(samShadow, float3(rec_pos, shadowtex_num), depth).r;
 		}
 	}
 	return percentLit /= 9.0f;
@@ -123,7 +123,6 @@ struct VertexOut
 	float3 tangent       : TANGENT;        //顶点切向量
 	float2 tex           : TEXCOORD;       //纹理坐标
 	float3 position_bef  : POSITION;       //变换前的顶点坐标
-	float4 pos_shadow    : POSITION1;       //阴影顶点坐标
 	float4 pos_ssao      : POSITION2;       //阴影顶点坐标
 };
 VertexOut VS(Vertex_IN vin)
@@ -134,8 +133,7 @@ VertexOut VS(Vertex_IN vin)
 	vout.tangent = mul(float4(vin.tangent, 0.0f), normal_matrix).xyz;
 	vout.tex = vin.tex1;
 	vout.position_bef = mul(float4(vin.pos, 0.0f), world_matrix).xyz;
-	vout.pos_shadow = mul(float4(vin.pos, 1.0f), shadowmap_matrix);
-	vout.pos_ssao = mul(float4(vin.pos, 1.0f), ssao_matrix);
+	vout.pos_ssao = mul(float4(vout.position_bef, 1.0f), ssao_matrix);
 	return vout;
 }
 VertexOut VS_bone(Vertex_IN_bone vin)
@@ -165,9 +163,84 @@ VertexOut VS_bone(Vertex_IN_bone vin)
 	vout.tangent = mul(float4(tangentL, 0.0f), normal_matrix).xyz;
 	vout.tex = vin.tex1;
 	vout.position_bef = mul(float4(posL, 0.0f), world_matrix).xyz;
-	vout.pos_shadow = mul(float4(posL, 1.0f), shadowmap_matrix);
-	vout.pos_ssao = mul(float4(posL, 1.0f), ssao_matrix);
+	vout.pos_ssao = mul(float4(vout.position_bef, 1.0f), ssao_matrix);
 	return vout;
+}
+void compute_light(float3 position_need,float3 normal_need, float3 eye_direct, out float4 ambient,out float4 diffuse,out float4 spec)
+{
+	ambient = 0.0f;
+	diffuse = 0.0f;
+	spec = 0.0f;
+	float4 A = 0.0f, D = 0.0f, S = 0.0f;
+	//~~~~~~~~~~~~~~~~~~~世界空间着色~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	int count_all = 0;
+	for (uint i = 0; i < shadow_num.z; ++i)
+	{
+		float4 pos_shadow = mul(float4(position_need,1.0f), shadowmap_matrix[count_all]);
+		compute_spotlight(material_need, light_need[count_all], position_need, normal_need, eye_direct, A, D, S);
+		float rec_shadow = CalcShadowFactor(samShadow, texture_shadow, count_all, pos_shadow);
+		diffuse += (0.2f + 0.8f*rec_shadow)*D;
+		spec += (0.2f + 0.8f*rec_shadow)*S;
+		count_all += 1;
+	}
+	for (uint i = 0; i < light_num.x; ++i)
+	{
+		compute_dirlight(material_need, light_need[count_all], normal_need, eye_direct, A, D, S);
+		diffuse += D;
+		spec += S;
+		count_all += 1;
+	}
+	for (uint i = 0; i < light_num.y; ++i)
+	{
+		compute_pointlight(material_need, light_need[count_all], position_need, normal_need, position_view, A, D, S);
+		diffuse += D;
+		spec += S;
+		count_all += 1;
+	}
+	for (uint i = 0; i < light_num.z; ++i)
+	{
+		compute_spotlight(material_need, light_need[count_all], position_need, normal_need, eye_direct, A, D, S);
+		diffuse += D;
+		spec += S;
+		count_all += 1;
+	}
+}
+void compute_light_withoutshadow(float3 position_need, float3 normal_need, float3 eye_direct, out float4 ambient, out float4 diffuse, out float4 spec)
+{
+	ambient = 0.0f;
+	diffuse = 0.0f;
+	spec = 0.0f;
+	float4 A = 0.0f, D = 0.0f, S = 0.0f;
+	//~~~~~~~~~~~~~~~~~~~世界空间着色~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	int count_all = 0;
+	for (uint i = 0; i < shadow_num.z; ++i)
+	{
+		compute_spotlight(material_need, light_need[count_all], position_need, normal_need, eye_direct, A, D, S);
+		diffuse += D;
+		spec += S;
+		count_all += 1;
+	}
+	for (uint i = 0; i < light_num.x; ++i)
+	{
+		compute_dirlight(material_need, light_need[count_all], normal_need, eye_direct, A, D, S);
+		diffuse += D;
+		spec += S;
+		count_all += 1;
+	}
+	for (uint i = 0; i < light_num.y; ++i)
+	{
+		compute_pointlight(material_need, light_need[count_all], position_need, normal_need, position_view, A, D, S);
+		diffuse += D;
+		spec += S;
+		count_all += 1;
+	}
+	for (uint i = 0; i < light_num.z; ++i)
+	{
+		compute_spotlight(material_need, light_need[count_all], position_need, normal_need, eye_direct, A, D, S);
+		diffuse += D;
+		spec += S;
+		count_all += 1;
+	}
 }
 float4 PS(VertexOut pin) :SV_TARGET
 {
@@ -177,33 +250,8 @@ float4 PS(VertexOut pin) :SV_TARGET
 	float4 diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float4 spec = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float3 eye_direct = normalize(position_view - pin.position_bef.xyz);
-	//float3 eye_direct = normalize(position_view);
-	float4 A = 0.0f, D = 0.0f, S = 0.0f;
-	float4 A1 = 0.0f, D1 = 0.0f, S1 = 0.0f;
-	//compute_dirlight(material_need, dir_light_need[i], pin.normal, eye_direct, A1, D1, S1);
-	for (int i = 0; i < 2; ++i)
-	{
-		//方向光(direction light)
-		if (light_need[i].type.x == 0)
-		{
-			compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
-		}
-		//点光源(point light)
-		else if (light_need[i].type.x == 1)
-		{
-			compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
-		}
-		//聚光灯(spot light)
-		else
-		{
-			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
-		}
-		//环境光
-		ambient += A;
-		//无阴影光
-		diffuse += D;
-		spec += S;
-	}
+	compute_light(pin.position_bef,pin.normal, eye_direct, ambient, diffuse, spec);
+	ambient = 0.4f*float4(1.0f, 1.0f, 1.0f, 0.0f);
 	float4 final_color = ambient + diffuse + spec;
 	return final_color;
 }
@@ -215,35 +263,7 @@ float4 PS_withtex(VertexOut pin) :SV_TARGET
 	float4 diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float4 spec = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float3 eye_direct = normalize(position_view - pin.position_bef.xyz);
-	float4 A = 0.0f, D = 0.0f, S = 0.0f;
-	//~~~~~~~~~~~~~~~~~~~视线空间着色~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	//[unroll]
-	int count_all = 0;
-	for (uint i = 0; i < shadow_num.z; ++i)
-	{
-		count_all += 1;
-	}
-	for (uint i = 0; i < light_num.x; ++i)
-	{
-		count_all += 1;
-		compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
-		diffuse += D;
-		spec += S;
-	}
-	for (uint i = 0; i < light_num.y; ++i)
-	{
-		count_all += 1;
-		compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
-		diffuse += D;
-		spec += S;
-	}
-	for (uint i = 0; i < light_num.z; ++i)
-	{
-		count_all += 1;
-		compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
-		diffuse += D;
-		spec += S;
-	}
+	compute_light(pin.position_bef, pin.normal, eye_direct, ambient, diffuse, spec);
 	ambient = 0.4f*float4(1.0f, 1.0f, 1.0f, 0.0f);
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
@@ -269,35 +289,7 @@ float4 PS_withtexnormal(VertexOut pin) :SV_TARGET
 	float4 diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float4 spec = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float3 eye_direct = normalize(position_view - pin.position_bef.xyz);
-	float4 A = 0.0f, D = 0.0f, S = 0.0f;
-	//~~~~~~~~~~~~~~~~~~~视线空间着色~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	//[unroll]
-	int count_all = 0;
-	for (uint i = 0; i < shadow_num.z; ++i)
-	{
-		count_all += 1;
-	}
-	for (uint i = 0; i < light_num.x; ++i)
-	{
-		count_all += 1;
-		compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
-		diffuse += D;
-		spec += S;
-	}
-	for (uint i = 0; i < light_num.y; ++i)
-	{
-		count_all += 1;
-		compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
-		diffuse += D;
-		spec += S;
-	}
-	for (uint i = 0; i < light_num.z; ++i)
-	{
-		count_all += 1;
-		compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
-		diffuse += D;
-		spec += S;
-	}
+	compute_light(pin.position_bef, pin.normal, eye_direct, ambient, diffuse, spec);
 	ambient = 0.4f*float4(1.0f, 1.0f, 1.0f, 0.0f);
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
@@ -312,50 +304,8 @@ float4 PS_withshadow(VertexOut pin) :SV_TARGET
 	float4 diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float4 spec = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float3 eye_direct = normalize(position_view - pin.position_bef.xyz);
-	//float3 eye_direct = normalize(position_view);
-	float4 A = 0.0f, D = 0.0f, S = 0.0f;
-	float4 A1 = 0.0f, D1 = 0.0f, S1 = 0.0f;
-	//compute_dirlight(material_need, dir_light_need[i], pin.normal, eye_direct, A, D, S);
-	float rec_shadow = CalcShadowFactor(samShadow, texture_shadow, pin.pos_shadow);
-
-	for (int i = 0; i < 2; ++i)
-	{
-		//方向光(direction light)
-		if (light_need[i].type.x == 0)
-		{
-			compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
-		}
-		//点光源(point light)
-		else if (light_need[i].type.x == 1)
-		{
-			compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
-		}
-		//聚光灯(spot light)
-		else
-		{
-			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
-		}
-		//环境光
-		ambient += A;
-		//无阴影光
-		if (light_need[i].type.y == 0)
-		{
-			diffuse += D;
-			spec += S;
-		}
-		//shadowmap阴影
-		else if (light_need[i].type.y == 1)
-		{
-			diffuse += (0.2f + 0.8f*rec_shadow)*D;
-			spec += (0.2f + 0.8f*rec_shadow)*S;
-		}
-		//shadow volume阴影
-		else
-		{
-			diffuse += D;
-			spec += S;
-		}
-	}
+	compute_light(pin.position_bef, pin.normal, eye_direct, ambient, diffuse, spec);
+	ambient = 0.4f*float4(1.0f, 1.0f, 1.0f, 0.0f);
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
 	return final_color;
@@ -373,57 +323,12 @@ float4 PS_withshadownormal(VertexOut pin) :SV_TARGET
 	normal_map = 2 * normal_map - 1;                               //将向量从图片坐标[0,1]转换至真实坐标[-1,1]  
 	normal_map = normalize(mul(normal_map, T2W));                  //切线空间至世界空间
 	pin.normal = normal_map;
-
-
-
 	float4 ambient = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float4 diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float4 spec = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float3 eye_direct = normalize(position_view - pin.position_bef.xyz);
-	//float3 eye_direct = normalize(position_view);
-	float4 A = 0.0f, D = 0.0f, S = 0.0f;
-	float4 A1 = 0.0f, D1 = 0.0f, S1 = 0.0f;
-	//compute_dirlight(material_need, dir_light_need[i], pin.normal, eye_direct, A, D, S);
-	float rec_shadow = CalcShadowFactor(samShadow, texture_shadow, pin.pos_shadow);
-
-	for (int i = 0; i < 2; ++i)
-	{
-		//方向光(direction light)
-		if (light_need[i].type.x == 0)
-		{
-			compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
-		}
-		//点光源(point light)
-		else if (light_need[i].type.x == 1)
-		{
-			compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
-		}
-		//聚光灯(spot light)
-		else
-		{
-			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
-		}
-		//环境光
-		ambient += A;
-		//无阴影光
-		if (light_need[i].type.y == 0)
-		{
-			diffuse += D;
-			spec += S;
-		}
-		//shadowmap阴影
-		else if (light_need[i].type.y == 1)
-		{
-			diffuse += (0.2f + 0.8f*rec_shadow)*D;
-			spec += (0.2f + 0.8f*rec_shadow)*S;
-		}
-		//shadow volume阴影
-		else
-		{
-			diffuse += D;
-			spec += S;
-		}
-	}
+	compute_light(pin.position_bef, pin.normal, eye_direct, ambient, diffuse, spec);
+	ambient = 0.4f*float4(1.0f, 1.0f, 1.0f, 0.0f);
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
 	return final_color;
@@ -436,52 +341,10 @@ float4 PS_withshadowssao(VertexOut pin) :SV_TARGET
 	float4 diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float4 spec = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float3 eye_direct = normalize(position_view - pin.position_bef.xyz);
-	//float3 eye_direct = normalize(position_view);
-	float4 A = 0.0f, D = 0.0f, S = 0.0f;
-	float4 A1 = 0.0f, D1 = 0.0f, S1 = 0.0f;
-	//compute_dirlight(material_need, dir_light_need[i], pin.normal, eye_direct, A, D, S);
-	float rec_shadow = CalcShadowFactor(samShadow, texture_shadow, pin.pos_shadow);
-
 	pin.pos_ssao /= pin.pos_ssao.w;
 	float rec_ssao = texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
-	for (int i = 0; i < 2; ++i)
-	{
-		//方向光(direction light)
-		if (light_need[i].type.x == 0)
-		{
-			compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
-		}
-		//点光源(point light)
-		else if (light_need[i].type.x == 1)
-		{
-			compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
-		}
-		//聚光灯(spot light)
-		else
-		{
-			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
-		}
-		//环境光
-		ambient += A*(0.4f*rec_ssao + 0.6f);
-		//无阴影光
-		if (light_need[i].type.y == 0) 
-		{
-			diffuse += D;
-			spec += S;
-		}
-		//shadowmap阴影
-		else if (light_need[i].type.y == 1)
-		{
-			diffuse += (0.2f + 0.8f*rec_shadow)*D;
-			spec += (0.2f + 0.8f*rec_shadow)*S;
-		}
-		//shadow volume阴影
-		else 
-		{
-			diffuse += D;
-			spec += S;
-		}
-	}
+	compute_light(pin.position_bef, pin.normal, eye_direct, ambient, diffuse, spec);
+	ambient = 0.6f*rec_ssao*float4(1.0f, 1.0f, 1.0f, 0.0f);
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
 
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
@@ -507,59 +370,12 @@ float4 PS_withshadowssaonormal(VertexOut pin) :SV_TARGET
 	float4 diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float4 spec = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float3 eye_direct = normalize(position_view - pin.position_bef.xyz);
-	//float3 eye_direct = normalize(position_view);
-	float4 A = 0.0f, D = 0.0f, S = 0.0f;
-	float4 A1 = 0.0f, D1 = 0.0f, S1 = 0.0f;
-	//compute_dirlight(material_need, dir_light_need[i], pin.normal, eye_direct, A, D, S);
-	float rec_shadow = CalcShadowFactor(samShadow, texture_shadow, pin.pos_shadow);
-
 	pin.pos_ssao /= pin.pos_ssao.w;
 	float rec_ssao = texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
 
-	for (int i = 0; i < 2; ++i)
-	{
-		compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
-		diffuse += D;
-		spec += S;
-		/*
-		//方向光(direction light)
-		if (light_need[i].type.x == 0)
-		{
-			compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
-		}
-		//点光源(point light)
-		else if (light_need[i].type.x == 1)
-		{
-			compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
-		}
-		//聚光灯(spot light)
-		else
-		{
-			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
-		}
-		//环境光
-		ambient += A*(0.4f*rec_ssao + 0.6f);
-		//无阴影光
-		if (light_need[i].type.y == 0)
-		{
-			diffuse += D;
-			spec += S;
-		}
-		//shadowmap阴影
-		else if (light_need[i].type.y == 1)
-		{
-			diffuse += (0.2f + 0.8f*rec_shadow)*D;
-			spec += (0.2f + 0.8f*rec_shadow)*S;
-		}
-		//shadow volume阴影
-		else
-		{
-			diffuse += D;
-			spec += S;
-		}*/
-	}
+	compute_light(pin.position_bef, pin.normal, eye_direct, ambient, diffuse, spec);
+	ambient = 0.6f*rec_ssao*float4(1.0f, 1.0f, 1.0f, 0.0f);
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
-	//float4 tex_color = texture_diffuse.SampleLevel(samTex_liner, pin.tex,15);
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
 	final_color.a = tex_color.a;
 	return final_color;
@@ -585,53 +401,10 @@ float4 PS_alphasave(VertexOut pin) :SV_TARGET
 	float4 diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float4 spec = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float3 eye_direct = normalize(position_view - pin.position_bef.xyz);
-	//float3 eye_direct = normalize(position_view);
-	float4 A = 0.0f, D = 0.0f, S = 0.0f;
-	float4 A1 = 0.0f, D1 = 0.0f, S1 = 0.0f;
-	//compute_dirlight(material_need, dir_light_need[i], pin.normal, eye_direct, A, D, S);
-	float rec_shadow = CalcShadowFactor(samShadow, texture_shadow, pin.pos_shadow);
-
 	pin.pos_ssao /= pin.pos_ssao.w;
 	float rec_ssao = texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
-
-	for (int i = 0; i < 2; ++i)
-	{
-		//方向光(direction light)
-		if (light_need[i].type.x == 0)
-		{
-			compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
-		}
-		//点光源(point light)
-		else if (light_need[i].type.x == 1)
-		{
-			compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
-		}
-		//聚光灯(spot light)
-		else
-		{
-			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
-		}
-		//环境光
-		ambient += A*(0.8f*rec_ssao + 0.2f);
-		//无阴影光
-		if (light_need[i].type.y == 0)
-		{
-			diffuse += D;
-			spec += S;
-		}
-		//shadowmap阴影
-		else if (light_need[i].type.y == 1)
-		{
-			diffuse += (0.2f + 0.8f*rec_shadow)*D;
-			spec += (0.2f + 0.8f*rec_shadow)*S;
-		}
-		//shadow volume阴影
-		else
-		{
-			diffuse += D;
-			spec += S;
-		}
-	}
+	compute_light(pin.position_bef, pin.normal, eye_direct, ambient, diffuse, spec);
+	ambient = 0.6f*rec_ssao*float4(1.0f, 1.0f, 1.0f, 0.0f);
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
 	final_color.a = tex_color.a;
 	return tex_color;
@@ -657,53 +430,10 @@ float4 PS_alphatest(VertexOut pin) :SV_TARGET
 	float4 diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float4 spec = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float3 eye_direct = normalize(position_view - pin.position_bef.xyz);
-	//float3 eye_direct = normalize(position_view);
-	float4 A = 0.0f, D = 0.0f, S = 0.0f;
-	float4 A1 = 0.0f, D1 = 0.0f, S1 = 0.0f;
-	//compute_dirlight(material_need, dir_light_need[i], pin.normal, eye_direct, A, D, S);
-	float rec_shadow = CalcShadowFactor(samShadow, texture_shadow, pin.pos_shadow);
-
 	pin.pos_ssao /= pin.pos_ssao.w;
 	float rec_ssao = texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
-
-	for (int i = 0; i < 2; ++i)
-	{
-		//方向光(direction light)
-		if (light_need[i].type.x == 0)
-		{
-			compute_dirlight(material_need, light_need[i], pin.normal, eye_direct, A, D, S);
-		}
-		//点光源(point light)
-		else if (light_need[i].type.x == 1)
-		{
-			compute_pointlight(material_need, light_need[i], pin.position_bef, pin.normal, position_view, A, D, S);
-		}
-		//聚光灯(spot light)
-		else
-		{
-			compute_spotlight(material_need, light_need[i], pin.position_bef, pin.normal, eye_direct, A, D, S);
-		}
-		//环境光
-		ambient += A*(0.8f*rec_ssao + 0.2f);
-		//无阴影光
-		if (light_need[i].type.y == 0)
-		{
-			diffuse += D;
-			spec += S;
-		}
-		//shadowmap阴影
-		else if (light_need[i].type.y == 1)
-		{
-			diffuse += (0.2f + 0.8f*rec_shadow)*D;
-			spec += (0.2f + 0.8f*rec_shadow)*S;
-		}
-		//shadow volume阴影
-		else
-		{
-			diffuse += D;
-			spec += S;
-		}
-	}
+	compute_light(pin.position_bef, pin.normal, eye_direct, ambient, diffuse, spec);
+	ambient = 0.6f*rec_ssao*float4(1.0f, 1.0f, 1.0f, 0.0f);
 	float4 final_color = tex_color * (ambient + diffuse) + spec;
 	final_color.a = tex_color.a;
 	return tex_color;

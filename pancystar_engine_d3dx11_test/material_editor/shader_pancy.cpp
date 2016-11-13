@@ -389,14 +389,14 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 		MessageBox(0, L"an error when pre lighting shader created", L"tip", MB_OK);
 		return hr;
 	}
-	shader_GUI = new gui_simple(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\simplegui.cso", device_pancy, contex_pancy);
+	shader_GUI = new gui_simple(L"simplegui.cso", device_pancy, contex_pancy);
 	hr = shader_GUI->shder_create();
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"an error when gui shader created", L"tip", MB_OK);
 		return hr;
 	}
-	shader_find_clip = new find_clip(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\find_clip.cso", device_pancy, contex_pancy);
+	shader_find_clip = new find_clip(L"find_clip.cso", device_pancy, contex_pancy);
 	hr = shader_find_clip->shder_create();
 	if (FAILED(hr))
 	{

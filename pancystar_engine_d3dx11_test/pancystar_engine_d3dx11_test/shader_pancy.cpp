@@ -190,12 +190,11 @@ HRESULT light_pre::set_trans_all(XMFLOAT4X4 *mat_need)
 	}
 	return S_OK;
 }
-HRESULT light_pre::set_trans_shadow(XMFLOAT4X4 *mat_need)
+HRESULT light_pre::set_shadow_matrix(const XMFLOAT4X4* M, int cnt)
 {
-	HRESULT hr = set_matrix(shadowmap_matrix_handle, mat_need);;
-	if (hr != S_OK)
+	HRESULT hr = shadowmap_matrix_handle->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
+	if (FAILED(hr))
 	{
-		MessageBox(0, L"an error when setting shadowmap matrix", L"tip", MB_OK);
 		return hr;
 	}
 	return S_OK;

@@ -478,42 +478,23 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 	contex_pancy->RSSetViewports(1, &render_viewport);
 	set_normalspecdepth_target();
 	//绘制gbuffer
-	scene_geometry_list *list = geometry_lib->get_model_list();
-	geometry_member *now_rec = list->get_geometry_head();
+	//geometry_ResourceView_list *list = geometry_lib->get_model_list();
+	//assimpmodel_resource_view *now_rec = list->get_geometry_head();
 	auto *g_shader = shader_list->get_shader_gbufferdepthnormal();
-	for (int count = 0; count < list->get_geometry_num(); ++count)
+	for (int count = 0; count < geometry_lib->get_assimp_model_view_num(); ++count)
 	{
-		/*
-		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全部几何体渲染~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		//设置世界变换矩阵
-		XMFLOAT4X4 final_matrix;
-		XMStoreFloat4x4(&final_matrix, XMLoadFloat4x4(&now_rec->get_world_matrix()) * XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
-		g_shader->set_trans_world(&now_rec->get_world_matrix(), &view_matrix);
-		g_shader->set_trans_all(&final_matrix);
-		//set_normaldepth_mat(now_rec->get_world_matrix(), view_matrix, final_matrix);
-		if (now_rec->check_if_skin() == true)
+		//assimpmodel_resource_view *now_rec = list->get_geometry_byindex(count);
+		assimpmodel_resource_view *now_rec = geometry_lib->get_assimp_ModelResourceView_by_index(count);
+		for (int i = 0; i < now_rec->get_geometry_num(); ++i)
 		{
-		//设置骨骼矩阵
-		g_shader->set_bone_matrix(now_rec->get_bone_matrix(), now_rec->get_bone_num());
-		//set_bone_matrix(now_rec->get_bone_matrix(), now_rec->get_bone_num());
-		now_rec->draw_full_geometry(get_technique_skin());
-		}
-		else
-		{
-		now_rec->draw_full_geometry(get_technique());
-		}
-		*/
-		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~半透明部分渲染~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		for (int i = 0; i < now_rec->get_geometry_data()->get_meshnum(); ++i)
-		{
-			if (now_rec->get_geometry_data()->check_alpha(i))
+			if (now_rec->check_alpha(i))
 			{
 				//设置世界变换矩阵
 				//shadowmap_deal->set_shaderresource(now_rec._Ptr->get_world_matrix());
 				//设置半透明纹理
 				//shadowmap_deal->set_transparent_tex(now_rec._Ptr->get_transparent_tex());
 				material_list rec_mat;
-				now_rec->get_geometry_data()->get_texture(&rec_mat, i);
+				now_rec->get_texture(&rec_mat, i);
 				g_shader->set_texture(rec_mat.tex_diffuse_resource);
 				//set_transparent_tex(rec_mat.tex_diffuse_resource);
 				XMFLOAT4X4 final_matrix;
@@ -525,16 +506,16 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 				{
 					//set_bone_matrix(now_rec->get_bone_matrix(), now_rec->get_bone_num());
 					g_shader->set_bone_matrix(now_rec->get_bone_matrix(), now_rec->get_bone_num());
-					now_rec->draw_transparent_part(get_technique_skin_transparent(), i);
+					now_rec->draw_mesh_part(get_technique_skin_transparent(), i);
 				}
 				else
 				{
-					now_rec->draw_transparent_part(get_technique_transparent(), i);
+					now_rec->draw_mesh_part(get_technique_transparent(), i);
 				}
 			}
 
 		}
-		for (int i = 0; i < now_rec->get_geometry_data()->get_meshnormalnum(); ++i)
+		for (int i = 0; i < now_rec->get_geometry_normal_num(); ++i)
 		{
 			//设置世界变换矩阵
 			XMFLOAT4X4 final_matrix;
@@ -543,7 +524,7 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 			g_shader->set_trans_all(&final_matrix);
 			//设置法线贴图
 			material_list rec_mat;
-			now_rec->get_geometry_data()->get_normaltexture(&rec_mat, i);
+			now_rec->get_normaltexture(&rec_mat, i);
 			if (rec_mat.texture_normal_resource == NULL)
 			{
 				if (now_rec->check_if_skin() == true)
@@ -571,7 +552,7 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 				}
 			}
 		}
-		now_rec = now_rec->get_next_member();
+		//now_rec = now_rec->get_next_member();
 	}
 	//还原渲染状态
 	contex_pancy->RSSetState(0);

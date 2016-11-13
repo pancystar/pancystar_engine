@@ -177,6 +177,6 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="ClassDiagram2.cd" />
+    <None Include="ClassDiagram.cd" />
   </ItemGroup>
 </Project>

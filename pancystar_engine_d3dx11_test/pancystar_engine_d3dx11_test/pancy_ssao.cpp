@@ -35,8 +35,8 @@ void ssao_pancy::draw_ao(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix)
 	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
 	set_normaldepth_target(NULL);
 	//绘制环境光遮蔽
-	scene_geometry_list *list = geometry_lib->get_model_list();
-	geometry_member *now_rec = list->get_geometry_head();
+	geometry_ResourceView_list *list = geometry_lib->get_model_list();
+	assimpmodel_resource_view *now_rec = list->get_geometry_head();
 	for (int i = 0; i < list->get_geometry_num(); ++i)
 	{
 		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全部几何体的环境光遮蔽~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -71,11 +71,11 @@ void ssao_pancy::draw_ao(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix)
 				if (now_rec->check_if_skin() == true)
 				{
 					set_bone_matrix(now_rec->get_bone_matrix(), now_rec->get_bone_num());
-					now_rec->draw_transparent_part(get_technique_skin_transparent(),i);
+					now_rec->draw_mesh_part(get_technique_skin_transparent(),i);
 				}
 				else
 				{
-					now_rec->draw_transparent_part(get_technique_transparent(),i);
+					now_rec->draw_mesh_part(get_technique_transparent(),i);
 				}
 			}
 		}

@@ -76,8 +76,7 @@ struct HDR_fullscreen
 	XMFLOAT3 position;
 	XMFLOAT2 tex;
 };
-template<typename T>
-class Geometry
+class Geometry_basic 
 {
 protected:
 	ID3D11Buffer            *vertex_need;       //顶点缓冲区的数据
@@ -89,13 +88,20 @@ protected:
 	int                     all_vertex;         //几何体的顶点个数
 	int                     all_index;          //几何体的索引个数
 	bool                    if_init_adj;
+	UINT stride_vertex;
 public:
-	Geometry(ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	Geometry_basic(ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	void get_point_num(int &vertex_number, int &index_number) { vertex_number = all_vertex; index_number = all_index; };
 	void get_teque(ID3DX11EffectTechnique *teque_need);
 	virtual void show_mesh();
 	virtual void show_mesh_adj();
 	void release();
+};
+template<typename T>
+class Geometry : public Geometry_basic
+{
+public:
+	Geometry(ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	//直接创建几何体，顶点由内置函数init_point()生成。
 	virtual HRESULT create_object();
 	//根据外部顶点创建几何体。
@@ -112,7 +118,7 @@ protected:
 };
 //父类
 template<typename T>
-Geometry<T>::Geometry(ID3D11Device *device_need, ID3D11DeviceContext *contex_need)
+Geometry<T>::Geometry(ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :Geometry_basic(device_need, contex_need)
 {
 	device_pancy = device_need;
 	contex_pancy = contex_need;
@@ -122,11 +128,7 @@ Geometry<T>::Geometry(ID3D11Device *device_need, ID3D11DeviceContext *contex_nee
 	all_vertex = 0;
 	all_index = 0;
 	if_init_adj = false;
-}
-template<typename T>
-void Geometry<T>::get_teque(ID3DX11EffectTechnique *teque_need)
-{
-	teque_pancy = teque_need;
+	stride_vertex = sizeof(T);
 }
 template<typename T>
 HRESULT Geometry<T>::init_point(T *vertex, UINT *index)
@@ -198,58 +200,6 @@ HRESULT Geometry<T>::init_point(T *vertex, UINT *index)
 		free(adj_index);
 	}
 	return S_OK;
-}
-template<typename T>
-void Geometry<T>::show_mesh()
-{
-	UINT stride_need = sizeof(T);     //顶点结构的位宽
-	UINT offset_need = 0;                       //顶点结构的首地址偏移
-												//顶点缓存，索引缓存，绘图格式
-	contex_pancy->IASetVertexBuffers(0, 1, &vertex_need, &stride_need, &offset_need);
-	contex_pancy->IASetIndexBuffer(index_need, DXGI_FORMAT_R32_UINT, 0);
-	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	//选定绘制路径
-	D3DX11_TECHNIQUE_DESC techDesc;
-	teque_pancy->GetDesc(&techDesc);
-	for (UINT i = 0; i < techDesc.Passes; ++i)
-	{
-		teque_pancy->GetPassByIndex(i)->Apply(0, contex_pancy);
-		contex_pancy->DrawIndexed(all_index, 0, 0);
-	}
-}
-template<typename T>
-void Geometry<T>::show_mesh_adj()
-{
-	UINT stride_need = sizeof(T);     //顶点结构的位宽
-	UINT offset_need = 0;                       //顶点结构的首地址偏移
-												//顶点缓存，索引缓存，绘图格式
-	contex_pancy->IASetVertexBuffers(0, 1, &vertex_need, &stride_need, &offset_need);
-	contex_pancy->IASetIndexBuffer(indexadj_need, DXGI_FORMAT_R32_UINT, 0);
-	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ);
-	//选定绘制路径
-	D3DX11_TECHNIQUE_DESC techDesc;
-	teque_pancy->GetDesc(&techDesc);
-	for (UINT i = 0; i < techDesc.Passes; ++i)
-	{
-		teque_pancy->GetPassByIndex(i)->Apply(0, contex_pancy);
-		contex_pancy->DrawIndexed(all_index*2, 0, 0);
-	}
-}
-template<typename T>
-void Geometry<T>::release()
-{
-	if (vertex_need != NULL)
-	{
-		vertex_need->Release();
-	}
-	if (index_need != NULL)
-	{
-		index_need->Release();
-	}
-	if (indexadj_need != NULL)
-	{
-		indexadj_need->Release();
-	}
 }
 template<typename T>
 HRESULT Geometry<T>::create_object()

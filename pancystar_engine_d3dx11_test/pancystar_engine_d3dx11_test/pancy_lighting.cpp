@@ -138,10 +138,12 @@ void light_with_shadowmap::draw_shadow()
 	//contex_pancy->RSSetState(renderstate_lib->get_CULL_front_rs());
 	shadowmap_deal->set_renderstate(light_data.position, light_data.dir, cube_range, spot_light);
 	//绘制阴影
-	scene_geometry_list *list = geometry_lib->get_model_list();
-	geometry_member *now_rec = list->get_geometry_head();
-	for (int i = 0; i < list->get_geometry_num(); ++i)
+	//geometry_ResourceView_list *list = geometry_lib->get_model_list();
+	//assimpmodel_resource_view *now_rec = list->get_geometry_head();
+	for (int i = 0; i < geometry_lib->get_assimp_model_view_num(); ++i)
 	{
+		//assimpmodel_resource_view *now_rec = list->get_geometry_byindex(1);
+		assimpmodel_resource_view *now_rec = geometry_lib->get_assimp_ModelResourceView_by_index(1);
 		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全部几何体(不透明)的阴影~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		//设置世界变换矩阵
 		shadowmap_deal->set_shaderresource(now_rec->get_world_matrix());
@@ -155,12 +157,12 @@ void light_with_shadowmap::draw_shadow()
 			now_rec->draw_full_geometry(shadowmap_deal->get_technique());
 		}
 		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~半透明部分的阴影~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		for (int i = 0; i < now_rec->get_geometry_data()->get_meshnum(); ++i)
+		for (int i = 0; i < now_rec->get_geometry_num(); ++i)
 		{
-			if (now_rec->get_geometry_data()->check_alpha(i))
+			if (now_rec->check_alpha(i))
 			{
 				material_list rec_mat;
-				now_rec->get_geometry_data()->get_texture(&rec_mat, i);
+				now_rec->get_texture(&rec_mat, i);
 				//设置世界变换矩阵
 				shadowmap_deal->set_shaderresource(now_rec->get_world_matrix());
 				//设置半透明纹理
@@ -168,11 +170,11 @@ void light_with_shadowmap::draw_shadow()
 				if (now_rec->check_if_skin() == true)
 				{
 					shadowmap_deal->set_bone_matrix(now_rec->get_bone_matrix(), now_rec->get_bone_num());
-					now_rec->draw_transparent_part(shadowmap_deal->get_technique_skin_transparent(), i);
+					now_rec->draw_mesh_part(shadowmap_deal->get_technique_skin_transparent(), i);
 				}
 				else
 				{
-					now_rec->draw_transparent_part(shadowmap_deal->get_technique_transparent(), i);
+					now_rec->draw_mesh_part(shadowmap_deal->get_technique_transparent(), i);
 				}
 			}
 		}
@@ -216,7 +218,7 @@ void light_with_shadowvolume::build_shadow(ID3D11DepthStencilView* depth_input)
 			//设置半透明纹理
 			shadowvolume_deal->set_transparent_tex(now_rec._Ptr->get_transparent_tex());
 			*/
-			//now_rec._Ptr->draw_transparent_part(shadowvolume_deal->get_technique_transparent());
+			//now_rec._Ptr->draw_mesh_part(shadowvolume_deal->get_technique_transparent());
 	//	}
 	/*
 		//全部几何体的阴影
@@ -395,6 +397,7 @@ void light_control::update_and_setlight()
 	auto shader_deffered = shader_lib->get_shader_defferedlight_lightbuffer();
 	auto shader_pre = shader_lib->get_shader_prelight();
 	shader_deffered->set_shadow_matrix(mat_shadow, shadow_num);
+	shader_pre->set_shadow_matrix(mat_shadow, shadow_num);
 	//shader_deffered->set_shadow_tex(shadow_map_resource);
 	XMUINT3 shadownum = XMUINT3(count_shadow_dir, count_shadow_point, count_shadow_spot);
 	XMUINT3 lightnum = XMUINT3(count_light_dir, count_light_point, count_light_spot);

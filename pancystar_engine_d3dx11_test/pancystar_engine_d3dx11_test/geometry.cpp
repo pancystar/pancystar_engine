@@ -1,5 +1,67 @@
 #include<math.h>
 #include"geometry.h"
+//几何体访问父类
+Geometry_basic::Geometry_basic(ID3D11Device *device_need, ID3D11DeviceContext *contex_need)
+{
+	device_pancy = device_need;
+	contex_pancy = contex_need;
+	vertex_need = NULL;
+	index_need = NULL;
+	indexadj_need = NULL;
+	all_vertex = 0;
+	all_index = 0;
+	if_init_adj = false;
+}
+void Geometry_basic::get_teque(ID3DX11EffectTechnique *teque_need)
+{
+	teque_pancy = teque_need;
+}
+void Geometry_basic::show_mesh()
+{
+	UINT offset_need = 0;                       //顶点结构的首地址偏移
+												//顶点缓存，索引缓存，绘图格式
+	contex_pancy->IASetVertexBuffers(0, 1, &vertex_need, &stride_vertex, &offset_need);
+	contex_pancy->IASetIndexBuffer(index_need, DXGI_FORMAT_R32_UINT, 0);
+	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	//选定绘制路径
+	D3DX11_TECHNIQUE_DESC techDesc;
+	teque_pancy->GetDesc(&techDesc);
+	for (UINT i = 0; i < techDesc.Passes; ++i)
+	{
+		teque_pancy->GetPassByIndex(i)->Apply(0, contex_pancy);
+		contex_pancy->DrawIndexed(all_index, 0, 0);
+	}
+}
+void Geometry_basic::show_mesh_adj()
+{
+	UINT offset_need = 0;
+	contex_pancy->IASetVertexBuffers(0, 1, &vertex_need, &stride_vertex, &offset_need);
+	contex_pancy->IASetIndexBuffer(indexadj_need, DXGI_FORMAT_R32_UINT, 0);
+	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ);
+	//选定绘制路径
+	D3DX11_TECHNIQUE_DESC techDesc;
+	teque_pancy->GetDesc(&techDesc);
+	for (UINT i = 0; i < techDesc.Passes; ++i)
+	{
+		teque_pancy->GetPassByIndex(i)->Apply(0, contex_pancy);
+		contex_pancy->DrawIndexed(all_index * 2, 0, 0);
+	}
+}
+void Geometry_basic::release()
+{
+	if (vertex_need != NULL)
+	{
+		vertex_need->Release();
+	}
+	if (index_need != NULL)
+	{
+		index_need->Release();
+	}
+	if (indexadj_need != NULL)
+	{
+		indexadj_need->Release();
+	}
+}
 
 //心形
 mesh_heart::mesh_heart(ID3D11Device *device_need,ID3D11DeviceContext *contex_need,int circle_num_need,int vertex_percircle_need):Geometry(device_need,contex_need)

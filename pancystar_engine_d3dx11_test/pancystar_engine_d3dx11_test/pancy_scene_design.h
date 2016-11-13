@@ -23,7 +23,7 @@ protected:
 	pancy_input               *user_input;       // ‰»Î ‰≥ˆøÿ÷∆
 	pancy_camera              *scene_camera;     //–Èƒ‚…„œÒª˙
 	//shadow_basic           *shadowmap_part;
-	ssao_pancy                *ssao_part;
+	//ssao_pancy                *ssao_part;
 	//d3d_pancy_basic        *engine_state;
 	XMFLOAT4X4                view_matrix;
 	XMFLOAT4X4                proj_matrix;
@@ -44,7 +44,6 @@ public:
 	virtual HRESULT display() = 0;
 	virtual HRESULT display_enviroment() = 0;
 	virtual HRESULT display_nopost() = 0;
-	virtual HRESULT display_shadowao(bool if_shadow, bool if_ao) = 0;
 	virtual HRESULT update(float delta_time) = 0;
 	virtual HRESULT release() = 0;
 	void set_proj_matrix(XMFLOAT4X4 proj_mat_need);
@@ -57,17 +56,12 @@ protected:
 
 class scene_engine_test : public scene_root
 {
-	//vector<basic_lighting>                nonshadow_light_list;
-	//vector<light_with_shadowmap>          shadowmap_light_list;
-	//vector<light_with_shadowvolume>       shadowvalume_light_list;
 	particle_system<fire_point>           *particle_fire;
-
 public:
 	scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height);
 	HRESULT scene_create();
 	HRESULT display();
 	HRESULT display_nopost();
-	HRESULT display_shadowao(bool if_shadow, bool if_ao);
 	HRESULT display_enviroment();
 	HRESULT update(float delta_time);
 	HRESULT release();
@@ -78,8 +72,6 @@ private:
 	void show_castel(LPCSTR techname, LPCSTR technamenormal);
 	void show_castel_deffered(LPCSTR techname);
 	void show_lightsource();
-	void draw_shadowmap();
-	void draw_ssaomap();
 	void show_fire_particle();
 	void show_yuri_animation();
 	void show_yuri_animation_deffered();

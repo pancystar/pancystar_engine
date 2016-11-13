@@ -106,10 +106,10 @@ public:
 	HRESULT set_view_pos(XMFLOAT3 eye_pos);
 	HRESULT set_trans_world(XMFLOAT4X4 *mat_need);                          //设置世界变换
 	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);                            //设置总变换
-	HRESULT set_trans_shadow(XMFLOAT4X4 *mat_need);                         //设置阴影变换
+	HRESULT set_shadow_matrix(const XMFLOAT4X4* M, int cnt);		//设置阴影图变换矩阵
 	HRESULT set_trans_ssao(XMFLOAT4X4 *mat_need);                           //设置环境光变换
-	HRESULT set_light_num(XMUINT3 all_light_num);                   //设置光源数量
-	HRESULT set_shadow_num(XMUINT3 all_light_num);                  //设置光源数量
+	HRESULT set_light_num(XMUINT3 all_light_num);                           //设置光源(不带阴影)数量
+	HRESULT set_shadow_num(XMUINT3 all_light_num);                          //设置光源(附带阴影)数量
 	virtual HRESULT set_material(pancy_material material_in);				//设置材质
 	virtual HRESULT set_ssaotex(ID3D11ShaderResourceView *tex_in);			//设置ssaomap
 	virtual HRESULT set_shadowtex(ID3D11ShaderResourceView *tex_in);		//设置shadowmap

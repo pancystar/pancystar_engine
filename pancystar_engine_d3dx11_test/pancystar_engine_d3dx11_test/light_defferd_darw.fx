@@ -74,7 +74,7 @@ VertexOut VS_bone(Vertex_IN_bone vin)
 	vout.position_before = mul(float4(posL, 1.0f), world_matrix);
 	vout.position = mul(float4(posL, 1.0f), final_matrix);
 	vout.tex = vin.tex1;
-	vout.pos_ssao = mul(float4(posL, 1.0f), ssao_matrix);
+	vout.pos_ssao = mul(float4(vout.position_before,1.0f), ssao_matrix);
 	return vout;
 }
 VertexOut VS(Vertex_IN vin)
@@ -83,7 +83,7 @@ VertexOut VS(Vertex_IN vin)
 	vout.position_before = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
 	vout.position = mul(float4(vin.pos, 1.0f), final_matrix);
 	vout.tex = vin.tex1;
-	vout.pos_ssao = mul(float4(vin.pos, 1.0f), ssao_matrix);
+	vout.pos_ssao = mul(float4(vout.position_before, 1.0f), ssao_matrix);
 	return vout;
 }
 float4 PS(VertexOut pin) :SV_TARGET

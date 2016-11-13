@@ -1,0 +1,613 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="d3d_pancy_1" Collapsed="true">
+    <Position X="3.5" Y="11.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAACAAAQABAgCARAAABAAEAQCAAAAYgAAIEBAg=</HashCode>
+      <FileName>main.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="engine_windows_main" Collapsed="true">
+    <Position X="50.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>ABAAAAAAAAAgAAQBEAAAAACAAAEAAAAAAQYAQAgAAEQ=</HashCode>
+      <FileName>main.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shadow_basic" Collapsed="true">
+    <Position X="57.25" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>ECAAAAgBAECAaAABAQAAAACAAAACAoIgAIBAQAEICBE=</HashCode>
+      <FileName>engine_shadow.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="pancy_shadow_volume" Collapsed="true">
+    <Position X="53.75" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>ECAAAAABAAAAYQAJAAEAAAAABAgAAoIAAABQAAAAAAA=</HashCode>
+      <FileName>engine_shadow.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Geometry_basic" Collapsed="true">
+    <Position X="9" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAAggEAgAAAAAEAAAAFAAAAIYIAAAACAAgQCAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Geometry&lt;T&gt;" Collapsed="true">
+    <Position X="9" Y="4.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAQAAAAAAARAABAAAAAAiAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="mesh_comman&lt;T&gt;" Collapsed="true">
+    <Position X="12.5" Y="6.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAEQAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="mesh_mountain" Collapsed="true">
+    <Position X="14.75" Y="6.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAABAAAAAAAAAAAAAIQAAAAAABAAAAAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="mesh_cube" Collapsed="true">
+    <Position X="17" Y="6.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAEAAAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="mesh_ball" Collapsed="true">
+    <Position X="1.25" Y="6.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAACABAAAAAAAAAAQAAABAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="mesh_heart" Collapsed="true">
+    <Position X="3.5" Y="6.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAACAkBAAAQCAAAAAAgACAQABAAAAAAAAAAAAAAAAAQ=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="mesh_billboard" Collapsed="true">
+    <Position X="5.75" Y="6.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAgAAAAAAAAAACAAQAAAAAAAAAABAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="mesh_cubewithtargent" Collapsed="true">
+    <Position X="8" Y="6.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAIAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="mesh_square_tessellation" Collapsed="true">
+    <Position X="10.25" Y="6.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAgABAAAAAAAAAAAQAAAAAAAAAABAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="pancy_camera" Collapsed="true">
+    <Position X="57.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAJAAAAoAAAAAAAAAAEBAAEgRCIAAAAAAEAIEAAUQA=</HashCode>
+      <FileName>PancyCamera.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="pancy_input" Collapsed="true">
+    <Position X="50.25" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAIAAAAAACAECAAAMAGEAAAAEAAACQAAAAMAQAAA=</HashCode>
+      <FileName>PancyInput.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="d3d_pancy_basic" Collapsed="true">
+    <Position X="3.5" Y="10.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAgAAASAAAAAACAAAgAAAAQAQAEAAIYAAACCAAAEAAA=</HashCode>
+      <FileName>pancy_d3d11_basic.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="pancy_renderstate" Collapsed="true">
+    <Position X="52" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAQIAABAAAAAABAkwAYAACEAAAQIIIABFBACAAAQCA=</HashCode>
+      <FileName>pancy_DXrenderstate.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="basic_lighting" Collapsed="true">
+    <Position X="4.75" Y="7.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQgAAAgEABgCCAAIAAACAACACAMAIIAAAAAiQkQgIA=</HashCode>
+      <FileName>pancy_lighting.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="light_with_shadowmap" Collapsed="true">
+    <Position X="3.5" Y="8.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAAAEAAAAACABAAAQGAAAAAAAAAAABAAgAIAAA=</HashCode>
+      <FileName>pancy_lighting.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="light_with_shadowvolume" Collapsed="true">
+    <Position X="5.75" Y="8.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAACAAAAAAAAAAAAABAAAAAAAAAABAAABAQAAAgAA=</HashCode>
+      <FileName>pancy_lighting.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="light_control" Collapsed="true">
+    <Position X="55.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>kAAAgAgAAAAAAAAECCAAAAAABAAgAIIAABBAAggAIAA=</HashCode>
+      <FileName>pancy_lighting.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="assimp_basic" Collapsed="true">
+    <Position X="0.5" Y="7.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>kAABAgDAAEFBYEAkAAAAICBYBgEJhIYAAAgAAAgBAAA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="modelview_basic_assimp" Collapsed="true">
+    <Position X="0.5" Y="8.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>kAAAAACAAAAQAAAEAAAABAAAAAAAABIAAAAAAAABAAA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="model_reader_assimp&lt;T&gt;" Collapsed="true">
+    <Position X="0.5" Y="10.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAABAgAAAAAAQAAgAAAAACABAAABAAQAACAAAAAAAII=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="skin_mesh" Collapsed="true">
+    <Position X="0.5" Y="11.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>JCAsAoEQAAAAAxAQAIACQAYAAAABAAgAAAIAEAAgICA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="assimpmodel_resource_view" Collapsed="true">
+    <Position X="53.75" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAABAAAoASggAgBBAIAAAAACAACGAAICAiIAIAAECAA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="geometry_ResourceView_list" Collapsed="true">
+    <Position X="53.75" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAAIIAAAIAACAACQAAAAAAAAAEAAAAQAIAAAAA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="geometry_control" Collapsed="true">
+    <Position X="52" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EEIIAKQBIAEkAABAAAIEAAAAAAABIMIAAAhAEAIAAQA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="render_posttreatment_HDR" Collapsed="true">
+    <Position X="50.25" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>MgAAIAAhEGEAQBQFQAQREIBAAAEBCKIAggBAAAAghmU=</HashCode>
+      <FileName>pancy_posttreatment.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="render_posttreatment_SSR" Collapsed="true">
+    <Position X="52" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>MBQUAAYKQYBJQiAAJAoQAQBEwQoACZYABoFBBAAEgAA=</HashCode>
+      <FileName>pancy_posttreatment.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Pretreatment_gbuffer" Collapsed="true">
+    <Position X="57.25" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>ECoRkBIiScBEYSgFAAAwkEAAAAMAIYIQAIBQICEFjIA=</HashCode>
+      <FileName>pancy_pretreatment.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="scene_root" Collapsed="true">
+    <Position X="8.5" Y="7.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAEBgAICAhBAgABggAAICIAAAEACrIAAiAIAAgEhAg=</HashCode>
+      <FileName>pancy_scene_design.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="scene_engine_test" Collapsed="true">
+    <Position X="8.5" Y="8.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAACQAAASAAAJAAAgAABACEAAAUCAAEAACAAAABEAwA=</HashCode>
+      <FileName>pancy_scene_design.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ssao_pancy" Collapsed="true">
+    <Position X="50.25" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAQAYiZ5BAQCEABAAYAAAAAAACCIYRAoAAEgAAgIA=</HashCode>
+      <FileName>pancy_ssao.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="time_count" Collapsed="true">
+    <Position X="52" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>BAAAAEAEEDAAEAAgAACCAAEAAAAgAAAAJAAAgAAACEA=</HashCode>
+      <FileName>pancy_time_basic.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="particle_system&lt;T&gt;" Collapsed="true">
+    <Position X="55.5" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAIABAkCERAQCURCAAEAEAAAAAAgJIAAABiAAAEAAA=</HashCode>
+      <FileName>particle_system.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_basic" Collapsed="true">
+    <Position X="25.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EggAAAECAAAAIGAAAGABAAAEAAAAAIIAAAAAAAAAAEA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="light_pre" Collapsed="true">
+    <Position X="20.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAQCgMBAIABAAAAAERBABgFAECAEgBgAAgASAQABKA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="light_shadow" Collapsed="true">
+    <Position X="27.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAAAAAAAAEAAAABABAEAAAQgAAgAAgAAAQAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_gbufferdepthnormal_map" Collapsed="true">
+    <Position X="32" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAABAAAAIEAAABBABAFBACQAAAgAAgAAAQAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_ssaomap" Collapsed="true">
+    <Position X="36.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>MABACAAAAAAAAAwAEgABEAIEAAEAEAAAACgAAAAAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_ssaoblur" Collapsed="true">
+    <Position X="41" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>MABAAAAAAAAIAAAAAAABAAAEAAAAEAAAgABACAAABAg=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_reflect" Collapsed="true">
+    <Position X="45.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAgAAABAAAAAAAAAABBAAAFAACAAABAAAhEAAQAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="compute_averagelight" Collapsed="true">
+    <Position X="2.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAAASAAAAAJAEABECgEAAAAAAAAAAAAAAAIAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_HDRpreblur" Collapsed="true">
+    <Position X="7.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAQAAACAABABJgAABAgAEACAAAAIAAAAAAAAAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_HDRblur" Collapsed="true">
+    <Position X="11.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAAAAAIBAAAQAABAAAEAAAAAAAAAABAAAAABAg=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_HDRfinal" Collapsed="true">
+    <Position X="16.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAQAAACAABABJgBABAgAEACAAAAAAAABAAAAAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_particle" Collapsed="true">
+    <Position X="23" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EQAAAAABAAAAAARAEBABAACEABAQEAAAAAgAICwAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_fire" Collapsed="true">
+    <Position X="23" Y="3.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAEAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_shadow_volume" Collapsed="true">
+    <Position X="34.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAIAAAAAAABgAAAAAABBAAAFACCAAAAEAAgAAAQAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_shadow_volume_draw" Collapsed="true">
+    <Position X="38.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAAAAAAAAAAAAABAAAEAgAAAAAAAAgAAAQAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_grass" Collapsed="true">
+    <Position X="43.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAQIBAAAAEIEEAAABAAAEBAAAAABAAAgAAAQAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_resolvedepth" Collapsed="true">
+    <Position X="47.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAAAAAAAAAACAARCAAEQAAAAAAAAAEAAAAAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="light_defered_lightbuffer" Collapsed="true">
+    <Position X="5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAgCAEYAAAAAAQAgEARAAgEAEBAEAgAAAAACAEEBAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="light_defered_draw" Collapsed="true">
+    <Position X="9.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAEQAlIBAIAAAAAgAARhABAMAACAECBggAAACAQAAIA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ssr_reflect" Collapsed="true">
+    <Position X="14" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>MQBgCkABAAAAAAQAIAQFIAIMAAHAEADAACAACCEAIAE=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_save_cube" Collapsed="true">
+    <Position X="18.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAABAgAEAAAAAAAAAABECAEAAAAAgAAAIAAAAAAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_SSRblur" Collapsed="true">
+    <Position X="25.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAgAAAABAAEAAABgAAEAABAAAAABABAgAAAAAg=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_reflectfinal" Collapsed="true">
+    <Position X="29.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAAAAAAAAAgAADBAAAEAIBAAAACAAAAAAAAAAg=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="shader_control" Collapsed="true">
+    <Position X="55.5" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>NrAAABAoQAwAIAIAgCAUAABoICQACABAFAiGAgCgKBA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Struct Name="BoundingSphere" Collapsed="true">
+    <Position X="53.75" Y="4.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAIAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAIAAA=</HashCode>
+      <FileName>engine_shadow.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="simpletex_point" Collapsed="true">
+    <Position X="53.75" Y="7.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAIAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="pancy_point" Collapsed="true">
+    <Position X="53.75" Y="6.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAIAgAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="spirit_point" Collapsed="true">
+    <Position X="57.25" Y="7.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAIAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="point_with_tangent" Collapsed="true">
+    <Position X="55.5" Y="6.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAIAgAAAAgAAAAAAAAAgAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="point_withskin" Collapsed="true">
+    <Position X="57.25" Y="6.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAACAAAAgAAAAAAAAIAAIAgAAAAgAAAAAAAAAgAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="fire_point" Collapsed="true">
+    <Position X="55.5" Y="4.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAgAAAAEAAIAAAAAAAAQAAAQAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="sakura_point" Collapsed="true">
+    <Position X="52" Y="7.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAEAAAAAAAAAgAAAAEAAIAAAAAAAAQAAAQAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="tess_point" Collapsed="true">
+    <Position X="50.25" Y="8.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="HDR_fullscreen" Collapsed="true">
+    <Position X="57.25" Y="4.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAIAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="material_list" Collapsed="true">
+    <Position X="52" Y="5.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAgAAAAAgAAAAAAAAABAAAAAAAAAAAAAIIAAA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="meshview_list" Collapsed="true">
+    <Position X="57.25" Y="5.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAEAAAAAgAAAAIAAAAAAAAAA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="mesh_list&lt;T&gt;" Collapsed="true">
+    <Position X="55.5" Y="5.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAACEAAAAAgAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="skin_tree" Collapsed="true">
+    <Position X="55.5" Y="7.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAgAACAAAAAAAABABAAAQAAAAEAAAAAJAAAA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="vector_animation" Collapsed="true">
+    <Position X="52" Y="8.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAABAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="quaternion_animation" Collapsed="true">
+    <Position X="50.25" Y="7.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAABAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="matrix_animation" Collapsed="true">
+    <Position X="53.75" Y="5.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAABAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="animation_data" Collapsed="true">
+    <Position X="50.25" Y="4.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IAAAAAAAAACCAgAMAAAAACABAAAgAAAAEAAAAAIAAAA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="animation_set" Collapsed="true">
+    <Position X="52" Y="4.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAABCAAAAAAAAIAAAAAAAAAgAAIAAAA=</HashCode>
+      <FileName>pancy_model_import.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="pancy_light_basic" Collapsed="true">
+    <Position X="50.25" Y="6.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>QAAAAAAIACACCAAAAAAAIAoAAAAAAAAAAAAAAABIAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="material_handle" Collapsed="true">
+    <Position X="50.25" Y="5.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>QAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAABAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Struct Name="pancy_material" Collapsed="true">
+    <Position X="52" Y="6.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>QAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAABAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Enum Name="CullMode" Collapsed="true">
+    <Position X="50.25" Y="10" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAABAAAAAAAAAAAAIAAAAAAAAEAAAAAAAA=</HashCode>
+      <FileName>geometry.h</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="particle_use_type" Collapsed="true">
+    <Position X="53.75" Y="10" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAgAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>particle_system.h</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="light_type" Collapsed="true">
+    <Position X="52" Y="10" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AUCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="shadow_type" Collapsed="true">
+    <Position X="55.5" Y="10" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAIAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAE=</HashCode>
+      <FileName>shader_pancy.h</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Font Name="Microsoft YaHei UI" Size="9" />
+</ClassDiagram>
