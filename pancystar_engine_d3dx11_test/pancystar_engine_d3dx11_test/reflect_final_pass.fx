@@ -84,6 +84,7 @@ float4 PS(VertexOut pin) : SV_Target
 		reflect_color = 0.4f * reflect_color + final_blend;
 	}
 	float4 final_color = (1.0f - reflectance) * gInputImage.SampleLevel(samInputImage, pin.Tex, 0) + reflectance * reflect_color;
+	//float4 final_color = reflect_color;
 	final_color.a = 1.0f;
 	return final_color;
 }

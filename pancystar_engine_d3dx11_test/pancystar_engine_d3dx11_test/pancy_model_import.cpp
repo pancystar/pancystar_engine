@@ -286,369 +286,6 @@ void modelview_basic_assimp::draw_mesh_adj()
 	mesh_scene_view->show_mesh_adj();
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~assimp导入模型~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-assimpmodel_resource_view::assimpmodel_resource_view(assimp_basic *model_input, bool if_skin, std::string name_need)
-{
-	model_data = model_input;
-	if_skinmesh = if_skin;
-	//bone_matrix = matrix_bone;
-	bone_matrix = NULL;
-	bone_num = 0;
-	geometry_name = name_need;
-	indexnum_geometry = -1;
-	//next = NULL;
-	//pre = NULL;
-	//XMFLOAT4X4 world_matrix;
-	XMStoreFloat4x4(&world_matrix, XMMatrixIdentity());
-	//world_matrix = matrix_need;
-}
-void assimpmodel_resource_view::draw_full_geometry(ID3DX11EffectTechnique *tech_common)
-{
-	model_data->get_technique(tech_common);
-	model_data->draw_mesh();
-}
-void assimpmodel_resource_view::draw_full_geometry_adj(ID3DX11EffectTechnique *tech_common)
-{
-	model_data->get_technique(tech_common);
-	model_data->draw_mesh_adj();
-}
-void assimpmodel_resource_view::draw_mesh_part(ID3DX11EffectTechnique *tech_transparent,int transparent_part)
-{
-	model_data->get_technique(tech_transparent);
-	model_data->draw_part(transparent_part);
-}
-void assimpmodel_resource_view::draw_normal_part(ID3DX11EffectTechnique *tech_transparent, int normal_part)
-{
-	model_data->get_technique(tech_transparent);
-	model_data->draw_normal_part(normal_part);
-}
-void assimpmodel_resource_view::release()
-{ 
-	/*
-	if (if_skinmesh == true)
-	{
-		skin_mesh *model_animation = static_cast<skin_mesh *>(model_data);
-		model_animation->release_all();
-	}
-	else 
-	{
-		model_data->release();
-	}
-	*/
-};
-void assimpmodel_resource_view::update(XMFLOAT4X4 world_matrix_need, float delta_time)
-{
-	reset_world_matrix(world_matrix_need);
-	if (if_skinmesh == true)
-	{
-		skin_mesh *model_animation = static_cast<skin_mesh *>(model_data);
-		model_animation->update_animation(delta_time * 20);
-		model_animation->update_mesh_offset();
-		XMFLOAT4X4 *rec_bonematrix = model_animation->get_bone_matrix();
-		int rec_bone_num = model_animation->get_bone_num();
-		reset_bone_matrix(rec_bonematrix, rec_bone_num);
-	}
-}
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~内置几何体~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-void buildin_geometry_resource_view::update(XMFLOAT4X4 world_matrix_need, float delta_time)
-{
-	reset_world_matrix(world_matrix_need);
-}
-buildin_geometry_resource_view::buildin_geometry_resource_view(Geometry_basic *model_input, std::string name_need)
-{
-	model_data = model_input;
-	geometry_name = name_need;
-	indexnum_geometry = -1;
-	XMStoreFloat4x4(&world_matrix, XMMatrixIdentity());
-}
-void buildin_geometry_resource_view::draw_full_geometry(ID3DX11EffectTechnique *tech_common)
-{
-	model_data->get_teque(tech_common);
-	model_data->show_mesh();
-}
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~几何体管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-geometry_control::geometry_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need)
-{
-	device_pancy = device_need;
-	contex_pancy = contex_need;
-	list_model_resource = new geometry_resource_list<model_resource_data>();
-	list_model_assimp = new geometry_ResourceView_list<assimpmodel_resource_view>();
-	list_buildin_geometry_resource = new geometry_resource_list<BuiltIngeometry_resource_data>();
-	list_buildin_model_view = new geometry_ResourceView_list<buildin_geometry_resource_view>();
-	grass_billboard = new mesh_billboard(device_need, contex_need);
-	
-
-	tex_floor = NULL;
-	tex_normal = NULL;
-	tex_skycube = NULL;
-
-	tex_grass = NULL;
-	tex_grassnormal = NULL;
-	tex_grassspec = NULL;
-}
-HRESULT geometry_control::load_modelresource_from_file(char* filename, char* texture_path, bool if_animation,bool if_optimized,bool if_create_adj, int alpha_part_num, int*alpha_part_index, std::string resource_name, int &index_output)
-{
-	model_resource_data *data_check = list_model_resource->get_resource_by_name(resource_name);
-	if (data_check != NULL) 
-	{
-		MessageBox(0, L"find another assimp model resource which have a same name as Specified assimp model resource", L"tip", MB_OK);
-		return E_FAIL;
-	}
-	model_resource_data data_need;
-	data_need.resource_name = resource_name;
-	if (!if_animation) 
-	{
-		data_need.if_skin = false;
-		data_need.data = new model_reader_assimp<point_with_tangent>(device_pancy, contex_pancy, filename, texture_path);
-	}
-	else 
-	{
-		data_need.if_skin = true;
-		data_need.data = new skin_mesh(device_pancy, contex_pancy, filename, texture_path);
-	}
-	HRESULT hr_need = data_need.data->model_create(if_create_adj, if_optimized, alpha_part_num, alpha_part_index);
-	if (FAILED(hr_need))
-	{
-		MessageBox(0, L"load model file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	index_output = list_model_resource->add_resource(data_need);
-	return S_OK;
-}
-HRESULT geometry_control::add_assimp_modelview_by_name(std::string model_name,std::string model_view_name)
-{
-	
-	model_resource_data *data_need = list_model_resource->get_resource_by_name(model_name);
-	if (data_need == NULL)
-	{
-		MessageBox(0, L"could not find the Specified assimp model in resource list", L"tip", MB_OK);
-		return E_FAIL;
-	}
-	assimpmodel_resource_view *rec_mesh_check = list_model_assimp->get_geometry_byname(model_view_name);
-	if (rec_mesh_check != NULL)
-	{
-		MessageBox(0, L"find another assimp model view which have a same name as Specified assimp model view", L"tip", MB_OK);
-		return E_FAIL;
-	}
-	assimpmodel_resource_view *rec_mesh_castel = new assimpmodel_resource_view(data_need->data, data_need->if_skin, model_view_name);
-	list_model_assimp->add_new_geometry(*rec_mesh_castel);
-	delete rec_mesh_castel;
-	return S_OK;
-}
-HRESULT geometry_control::add_assimp_modelview_by_index(int model_ID, std::string model_view_name)
-{
-	model_resource_data *data_need = list_model_resource->get_resource_by_index(model_ID);
-	if (data_need == NULL) 
-	{
-		MessageBox(0, L"could not find the Specified assimp model in resource list", L"tip", MB_OK);
-		return E_FAIL;
-	}
-	assimpmodel_resource_view *rec_mesh_castel = new assimpmodel_resource_view(data_need->data, data_need->if_skin, model_view_name);
-	list_model_assimp->add_new_geometry(*rec_mesh_castel);
-	delete rec_mesh_castel;
-	return S_OK;
-}
-assimpmodel_resource_view* geometry_control::get_assimp_ModelResourceView_by_name(std::string model_view_name) 
-{
-	return list_model_assimp->get_geometry_byname(model_view_name);
-}
-assimpmodel_resource_view* geometry_control::get_assimp_ModelResourceView_by_index(int model_view_idnex) 
-{
-	return list_model_assimp->get_geometry_byindex(model_view_idnex);
-}
-
-HRESULT geometry_control::init_buildin_geometry(Geometry_basic *data_in, std::string geometry_name, int &geometry_index)
-{
-	BuiltIngeometry_resource_data *data_check = list_buildin_geometry_resource->get_resource_by_name(geometry_name);
-	if (data_check != NULL)
-	{
-		MessageBox(0, L"find another buildin model resource which have a same name as Specified assimp model resource", L"tip", MB_OK);
-		return E_FAIL;
-	}
-	BuiltIngeometry_resource_data data_need;
-	data_need.resource_name = geometry_name;
-	if (data_in == NULL) 
-	{
-		return E_FAIL;
-	}
-	data_need.data = data_in;
-	data_need.resource_index = list_buildin_geometry_resource->add_resource(data_need);
-	geometry_index = data_need.resource_index;
-	return S_OK;
-}
-HRESULT geometry_control::add_buildin_modelview_by_name(std::string model_name, std::string model_view_name)
-{
-	BuiltIngeometry_resource_data *data_need = list_buildin_geometry_resource->get_resource_by_name(model_name);
-	if (data_need == NULL)
-	{
-		MessageBox(0, L"could not find the Specified buildin model in resource list", L"tip", MB_OK);
-		return E_FAIL;
-	}
-	buildin_geometry_resource_view *rec_mesh_check = list_buildin_model_view->get_geometry_byname(model_view_name);
-	if (rec_mesh_check != NULL)
-	{
-		MessageBox(0, L"find another assimp model view which have a same name as Specified buildin model view", L"tip", MB_OK);
-		return E_FAIL;
-	}
-	buildin_geometry_resource_view *rec_mesh_castel = new buildin_geometry_resource_view(data_need->data, model_view_name);
-	list_buildin_model_view->add_new_geometry(*rec_mesh_castel);
-	delete rec_mesh_castel;
-	return S_OK;
-}
-HRESULT geometry_control::add_buildin_modelview_by_index(int model_ID, std::string model_view_name)
-{
-	BuiltIngeometry_resource_data *data_need = list_buildin_geometry_resource->get_resource_by_index(model_ID);
-	if (data_need == NULL)
-	{
-		MessageBox(0, L"could not find the Specified buildin model in resource list", L"tip", MB_OK);
-		return E_FAIL;
-	}
-	buildin_geometry_resource_view *rec_mesh_castel = new buildin_geometry_resource_view(data_need->data, model_view_name);
-	list_buildin_model_view->add_new_geometry(*rec_mesh_castel);
-	delete rec_mesh_castel;
-	return S_OK;
-}
-buildin_geometry_resource_view* geometry_control::get_buildin_GeometryResourceView_by_name(std::string model_view_name) 
-{
-	return list_buildin_model_view->get_geometry_byname(model_view_name);
-}
-buildin_geometry_resource_view* geometry_control::get_buildin_GeometryResourceView_by_index(int model_view_idnex) 
-{
-	return list_buildin_model_view->get_geometry_byindex(model_view_idnex);
-}
-
-HRESULT geometry_control::create()
-{
-	HRESULT hr_need;
-	int index_buildin_rec;
-	Geometry<point_with_tangent>  *floor_need = new mesh_cubewithtargent(device_pancy, contex_pancy);          //盒子模型
-	//盒子模型
-	hr_need = floor_need->create_object();
-	if (FAILED(hr_need))
-	{
-		MessageBox(0, L"load object error", L"tip", MB_OK);
-		return hr_need;
-	}
-	init_buildin_geometry(floor_need,"geometry_cube", index_buildin_rec);
-	add_buildin_modelview_by_index(index_buildin_rec,"geometry_floor");
-	Geometry<point_with_tangent>  *sky_need = new mesh_ball(device_pancy, contex_pancy, 50, 50);            //球体模型
-	//球体模型
-	hr_need = sky_need->create_object();
-	if (FAILED(hr_need))
-	{
-		MessageBox(0, L"load object error", L"tip", MB_OK);
-		return hr_need;
-	}
-	init_buildin_geometry(sky_need, "geometry_ball", index_buildin_rec);
-	add_buildin_modelview_by_index(index_buildin_rec, "geometry_sky");
-	//草地模型
-	hr_need = grass_billboard->create_object();
-	if (FAILED(hr_need))
-	{
-		MessageBox(0, L"load object error", L"tip", MB_OK);
-		return hr_need;
-	}
-	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~填充几何体列表~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	/*
-	castel_model = new model_reader_assimp<point_with_tangent>(device_pancy, contex_pancy, "castelmodel\\castel.obj", "castelmodel\\");
-	yuri_animation_model = new skin_mesh(device_pancy, contex_pancy, "yurimodel_skin\\yuri.FBX", "yurimodel_skin\\");
-	//城堡模型
-	hr_need = castel_model->model_create(false, true, 0, NULL);
-	if (FAILED(hr_need))
-	{
-		MessageBox(0, L"load model file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	//不来方夕莉
-	int alpha_yuri[] = { 0,1,2,3 };
-	hr_need = yuri_animation_model->model_create(false, false, 4, alpha_yuri);
-	if (FAILED(hr_need))
-	{
-		MessageBox(0, L"load model file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	//添加场景几何体部分
-	//XMFLOAT4X4 world_matrix;
-	//XMStoreFloat4x4(&world_matrix,XMMatrixIdentity());
-	assimpmodel_resource_view *rec_mesh_need = new assimpmodel_resource_view(yuri_animation_model, true,"model_yuri");
-	material_list rec_tex;
-	yuri_animation_model->get_texture(&rec_tex, 3);
-	//assimpmodel_resource_view *rec_mesh_need_trans = new assimpmodel_resource_view(yuri_animation_model, true, true,3, world_matrix, NULL, 0, rec_tex.tex_diffuse_resource,"model_yuri", 0);
-	assimpmodel_resource_view *rec_mesh_castel = new assimpmodel_resource_view(castel_model, false, "model_castel");
-	list_model_assimp->add_new_geometry(*rec_mesh_need);
-	//list_model_assimp->add_new_geometry(rec_mesh_need_trans);
-	list_model_assimp->add_new_geometry(*rec_mesh_castel);
-	delete rec_mesh_need;
-	delete rec_mesh_castel;
-	*/
-	int index_model_rec;
-	load_modelresource_from_file("castelmodel\\castel.obj", "castelmodel\\",false,true,false,0,NULL,"castel_model_resource",index_model_rec);
-	add_assimp_modelview_by_index(index_model_rec,"model_castel");
-	int alpha_yuri[] = { 0,1,2,3 };
-	load_modelresource_from_file("yurimodel_skin\\yuri.FBX", "yurimodel_skin\\", true, false, false, 4, alpha_yuri, "yuri_model_resource", index_model_rec);
-	add_assimp_modelview_by_index(index_model_rec, "model_yuri");
-	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~纹理注册~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	hr_need = CreateDDSTextureFromFile(device_pancy, L"floor.dds", 0, &tex_floor, 0, 0);
-	if (FAILED(hr_need))
-	{
-		MessageBox(0, L"load texture file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	hr_need = CreateDDSTextureFromFile(device_pancy, L"floor_n.dds", 0, &tex_normal, 0, 0);
-	if (FAILED(hr_need))
-	{
-		MessageBox(0, L"load texture file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	hr_need = CreateDDSTextureFromFile(device_pancy, L"Texture_cube.dds", 0, &tex_skycube, 0, 0);
-	if (FAILED(hr_need))
-	{
-		MessageBox(0, L"load texture file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc1;
-	tex_skycube->GetDesc(&srvDesc1);
-	hr_need = CreateDDSTextureFromFileEx(device_pancy, contex_pancy, L"RoughBlades.dds", 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0., false, NULL, &tex_grass);
-	//hr_need = CreateDDSTextureFromFile(device_pancy, , 0, &tex_grass, 0, 0);
-	if (FAILED(hr_need))
-	{
-		MessageBox(0, L"load texture file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	hr_need = CreateDDSTextureFromFileEx(device_pancy, contex_pancy, L"RoughBlades_Normal.dds", 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0., false, NULL, &tex_grassnormal);
-	//CreateDDSTextureFromFile(device_pancy, L"RoughBlades_Normal.dds", 0, &tex_grassnormal, 0, 0);
-	if (FAILED(hr_need))
-	{
-		MessageBox(0, L"load texture file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	hr_need = CreateDDSTextureFromFileEx(device_pancy, contex_pancy, L"RoughBlades_Spec.dds", 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0., false, NULL, &tex_grassspec);
-	//CreateDDSTextureFromFile(device_pancy, L"RoughBlades_Spec.dds", 0, &tex_grassspec, 0, 0);
-	if (FAILED(hr_need))
-	{
-		MessageBox(0, L"load texture file error", L"tip", MB_OK);
-		return hr_need;
-	}
-	return S_OK;
-}
-void geometry_control::release()
-{
-	list_model_resource->release();
-	list_buildin_geometry_resource->release();
-	//floor_need->release();
-	tex_floor->Release();
-	tex_normal->Release();
-	tex_skycube->Release();
-	list_model_assimp->release();
-	//yuri_model->release();
-	//yuri_animation_model->release();
-	//castel_model->release();
-	//sky_need->release();
-	grass_billboard->release();
-	tex_grass->Release();
-	tex_grassnormal->Release();
-	tex_grassspec->Release();
-}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~骨骼动画~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 skin_mesh::skin_mesh(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, char* filename, char* texture_path) : model_reader_assimp(device_need, contex_need, filename, texture_path)
 {
@@ -1256,4 +893,315 @@ void skin_mesh::Get_quatMatrix(XMFLOAT4X4 &resMatrix, quaternion_animation& pOut
 	resMatrix._24 = 0.0f;
 	resMatrix._34 = 0.0f;
 	resMatrix._44 = 1.0f;
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~assimp导入模型~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+assimpmodel_resource_view::assimpmodel_resource_view(assimp_basic *model_input, bool if_skin, std::string name_need)
+{
+	model_data = model_input;
+	if_skinmesh = if_skin;
+	//bone_matrix = matrix_bone;
+	bone_matrix = NULL;
+	bone_num = 0;
+	geometry_name = name_need;
+	indexnum_geometry = -1;
+	//next = NULL;
+	//pre = NULL;
+	//XMFLOAT4X4 world_matrix;
+	XMStoreFloat4x4(&world_matrix, XMMatrixIdentity());
+	//world_matrix = matrix_need;
+}
+void assimpmodel_resource_view::draw_full_geometry(ID3DX11EffectTechnique *tech_common)
+{
+	model_data->get_technique(tech_common);
+	model_data->draw_mesh();
+}
+void assimpmodel_resource_view::draw_full_geometry_adj(ID3DX11EffectTechnique *tech_common)
+{
+	model_data->get_technique(tech_common);
+	model_data->draw_mesh_adj();
+}
+void assimpmodel_resource_view::draw_mesh_part(ID3DX11EffectTechnique *tech_transparent,int transparent_part)
+{
+	model_data->get_technique(tech_transparent);
+	model_data->draw_part(transparent_part);
+}
+void assimpmodel_resource_view::draw_normal_part(ID3DX11EffectTechnique *tech_transparent, int normal_part)
+{
+	model_data->get_technique(tech_transparent);
+	model_data->draw_normal_part(normal_part);
+}
+void assimpmodel_resource_view::release()
+{ 
+	/*
+	if (if_skinmesh == true)
+	{
+		skin_mesh *model_animation = static_cast<skin_mesh *>(model_data);
+		model_animation->release_all();
+	}
+	else 
+	{
+		model_data->release();
+	}
+	*/
+};
+void assimpmodel_resource_view::update(XMFLOAT4X4 world_matrix_need, float delta_time)
+{
+	reset_world_matrix(world_matrix_need);
+	if (if_skinmesh == true)
+	{
+		skin_mesh *model_animation = static_cast<skin_mesh *>(model_data);
+		model_animation->update_animation(delta_time * 20);
+		model_animation->update_mesh_offset();
+		XMFLOAT4X4 *rec_bonematrix = model_animation->get_bone_matrix();
+		int rec_bone_num = model_animation->get_bone_num();
+		reset_bone_matrix(rec_bonematrix, rec_bone_num);
+	}
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~内置几何体~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+void buildin_geometry_resource_view::update(XMFLOAT4X4 world_matrix_need, float delta_time)
+{
+	reset_world_matrix(world_matrix_need);
+}
+buildin_geometry_resource_view::buildin_geometry_resource_view(Geometry_basic *model_input, std::string name_need)
+{
+	model_data = model_input;
+	geometry_name = name_need;
+	indexnum_geometry = -1;
+	texture_need = new material_list();
+	XMStoreFloat4x4(&world_matrix, XMMatrixIdentity());
+}
+void buildin_geometry_resource_view::draw_full_geometry(ID3DX11EffectTechnique *tech_common)
+{
+	model_data->get_teque(tech_common);
+	model_data->show_mesh();
+}
+void buildin_geometry_resource_view::release() 
+{
+	delete texture_need;
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~几何体管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+geometry_control::geometry_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need)
+{
+	device_pancy = device_need;
+	contex_pancy = contex_need;
+	list_model_resource = new pancy_resource_list<model_resource_data>();
+	list_model_assimp = new geometry_ResourceView_list<assimpmodel_resource_view>();
+	list_buildin_geometry_resource = new pancy_resource_list<BuiltIngeometry_resource_data>();
+	list_buildin_model_view = new geometry_ResourceView_list<buildin_geometry_resource_view>();
+	grass_billboard = new mesh_billboard(device_need, contex_need);
+	list_texture_use = new pancy_resource_list<texture_pack>();
+	/*
+	tex_floor = NULL;
+	tex_normal = NULL;
+	tex_skycube = NULL;
+
+	tex_grass = NULL;
+	tex_grassnormal = NULL;
+	tex_grassspec = NULL;
+	*/
+}
+HRESULT geometry_control::load_modelresource_from_file(char* filename, char* texture_path, bool if_animation,bool if_optimized,bool if_create_adj, int alpha_part_num, int*alpha_part_index, std::string resource_name, int &index_output)
+{
+	model_resource_data *data_check = list_model_resource->get_resource_by_name(resource_name);
+	if (data_check != NULL) 
+	{
+		MessageBox(0, L"find another assimp model resource which have a same name as Specified assimp model resource", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	model_resource_data data_need;
+	data_need.resource_name = resource_name;
+	if (!if_animation) 
+	{
+		data_need.if_skin = false;
+		data_need.data = new model_reader_assimp<point_with_tangent>(device_pancy, contex_pancy, filename, texture_path);
+	}
+	else 
+	{
+		data_need.if_skin = true;
+		data_need.data = new skin_mesh(device_pancy, contex_pancy, filename, texture_path);
+	}
+	HRESULT hr_need = data_need.data->model_create(if_create_adj, if_optimized, alpha_part_num, alpha_part_index);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model file error", L"tip", MB_OK);
+		return hr_need;
+	}
+	index_output = list_model_resource->add_resource(data_need);
+	return S_OK;
+}
+HRESULT geometry_control::add_assimp_modelview_by_name(std::string model_name,std::string model_view_name)
+{
+	
+	model_resource_data *data_need = list_model_resource->get_resource_by_name(model_name);
+	if (data_need == NULL)
+	{
+		MessageBox(0, L"could not find the Specified assimp model in resource list", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	assimpmodel_resource_view *rec_mesh_check = list_model_assimp->get_geometry_byname(model_view_name);
+	if (rec_mesh_check != NULL)
+	{
+		MessageBox(0, L"find another assimp model view which have a same name as Specified assimp model view", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	assimpmodel_resource_view *rec_mesh_castel = new assimpmodel_resource_view(data_need->data, data_need->if_skin, model_view_name);
+	list_model_assimp->add_new_geometry(*rec_mesh_castel);
+	delete rec_mesh_castel;
+	return S_OK;
+}
+HRESULT geometry_control::add_assimp_modelview_by_index(int model_ID, std::string model_view_name)
+{
+	model_resource_data *data_need = list_model_resource->get_resource_by_index(model_ID);
+	if (data_need == NULL) 
+	{
+		MessageBox(0, L"could not find the Specified assimp model in resource list", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	assimpmodel_resource_view *rec_mesh_castel = new assimpmodel_resource_view(data_need->data, data_need->if_skin, model_view_name);
+	list_model_assimp->add_new_geometry(*rec_mesh_castel);
+	delete rec_mesh_castel;
+	return S_OK;
+}
+assimpmodel_resource_view* geometry_control::get_assimp_ModelResourceView_by_name(std::string model_view_name) 
+{
+	return list_model_assimp->get_geometry_byname(model_view_name);
+}
+assimpmodel_resource_view* geometry_control::get_assimp_ModelResourceView_by_index(int model_view_idnex) 
+{
+	return list_model_assimp->get_geometry_byindex(model_view_idnex);
+}
+
+HRESULT geometry_control::init_buildin_geometry(Geometry_basic *data_in, std::string geometry_name, int &geometry_index)
+{
+	BuiltIngeometry_resource_data *data_check = list_buildin_geometry_resource->get_resource_by_name(geometry_name);
+	if (data_check != NULL)
+	{
+		MessageBox(0, L"find another buildin model resource which have a same name as Specified assimp model resource", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	BuiltIngeometry_resource_data data_need;
+	data_need.resource_name = geometry_name;
+	if (data_in == NULL) 
+	{
+		return E_FAIL;
+	}
+	data_need.data = data_in;
+	data_need.resource_index = list_buildin_geometry_resource->add_resource(data_need);
+	geometry_index = data_need.resource_index;
+	return S_OK;
+}
+HRESULT geometry_control::add_buildin_modelview_by_name(std::string model_name, std::string model_view_name)
+{
+	BuiltIngeometry_resource_data *data_need = list_buildin_geometry_resource->get_resource_by_name(model_name);
+	if (data_need == NULL)
+	{
+		MessageBox(0, L"could not find the Specified buildin model in resource list", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	buildin_geometry_resource_view *rec_mesh_check = list_buildin_model_view->get_geometry_byname(model_view_name);
+	if (rec_mesh_check != NULL)
+	{
+		MessageBox(0, L"find another assimp model view which have a same name as Specified buildin model view", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	buildin_geometry_resource_view *rec_mesh_castel = new buildin_geometry_resource_view(data_need->data, model_view_name);
+	list_buildin_model_view->add_new_geometry(*rec_mesh_castel);
+	delete rec_mesh_castel;
+	return S_OK;
+}
+HRESULT geometry_control::add_buildin_modelview_by_index(int model_ID, std::string model_view_name)
+{
+	BuiltIngeometry_resource_data *data_need = list_buildin_geometry_resource->get_resource_by_index(model_ID);
+	if (data_need == NULL)
+	{
+		MessageBox(0, L"could not find the Specified buildin model in resource list", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	buildin_geometry_resource_view *rec_mesh_castel = new buildin_geometry_resource_view(data_need->data, model_view_name);
+	list_buildin_model_view->add_new_geometry(*rec_mesh_castel);
+	delete rec_mesh_castel;
+	return S_OK;
+}
+buildin_geometry_resource_view* geometry_control::get_buildin_GeometryResourceView_by_name(std::string model_view_name) 
+{
+	return list_buildin_model_view->get_geometry_byname(model_view_name);
+}
+buildin_geometry_resource_view* geometry_control::get_buildin_GeometryResourceView_by_index(int model_view_idnex) 
+{
+	return list_buildin_model_view->get_geometry_byindex(model_view_idnex);
+}
+
+HRESULT geometry_control::load_texture_from_file(wchar_t *file_name, bool if_use_mipmap, std::string resource_name, int &index_output)
+{
+	texture_pack now_use;
+	HRESULT hr_need;
+	ID3D11ShaderResourceView *rec;
+	if (!if_use_mipmap) 
+	{
+		hr_need = CreateDDSTextureFromFile(device_pancy, file_name, 0, &rec, 0, 0);
+	}
+	else 
+	{
+		hr_need = CreateDDSTextureFromFileEx(device_pancy, contex_pancy, file_name, 0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, false, NULL, &rec);
+	}
+	if (FAILED(hr_need)) 
+	{
+		MessageBox(0,L"load texture which used to input texlist failed",L"tip",MB_OK);
+		return hr_need;
+	}
+	now_use.resource_name = resource_name;
+	now_use.data = new texture_data();
+	now_use.data->set_data(rec);
+	index_output = list_texture_use->add_resource(now_use);
+	return S_OK;
+}
+HRESULT geometry_control::create()
+{
+	HRESULT hr_need;
+	int index_buildin_rec;
+	Geometry<point_with_tangent>  *floor_need = new mesh_cubewithtargent(device_pancy, contex_pancy);          //盒子模型
+	//盒子模型
+	hr_need = floor_need->create_object();
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load object error", L"tip", MB_OK);
+		return hr_need;
+	}
+	init_buildin_geometry(floor_need,"geometry_cube", index_buildin_rec);
+	add_buildin_modelview_by_index(index_buildin_rec,"geometry_floor");
+	Geometry<point_with_tangent>  *sky_need = new mesh_ball(device_pancy, contex_pancy, 50, 50);            //球体模型
+	//球体模型
+	hr_need = sky_need->create_object();
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load object error", L"tip", MB_OK);
+		return hr_need;
+	}
+	init_buildin_geometry(sky_need, "geometry_ball", index_buildin_rec);
+	add_buildin_modelview_by_index(index_buildin_rec, "geometry_sky");
+	//草地模型
+	hr_need = grass_billboard->create_object();
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load object error", L"tip", MB_OK);
+		return hr_need;
+	}
+	
+	return S_OK;
+}
+void geometry_control::release()
+{
+	list_model_resource->release();
+	list_buildin_geometry_resource->release();
+	list_model_assimp->release();
+	list_buildin_model_view->release();
+	list_model_assimp->release();
+	
+	list_texture_use->release();
+	grass_billboard->release();
+	delete list_model_resource; 
+	delete list_model_assimp;
+	delete list_buildin_geometry_resource;
+	delete list_buildin_model_view;
+	delete list_texture_use;
 }

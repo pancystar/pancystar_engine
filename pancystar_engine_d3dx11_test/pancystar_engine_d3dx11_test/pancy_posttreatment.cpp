@@ -1161,7 +1161,7 @@ void render_posttreatment_SSR::build_reflect_map(ID3D11RenderTargetView *rendert
 	shader_reflectpass->set_NormalDepthtex(normaldepth_tex);
 	shader_reflectpass->set_Depthtex(depth_tex);
 	shader_reflectpass->set_diffusetex(color_tex);
-
+	
 	shader_reflectpass->set_camera_positions(center_position);
 	shader_reflectpass->set_cubeview_matrix(static_cube_view_matrix, 6);
 	//shader_reflectpass->set_enviroment_depth(reflect_depthcube_SRV);
@@ -1182,23 +1182,18 @@ void render_posttreatment_SSR::build_reflect_map(ID3D11RenderTargetView *rendert
 
 	tech->GetPassByIndex(0)->Apply(0, contex_pancy);
 	contex_pancy->DrawIndexed(6, 0, 0);
+	shader_reflectpass->set_diffusetex(color_tex);
 	shader_reflectpass->set_color_mask_tex(mask_tex);
 	shader_reflectpass->set_color_ssr_tex(reflect_tex);
 	ID3D11RenderTargetView* NULL_target[2] = { NULL,NULL };
 	contex_pancy->OMSetRenderTargets(2, NULL_target, 0);
 
-	//renderstate_lib->set_posttreatment_rendertarget();
-	//renderstate_lib->clear_posttreatmentcrendertarget();
-
-
-	//basic_blur(reflect_tex, blur_reflect_target, true);
-	//basic_blur(blur_reflect_tex, reflect_target,false);
-
+	//basic_blur(mask_tex,reflect_tex, blur_reflect_target, true);
+	//basic_blur(mask_tex,blur_reflect_tex, reflect_target, false);
+	//basic_blur(mask_tex, reflect_tex, blur_reflect_target, true);
+	//basic_blur(mask_tex, blur_reflect_tex, reflect_target, false);
 	//basic_blur(mask_tex, blur_reflect_target, true);
 	//basic_blur(blur_reflect_tex, mask_target, false);
-
-
-
 
 	ID3D11RenderTargetView* renderTarget_final[1] = { final_reflect_target };
 	contex_pancy->OMSetRenderTargets(1, renderTarget_final, 0);
@@ -1221,8 +1216,8 @@ void render_posttreatment_SSR::build_reflect_map(ID3D11RenderTargetView *rendert
 }
 void render_posttreatment_SSR::blur_map()
 {
-	basic_blur(final_reflect_tex, blur_reflect_target, true);
-	basic_blur(blur_reflect_tex, final_reflect_target, false);
+	basic_blur(mask_tex,final_reflect_tex, blur_reflect_target, true);
+	basic_blur(mask_tex,blur_reflect_tex, final_reflect_target, false);
 	//basic_blur(final_reflect_tex, blur_reflect_target, true);
 	//basic_blur(blur_reflect_tex, final_reflect_target, false);
 }
@@ -1253,6 +1248,50 @@ void render_posttreatment_SSR::basic_blur(ID3D11ShaderResourceView *input, ID3D1
 	else
 	{
 		shader_blur->get_technique(&tech, "VertBlur");
+	}
+	D3DX11_TECHNIQUE_DESC techDesc;
+	tech->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+		contex_pancy->DrawIndexed(6, 0, 0);
+	}
+	shader_blur->set_tex_resource(NULL);
+	ID3D11RenderTargetView* NULL_target[1] = { NULL };
+	contex_pancy->OMSetRenderTargets(0, NULL_target, 0);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+	}
+}
+void render_posttreatment_SSR::basic_blur(ID3D11ShaderResourceView *mask, ID3D11ShaderResourceView *input, ID3D11RenderTargetView *output, bool if_horz)
+{
+	//ÉèÖÃäÖÈ¾Ä¿±ê
+	float black[4] = { 0.0f,0.0f,0.0f,0.0f };
+	ID3D11RenderTargetView* renderTargets[1] = { output };
+	contex_pancy->OMSetRenderTargets(1, renderTargets, 0);
+	contex_pancy->ClearRenderTargetView(output, black);
+	contex_pancy->RSSetViewports(1, &half_render_viewport);
+	auto shader_blur = shader_list->get_shader_reflect_blur();
+	XMFLOAT4 map_range = XMFLOAT4(1.0f / half_render_viewport.Width, 1.0f / half_render_viewport.Height, 1.0f / render_viewport.Width, 1.0f / render_viewport.Height);
+	shader_blur->set_image_size(map_range);
+	shader_blur->set_tex_resource(input);
+	shader_blur->set_tex_normal_resource(normaldepth_tex);
+	shader_blur->set_tex_depth_resource(depth_tex);
+	shader_blur->set_tex_mask_resource(mask);
+	UINT stride = sizeof(pancy_point);
+	UINT offset = 0;
+	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	contex_pancy->IASetVertexBuffers(0, 1, &reflectMap_VB, &stride, &offset);
+	contex_pancy->IASetIndexBuffer(reflectMap_IB, DXGI_FORMAT_R16_UINT, 0);
+	ID3DX11EffectTechnique* tech;
+	if (if_horz == true)
+	{
+		shader_blur->get_technique(&tech, "HorzBlur_color");
+	}
+	else
+	{
+		shader_blur->get_technique(&tech, "VertBlur_color");
 	}
 	D3DX11_TECHNIQUE_DESC techDesc;
 	tech->GetDesc(&techDesc);

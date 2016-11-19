@@ -93,31 +93,69 @@ scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceCont
 HRESULT scene_engine_test::scene_create()
 {
 	HRESULT hr_need;
-	/*
-	basic_lighting rec_need(point_light,shadow_none,shader_lib,device_pancy,contex_pancy,renderstate_lib, geometry_lib);
-	nonshadow_light_list.push_back(rec_need);
-
-	light_with_shadowmap rec_shadow(spot_light, shadow_map, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
-	hr_need = rec_shadow.create(1024, 1024);
-	if (FAILED(hr_need))
-	{
-		return hr_need;
-	}
-	shadowmap_light_list.push_back(rec_shadow);
-	hr_need = ssao_part->basic_create();
-	if (FAILED(hr_need))
-	{
-		return hr_need;
-	}
-	light_with_shadowvolume rec_shadowvalum(spot_light, shadow_volume, shader_lib, device_pancy, contex_pancy, renderstate_lib);
-	hr_need = rec_shadowvalum.create(1000000);
-	
-	shadowvalume_light_list.push_back(rec_shadowvalum);
-	*/
 	hr_need = particle_fire->create(L"flare0.dds");
 	if (hr_need != S_OK)
 	{
 		MessageBox(0, L"load fire particle error", L"tip", MB_OK);
+		return hr_need;
+	}
+	int index_model_rec;
+	hr_need = geometry_lib->load_modelresource_from_file("castelmodel\\castel.obj", "castelmodel\\", false, true, false, 0, NULL, "castel_model_resource", index_model_rec);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model error", L"tip", MB_OK);
+		return hr_need;
+	}
+	hr_need = geometry_lib->add_assimp_modelview_by_index(index_model_rec, "model_castel");
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model error", L"tip", MB_OK);
+		return hr_need;
+	}
+	int alpha_yuri[] = { 0,1,2,3 };
+	hr_need = geometry_lib->load_modelresource_from_file("yurimodel_skin\\yuri.FBX", "yurimodel_skin\\", true, false, false, 4, alpha_yuri, "yuri_model_resource", index_model_rec);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model error", L"tip", MB_OK);
+		return hr_need;
+	}
+	hr_need = geometry_lib->add_assimp_modelview_by_index(index_model_rec, "model_yuri");
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model error", L"tip", MB_OK);
+		return hr_need;
+	}
+
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~纹理注册~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	int texture_index;
+	hr_need = geometry_lib->load_texture_from_file(L"floor.dds", true, "floor_diffuse", texture_index);
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	hr_need = geometry_lib->load_texture_from_file(L"floor_n.dds", true, "floor_normal", texture_index);
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	hr_need = geometry_lib->load_texture_from_file(L"Texture_cube.dds", true, "sky_cube", texture_index);
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	hr_need = geometry_lib->load_texture_from_file(L"RoughBlades.dds", true, "grass_diffuse", texture_index);
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	hr_need = geometry_lib->load_texture_from_file(L"RoughBlades_Normal.dds", true, "grass_normal", texture_index);
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	hr_need = geometry_lib->load_texture_from_file(L"RoughBlades_Spec.dds", true, "grass_specular", texture_index);
+	if (FAILED(hr_need))
+	{
 		return hr_need;
 	}
 	return S_OK;
@@ -430,7 +468,8 @@ void scene_engine_test::show_ball()
 	contex_pancy->RSSetState(renderstate_lib->get_CULL_front_rs());
 	auto* shader_test = shader_lib->get_shader_reflect();
 	auto* ball_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_sky");
-	auto* tex_skycube = geometry_lib->get_sky_cube_tex();
+	//auto* tex_skycube = geometry_lib->get_sky_cube_tex();
+	auto* tex_skycube = geometry_lib->get_texture_byname("sky_cube")->data->get_data();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
 	shader_test->get_technique(&teque_need, "draw_reflect");
@@ -463,8 +502,10 @@ void scene_engine_test::show_lightsource()
 {
 	auto* shader_test = shader_lib->get_shader_prelight();
 	auto* floor_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_floor");
-	auto* tex_floor = geometry_lib->get_basic_floor_tex();
-	auto* tex_normal = geometry_lib->get_floor_normal_tex();
+	//auto* tex_floor = geometry_lib->get_basic_floor_tex();
+	//auto* tex_normal = geometry_lib->get_floor_normal_tex();
+	auto* tex_floor = geometry_lib->get_texture_byname("floor_diffuse")->data->get_data();
+	auto* tex_normal = geometry_lib->get_texture_byname("floor_normal")->data->get_data();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
 	shader_test->get_technique(&teque_need, "LightTech");
@@ -510,8 +551,10 @@ void scene_engine_test::show_floor()
 {
 	auto* shader_test = shader_lib->get_shader_prelight();
 	auto* floor_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_floor");
-	auto* tex_floor = geometry_lib->get_basic_floor_tex();
-	auto* tex_normal = geometry_lib->get_floor_normal_tex();
+	//auto* tex_floor = geometry_lib->get_basic_floor_tex();
+	//auto* tex_normal = geometry_lib->get_floor_normal_tex();
+	auto* tex_floor = geometry_lib->get_texture_byname("floor_diffuse")->data->get_data();
+	auto* tex_normal = geometry_lib->get_texture_byname("floor_normal")->data->get_data();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
 	shader_test->get_technique(&teque_need, "draw_withshadownormal");
@@ -562,8 +605,10 @@ void scene_engine_test::show_aotestproj()
 {
 	auto* shader_test = shader_lib->get_shader_prelight();
 	auto* floor_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_floor");
-	auto* tex_floor = geometry_lib->get_basic_floor_tex();
-	auto* tex_normal = geometry_lib->get_floor_normal_tex();
+	//auto* tex_floor = geometry_lib->get_basic_floor_tex();
+	//auto* tex_normal = geometry_lib->get_floor_normal_tex();
+	auto* tex_floor = geometry_lib->get_texture_byname("floor_diffuse")->data->get_data();
+	auto* tex_normal = geometry_lib->get_texture_byname("floor_normal")->data->get_data();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
 	shader_test->get_technique(&teque_need, "draw_withshadowssao");
@@ -621,9 +666,9 @@ void scene_engine_test::show_billboard()
 	contex_pancy->RSSetState(renderstate_lib->get_CULL_none_rs());
 	auto* shader_test = shader_lib->get_shader_grass_billboard();
 	auto* floor_need = geometry_lib->get_grass_common();
-	shader_test->set_texture_diffuse(geometry_lib->get_grass_tex());
-	shader_test->set_texture_normal(geometry_lib->get_grassnormal_tex());
-	shader_test->set_texture_specular(geometry_lib->get_grassspec_tex());
+	shader_test->set_texture_diffuse(geometry_lib->get_texture_byname("grass_diffuse")->data->get_data());
+	shader_test->set_texture_normal(geometry_lib->get_texture_byname("grass_normal")->data->get_data());
+	shader_test->set_texture_specular(geometry_lib->get_texture_byname("grass_specular")->data->get_data());
 	XMFLOAT4X4 rec_mat;
 	XMStoreFloat4x4(&rec_mat,XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
 	shader_test->set_trans_all(&rec_mat);

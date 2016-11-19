@@ -2018,6 +2018,7 @@ void shader_SSRblur::init_handle()
 	tex_input = fx_need->GetVariableByName("gInputImage")->AsShaderResource();
 	tex_normal_input = fx_need->GetVariableByName("normal_tex")->AsShaderResource();
 	tex_depth_input = fx_need->GetVariableByName("depth_tex")->AsShaderResource();
+	tex_mask_input = fx_need->GetVariableByName("gInputMask")->AsShaderResource();
 }
 void shader_SSRblur::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
 {
@@ -2050,6 +2051,17 @@ HRESULT shader_SSRblur::set_tex_depth_resource(ID3D11ShaderResourceView *buffer_
 {
 	HRESULT hr;
 	hr = tex_depth_input->SetResource(buffer_input);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set SSR blur texture error in HDR mapping", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_SSRblur::set_tex_mask_resource(ID3D11ShaderResourceView *buffer_input)
+{
+	HRESULT hr;
+	hr = tex_mask_input->SetResource(buffer_input);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"set SSR blur texture error in HDR mapping", L"tip", MB_OK);

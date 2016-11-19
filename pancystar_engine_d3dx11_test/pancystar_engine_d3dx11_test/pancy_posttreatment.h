@@ -122,6 +122,7 @@ private:
 	void build_reflect_map(ID3D11RenderTargetView *rendertarget_input);
 	void blur_map();
 	void basic_blur(ID3D11ShaderResourceView *input, ID3D11RenderTargetView *output, bool if_horz);
+	void basic_blur(ID3D11ShaderResourceView *mask,ID3D11ShaderResourceView *input, ID3D11RenderTargetView *output, bool if_horz);
 	void draw_to_posttarget();
 	template<class T>
 	void safe_release(T t)

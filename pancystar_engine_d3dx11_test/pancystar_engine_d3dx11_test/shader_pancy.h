@@ -520,11 +520,13 @@ class shader_SSRblur : public shader_basic
 	ID3DX11EffectShaderResourceVariable      *tex_input;      //shader中的纹理资源句柄
 	ID3DX11EffectShaderResourceVariable      *tex_normal_input;      //shader中的纹理资源句柄
 	ID3DX11EffectShaderResourceVariable      *tex_depth_input;      //shader中的纹理资源句柄
+	ID3DX11EffectShaderResourceVariable      *tex_mask_input;      //shader中的纹理资源句柄
 public:
 	shader_SSRblur(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_tex_resource(ID3D11ShaderResourceView *buffer_input);
 	HRESULT set_tex_normal_resource(ID3D11ShaderResourceView *buffer_input);
 	HRESULT set_tex_depth_resource(ID3D11ShaderResourceView *buffer_input);
+	HRESULT set_tex_mask_resource(ID3D11ShaderResourceView *buffer_input);
 	HRESULT set_image_size(XMFLOAT4 texel_range);
 
 	void release();

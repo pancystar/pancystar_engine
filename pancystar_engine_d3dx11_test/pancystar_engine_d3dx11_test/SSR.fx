@@ -197,7 +197,7 @@ void compute_light_pos(
 pixelOut PS(VertexOut pin) : SV_Target
 {
 	pixelOut out_color;
-	out_color.color_need = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	out_color.color_need = float4(0.0f, 0.0f, 0.0f, 99.0f);
 	out_color.mask_need = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	//还原点的世界坐标
 	float4 normalDepth = gNormalDepthMap.Sample(samNormalDepth, pin.Tex);
@@ -242,10 +242,6 @@ pixelOut PS(VertexOut pin) : SV_Target
 		float4 now_2D_position = mul(float4(now_3D_point, 1.0f), gViewToTexSpace);
 		now_2D_position /= now_2D_position.w;
 		float rz = gdepth_map.SampleLevel(samNormalDepth, now_2D_position.xy, 0.0f).r;
-		if (rz > 99999.0f)
-		{
-			step /= 2.0f;
-		}
 		if (rz < now_3D_point.z)
 		{
 			end_find = now_distance;
@@ -284,7 +280,7 @@ pixelOut PS(VertexOut pin) : SV_Target
 		float4 outputColor = gcolorMap.Sample(samTex_liner, answer_sampleloc);
 		out_color.color_need = outputColor;
 		out_color.color_need.a = alpha_fade;
-		out_color.mask_need = float4(1.0f, 0.0f, 0.0f, 0.0f);
+		out_color.mask_need = float4(1.0f, 0.0f,0.0f, 1.0f);
 	}
 	return out_color;
 	//return gcolorMap.Sample(samTex_liner, pin.Tex);
@@ -293,43 +289,39 @@ float4 PS_cube(VertexOut pin) : SV_Target
 {
 	float4 mask_color = mask_input.Sample(samNormalDepth, pin.Tex);
 	float rec_ifuse = mask_color.r;
-	if (rec_ifuse < 0.01f)
+	float4 color_ssr_map = ssrcolor_input.Sample(samNormalDepth, pin.Tex);
+	if (rec_ifuse > 0.8f) 
 	{
-		//还原点的世界坐标
-		float4 normalDepth = gNormalDepthMap.Sample(samNormalDepth, pin.Tex);
-		float3 n = normalDepth.xyz;
-		float pz = gdepth_map.Sample(samNormalDepth, pin.Tex).r;
-		float3 position = (pz / pin.ToFarPlane.z)*pin.ToFarPlane;
-		float st_find = 0.0f, end_find = 1000.0f;
-		float2 answer_sampleloc;
-		position = mul(float4(position, 1.0f), invview_matrix).xyz;
-		n = mul(float4(n, 0.0f), invview_matrix).xyz;
-		float3 ray_dir = reflect(normalize(position - view_position), n);
-		float ray_st = 0.0f, ray_end = 1000.0f;
-
-		compute_light_range(st_find, end_find, ray_dir, position, ray_st, ray_end);
-		//按步长寻找第一个交点所在的区域
-		compute_light_step(ray_st, ray_end, ray_dir, position, end_find);
-		float now_distance;
-		float3 now_3D_point;
-		compute_light_pos(st_find, end_find, ray_dir, position, now_distance, now_3D_point);
-
-		float3 cube_ray2 = normalize(now_3D_point - center_position);
-		//float4 cube_color = texture_cube.SampleLevel(samTex_liner, cube_ray2,0);
-		float alpha_fade = pow(saturate(((20.0f - now_distance) / 20.0f)), 4);
-
-		float4 final_color = texture_cube.SampleLevel(samTex_liner, cube_ray2, 0);
-		final_color.a = alpha_fade;
-		return final_color;
-	}	
-	else
-	{
-		//float4 color_rec_map = gcolorMap.Sample(samNormalDepth, pin.Tex);
-		float4 color_ssr_map = ssrcolor_input.Sample(samNormalDepth, pin.Tex);
-		//float4 now_color = color_ssr_map.a * color_ssr_map;
 		return color_ssr_map;
 	}
-	return float4(0.0f, 0.0f, 0.0f, 0.0f);
+	//还原点的世界坐标
+	float4 normalDepth = gNormalDepthMap.Sample(samNormalDepth, pin.Tex);
+	float3 n = normalDepth.xyz;
+	float pz = gdepth_map.Sample(samNormalDepth, pin.Tex).r;
+	float3 position = (pz / pin.ToFarPlane.z)*pin.ToFarPlane;
+	float st_find = 0.0f, end_find = 1000.0f;
+	float2 answer_sampleloc;
+	position = mul(float4(position, 1.0f), invview_matrix).xyz;
+	n = mul(float4(n, 0.0f), invview_matrix).xyz;
+	float3 ray_dir = reflect(normalize(position - view_position), n);
+	float ray_st = 0.0f, ray_end = 1000.0f;
+
+	compute_light_range(st_find, end_find, ray_dir, position, ray_st, ray_end);
+	//按步长寻找第一个交点所在的区域
+	compute_light_step(ray_st, ray_end, ray_dir, position, end_find);
+	float now_distance;
+	float3 now_3D_point;
+	compute_light_pos(st_find, end_find, ray_dir, position, now_distance, now_3D_point);
+
+	float3 cube_ray2 = normalize(now_3D_point - center_position);
+	//float4 cube_color = texture_cube.SampleLevel(samTex_liner, cube_ray2,0);
+	float alpha_fade = pow(saturate(((20.0f - now_distance) / 20.0f)), 4);
+
+	float4 final_color = texture_cube.SampleLevel(samTex_liner, cube_ray2, 0);
+	final_color.a = alpha_fade;
+
+	final_color = (1.0f - rec_ifuse) * final_color + rec_ifuse * color_ssr_map;
+	return final_color;
 }
 technique11 draw_ssrmap
 {

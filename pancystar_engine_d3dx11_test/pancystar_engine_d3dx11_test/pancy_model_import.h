@@ -794,6 +794,7 @@ class buildin_geometry_resource_view
 	int indexnum_geometry;
 	Geometry_basic *model_data;
 	XMFLOAT4X4 world_matrix;
+	material_list *texture_need;
 public:
 	buildin_geometry_resource_view(Geometry_basic *model_input, std::string name_need);
 	void draw_full_geometry(ID3DX11EffectTechnique *tech_common);
@@ -802,16 +803,33 @@ public:
 	std::string get_geometry_name() { return geometry_name; };
 	int get_geometry_index() { return indexnum_geometry; };
 	void set_geometry_index(int index_num) { indexnum_geometry = index_num; };
+	void release();
 private:
 	void reset_world_matrix(XMFLOAT4X4 world_matrix_need) { world_matrix = world_matrix_need; };
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~纹理数据~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class texture_data 
+{
+	ID3D11ShaderResourceView *data;
+public:
+	texture_data() { data = NULL; };
+	ID3D11ShaderResourceView *get_data() { return data; };
+	void set_data(ID3D11ShaderResourceView *data_input) { data = data_input; };
+	void release() { data->Release(); };
+};
+struct texture_pack
+{
+	std::string resource_name;
+	int resource_index;
+	texture_data *data;
+};
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~迭代器表结构~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 template<typename T>
-class geometry_resource_list
+class pancy_resource_list
 {
 	std::vector<T> model_resource_list;
 public:
-	geometry_resource_list();
+	pancy_resource_list();
 	T* get_resource_by_name(std::string name_input);
 	T* get_resource_by_index(int index_input);
 	int get_geometry_num() { return model_resource_list.size(); };
@@ -819,11 +837,11 @@ public:
 	void release();
 };
 template<typename T>
-geometry_resource_list<T>::geometry_resource_list()
+pancy_resource_list<T>::pancy_resource_list()
 {
 }
 template<typename T>
-T* geometry_resource_list<T>::get_resource_by_name(std::string name_input)
+T* pancy_resource_list<T>::get_resource_by_name(std::string name_input)
 {
 	for (auto data_GRV = model_resource_list.begin(); data_GRV != model_resource_list.end(); data_GRV++)
 	{
@@ -836,7 +854,7 @@ T* geometry_resource_list<T>::get_resource_by_name(std::string name_input)
 	return NULL;
 }
 template<typename T>
-T* geometry_resource_list<T>::get_resource_by_index(int index_input)
+T* pancy_resource_list<T>::get_resource_by_index(int index_input)
 {
 	if (index_input > model_resource_list.size())
 	{
@@ -846,14 +864,14 @@ T* geometry_resource_list<T>::get_resource_by_index(int index_input)
 	return data_GRV._Ptr;
 }
 template<typename T>
-int geometry_resource_list<T>::add_resource(T data_input)
+int pancy_resource_list<T>::add_resource(T data_input)
 {
 	data_input.resource_index = model_resource_list.size();
 	model_resource_list.push_back(data_input);
 	return data_input.resource_index;
 }
 template<typename T>
-void geometry_resource_list<T>::release()
+void pancy_resource_list<T>::release()
 {
 	for (auto data_need = model_resource_list.begin(); data_need != model_resource_list.end(); ++data_need)
 	{
@@ -1051,6 +1069,10 @@ void geometry_ResourceView_list<T>::update_geometry_byindex(int index_input, XMF
 template<typename T>
 void geometry_ResourceView_list<T>::release()
 {
+	for (auto data_need = ModelResourceView_list.begin(); data_need != ModelResourceView_list.end(); ++data_need)
+	{
+		data_need._Ptr->release();
+	}
 	ModelResourceView_list.clear();
 	for (auto data_GRV = ModelResourceView_list.begin(); data_GRV != ModelResourceView_list.end(); data_GRV++)
 	{
@@ -1068,8 +1090,6 @@ void geometry_ResourceView_list<T>::release()
 	*/
 }
 
-
-
 /*
 template<typename T>
 class special_assimpmodel_resource_view
@@ -1086,21 +1106,15 @@ class geometry_control
 	ID3D11DeviceContext *contex_pancy;     //设备描述表
 	//assimp访问表及资源表
 	
-	geometry_resource_list<model_resource_data> *list_model_resource;                     //assimp模型资源
+	pancy_resource_list<model_resource_data> *list_model_resource;                     //assimp模型资源
     geometry_ResourceView_list<assimpmodel_resource_view> *list_model_assimp;             //assimp模型访问表
 
-	geometry_resource_list<BuiltIngeometry_resource_data> *list_buildin_geometry_resource;//内置几何体资源表
+	pancy_resource_list<BuiltIngeometry_resource_data> *list_buildin_geometry_resource;//内置几何体资源表
 	geometry_ResourceView_list<buildin_geometry_resource_view> *list_buildin_model_view;   //内置几何体访问表
 
-	ID3D11ShaderResourceView      *tex_skycube;         //天空盒
-	ID3D11ShaderResourceView      *tex_floor;           //地面纹理视图指针
-	ID3D11ShaderResourceView      *tex_normal;          //法线贴图
+	pancy_resource_list<texture_pack> *list_texture_use;
+
 	mesh_billboard                *grass_billboard;     //公告板
-
-	ID3D11ShaderResourceView      *tex_grass;           //天空盒
-	ID3D11ShaderResourceView      *tex_grassnormal;     //地面纹理视图指针
-	ID3D11ShaderResourceView      *tex_grassspec;       //法线贴图
-
 public:
 	geometry_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~assimp模型的导入器，访问器及存储器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1124,20 +1138,13 @@ public:
 	void update_buildin_GRV_byname(std::string name_input, XMFLOAT4X4 world_matrix_need, float delta_time) { list_buildin_model_view->update_geometry_byname(name_input, world_matrix_need, delta_time); };
 	void update_buildin_GRV_byindex(int index_input, XMFLOAT4X4 world_matrix_need, float delta_time) { list_buildin_model_view->update_geometry_byindex(index_input, world_matrix_need, delta_time); };
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~特殊几何体的导入器，访问器及存储器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-	
 	int get_special_model_view_num() { return 0; };
-	//Geometry<point_with_tangent>  *get_floor_geometry() { return floor_need; };
-	//Geometry<point_with_tangent>  *get_sky_geometry() { return sky_need; };
-	ID3D11ShaderResourceView      *get_basic_floor_tex() { return tex_floor; };
-	ID3D11ShaderResourceView      *get_floor_normal_tex() { return tex_normal; };
-	ID3D11ShaderResourceView      *get_sky_cube_tex() { return tex_skycube; };
-
-	ID3D11ShaderResourceView      *get_grass_tex() { return tex_grass; };
-	ID3D11ShaderResourceView      *get_grassnormal_tex() { return tex_grassnormal; };
-	ID3D11ShaderResourceView      *get_grassspec_tex() { return tex_grassspec; };
-
-	//geometry_ResourceView_list *get_model_list() { return list_model_assimp; };
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~纹理资源管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	HRESULT load_texture_from_file(wchar_t *file_name, bool if_use_mipmap, std::string resource_name, int &index_output);
+	int get_texture_num() { return list_texture_use->get_geometry_num(); };
+	texture_pack *get_texture_byname(std::string name) { return list_texture_use->get_resource_by_name(name); };
+	texture_pack *get_texture_byindex(int index) { return list_texture_use->get_resource_by_index(index); };
+	
 	mesh_billboard                *get_grass_common() { return grass_billboard; };
 	HRESULT create();
 	void release();
