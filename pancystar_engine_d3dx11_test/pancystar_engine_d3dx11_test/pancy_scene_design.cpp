@@ -1,4 +1,489 @@
 #include"pancy_scene_design.h"
+
+shader_snakecompute::shader_snakecompute(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT shader_snakecompute::set_input_buffer(ID3D11ShaderResourceView *buffer_input)
+{
+	HRESULT hr = snakecontrol_input->SetResource(buffer_input);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when setting snake buffer input", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_snakecompute::set_output_buffer(ID3D11UnorderedAccessView *buffer_snake_draw, ID3D11UnorderedAccessView *buffer_snake_next)
+{
+	HRESULT hr;
+	hr = snakepoint_output->SetUnorderedAccessView(buffer_snake_draw);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set UAV buffer error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = snakecontrol_output->SetUnorderedAccessView(buffer_snake_next);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set UAV buffer error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_snakecompute::set_piccturerange(int snake_body_num, int devide_num, int radius, int others)
+{
+	XMUINT4 rec_float = XMUINT4(static_cast<unsigned int>(snake_body_num), static_cast<unsigned int>(devide_num), static_cast<unsigned int>(radius), static_cast<unsigned int>(others));
+	HRESULT hr = snake_range->SetRawValue((void*)&rec_float, 0, sizeof(rec_float));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when setting snake range", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_snakecompute::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+}
+void shader_snakecompute::release()
+{
+	release_basic();
+}
+void shader_snakecompute::init_handle()
+{
+	snakecontrol_input = fx_need->GetVariableByName("input_buffer")->AsShaderResource();
+	snakepoint_output = fx_need->GetVariableByName("output_buffer")->AsUnorderedAccessView();
+	snakecontrol_output = fx_need->GetVariableByName("next_buffer")->AsUnorderedAccessView();
+	Bspline_matrix = fx_need->GetVariableByName("Bspline_mat")->AsMatrix();
+	snake_range = fx_need->GetVariableByName("input_range");
+}
+void shader_snakecompute::dispatch(int snake_num, int snake_devide)
+{
+	XMFLOAT4X4 mat_Bspline;
+	mat_Bspline._11 = -1.0f / 6.0f;
+	mat_Bspline._12 = 3.0f / 6.0f;
+	mat_Bspline._13 = -3.0f / 6.0f;
+	mat_Bspline._14 = 1.0f / 6.0f;
+
+	mat_Bspline._21 = 3.0f / 6.0f;
+	mat_Bspline._22 = -6.0f / 6.0f;
+	mat_Bspline._23 = 3.0f / 6.0f;
+	mat_Bspline._24 = 0.0f / 6.0f;
+
+	mat_Bspline._31 = -3.0f / 6.0f;
+	mat_Bspline._32 = 0.0f / 6.0f;
+	mat_Bspline._33 = 3.0f / 6.0f;
+	mat_Bspline._34 = 0.0f / 6.0f;
+
+	mat_Bspline._41 = 1.0f / 6.0f;
+	mat_Bspline._42 = 4.0f / 6.0f;
+	mat_Bspline._43 = 1.0f / 6.0f;
+	mat_Bspline._44 = 0.0f / 6.0f;
+	HRESULT hr = set_matrix(Bspline_matrix, &mat_Bspline);
+	ID3DX11EffectTechnique* tech_need;
+	tech_need = fx_need->GetTechniqueByName("snake_square_pass");
+	D3DX11_TECHNIQUE_DESC techDesc;
+	tech_need->GetDesc(&techDesc);
+	for (UINT i = 0; i<techDesc.Passes; ++i)
+	{
+		int width = snake_num / 16, height = snake_devide / 16;
+		if (snake_num % 16 != 0) 
+		{
+			width = snake_num / 16 + 1;
+		}
+		if (snake_devide % 16 != 0)
+		{
+			height = snake_devide / 16 + 1;
+		}
+		tech_need->GetPassByIndex(i)->Apply(0, contex_pancy);
+		contex_pancy->Dispatch(width, height, 1);
+	}
+	ID3D11ShaderResourceView* nullSRV[1] = { 0 };
+	contex_pancy->CSSetShaderResources(0, 1, nullSRV);
+	ID3D11UnorderedAccessView* nullUAV[2] = { 0,0 };
+	contex_pancy->CSSetUnorderedAccessViews(0, 2, nullUAV, 0);
+	contex_pancy->CSSetShader(0, 0, 0);
+}
+
+shader_snaketesselate::shader_snaketesselate(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
+{
+}
+HRESULT shader_snaketesselate::set_trans_all(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(final_mat, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting project matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void shader_snaketesselate::release()
+{
+	release_basic();
+}
+void shader_snaketesselate::init_handle()
+{
+	final_mat = fx_need->GetVariableByName("final_matrix")->AsMatrix();
+}
+void shader_snaketesselate::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32A32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"  ,0  ,DXGI_FORMAT_R32G32B32A32_FLOAT   ,0    ,16 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
+
+snake_draw::snake_draw(ID3D11Device *device_need, ID3D11DeviceContext *contex_need,int max_length_need, int devide_num_need)
+{
+	snake_length = 0;
+	snake_radius = 1;
+	max_snake_length = max_length_need;
+	devide_num = devide_num_need;
+	device_pancy = device_need;
+	contex_pancy = contex_need;
+	UAV_controlpoint_first = NULL;
+	SRV_controlpoint_first = NULL;
+	UAV_controlpoint_second = NULL;
+	SRV_controlpoint_second = NULL;
+	UAV_draw_point_bufeer = NULL;
+	first_CSshader = NULL;
+	second_TLshader = NULL;
+}
+HRESULT snake_draw::build_controlbuffer()
+{
+	CreateCPUaccessBuf();
+	HRESULT hr;
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~创建缓冲区~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	ID3D11Buffer *buffer_controlpoint_first;
+	ID3D11Buffer *buffer_controlpoint_second;
+	//控制点缓冲区
+	D3D11_BUFFER_DESC controlpoint_buffer_desc;
+	controlpoint_buffer_desc.Usage = D3D11_USAGE_DEFAULT;            //通用类型
+	controlpoint_buffer_desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;//缓存类型为uav+srv
+	controlpoint_buffer_desc.ByteWidth = max_snake_length * sizeof(point_snake_control);        //顶点缓存的大小
+	controlpoint_buffer_desc.CPUAccessFlags = 0;
+	controlpoint_buffer_desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	controlpoint_buffer_desc.StructureByteStride = sizeof(point_snake_control);
+	//第一个buffer
+	point_snake_control *data_start;
+	data_start = new point_snake_control[max_snake_length];
+	data_start[0].position1 = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	data_start[0].position2 = XMFLOAT3(1.0f, 0.0f, 1.0f);
+	data_start[0].position3 = XMFLOAT3(2.0f, 3.0f, 2.0f);
+	data_start[0].position4 = XMFLOAT3(8.0f, 1.0f, 4.0f);
+	
+	data_start[1].position1 = XMFLOAT3(1.0f, 0.0f, 1.0f);
+	data_start[1].position2 = XMFLOAT3(2.0f, 3.0f, 2.0f);
+	data_start[1].position3 = XMFLOAT3(8.0f, 1.0f, 4.0f);
+	data_start[1].position4 = XMFLOAT3(12.0f, 2.0f, 7.0f);
+	snake_length = 2;
+	D3D11_SUBRESOURCE_DATA data_need;
+	data_need.pSysMem = data_start;
+	hr = device_pancy->CreateBuffer(&controlpoint_buffer_desc, &data_need, &buffer_controlpoint_first);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when create snake controlpoint buffer", L"tip", MB_OK);
+		return hr;
+	}
+	delete[] data_start;
+	//第二个buffer
+	hr = device_pancy->CreateBuffer(&controlpoint_buffer_desc, NULL, &buffer_controlpoint_second);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when create HDR buffer", L"tip", MB_OK);
+		return hr;
+	}
+	//控制点UAV
+	D3D11_UNORDERED_ACCESS_VIEW_DESC DescUAV;
+	ZeroMemory(&DescUAV, sizeof(D3D11_UNORDERED_ACCESS_VIEW_DESC));
+	DescUAV.Format = DXGI_FORMAT_UNKNOWN;
+	DescUAV.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+	DescUAV.Buffer.FirstElement = 0;
+	DescUAV.Buffer.NumElements = max_snake_length;
+	//创建第一个UAV，代表第一个buffer
+	hr = device_pancy->CreateUnorderedAccessView(buffer_controlpoint_first, &DescUAV, &UAV_controlpoint_first);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when create controlpoint UAV", L"tip", MB_OK);
+		return hr;
+	}
+	//创建第二个UAV，代表第二个buffer
+	hr = device_pancy->CreateUnorderedAccessView(buffer_controlpoint_second, &DescUAV, &UAV_controlpoint_second);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when create controlpoint UAV", L"tip", MB_OK);
+		return hr;
+	}
+	//控制点SRV
+	D3D11_SHADER_RESOURCE_VIEW_DESC DescSRV;
+	ZeroMemory(&DescSRV, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+	DescSRV.Format = DXGI_FORMAT_UNKNOWN;
+	DescSRV.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+	DescSRV.Buffer.FirstElement = 0;
+	DescSRV.Buffer.NumElements = max_snake_length;
+	//创建第一个SRV，代表第一个buffer
+	hr = device_pancy->CreateShaderResourceView(buffer_controlpoint_first, &DescSRV, &SRV_controlpoint_first);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when create controlpoint SRV", L"tip", MB_OK);
+		return hr;
+	}
+	//创建第e二个SRV，代表第二个buffer
+	hr = device_pancy->CreateShaderResourceView(buffer_controlpoint_second, &DescSRV, &SRV_controlpoint_second);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when create controlpoint SRV", L"tip", MB_OK);
+		return hr;
+	}
+	buffer_controlpoint_first->Release();
+	buffer_controlpoint_second->Release();
+	return S_OK;
+}
+HRESULT snake_draw::build_render_buffer() 
+{
+	int buffer_length = max_snake_length * devide_num * 16 + 100;
+	HRESULT hr;
+	
+	//绘制点缓冲区
+	D3D11_BUFFER_DESC renderpoint_buffer_desc = {};
+	renderpoint_buffer_desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_VERTEX_BUFFER;
+	renderpoint_buffer_desc.ByteWidth = sizeof(point_snake) * buffer_length;
+	renderpoint_buffer_desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
+	//第一个buffer
+	hr = device_pancy->CreateBuffer(&renderpoint_buffer_desc, NULL, &point_buffer_UAV);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when create snake controlpoint buffer", L"tip", MB_OK);
+		return hr;
+	}
+	//绘制点缓冲区
+	D3D11_UNORDERED_ACCESS_VIEW_DESC DescUAV;
+	ZeroMemory(&DescUAV, sizeof(D3D11_UNORDERED_ACCESS_VIEW_DESC));
+	DescUAV.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+	DescUAV.Buffer.FirstElement = 0;
+	DescUAV.Format = DXGI_FORMAT_R32_TYPELESS; // Format must be DXGI_FORMAT_R32_TYPELESS, when creating Raw Unordered Access View
+	DescUAV.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_RAW;
+	DescUAV.Buffer.NumElements = renderpoint_buffer_desc.ByteWidth / 4;
+	//创建第一个UAV，绘制缓冲区
+	hr = device_pancy->CreateUnorderedAccessView(point_buffer_UAV, &DescUAV, &UAV_draw_point_bufeer);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when create snake draw UAV", L"tip", MB_OK);
+		return hr;
+	}
+	/*
+	D3D11_BUFFER_DESC renderpoint_buffer_desc;
+	renderpoint_buffer_desc.Usage = D3D11_USAGE_DEFAULT;            //通用类型
+	renderpoint_buffer_desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS;   //缓存类型为uav+buffer
+	renderpoint_buffer_desc.ByteWidth = buffer_length * sizeof(point_snake); //顶点缓存的大小
+	renderpoint_buffer_desc.CPUAccessFlags = 0;
+	renderpoint_buffer_desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	renderpoint_buffer_desc.StructureByteStride = sizeof(point_snake);
+	//第一个buffer
+	hr = device_pancy->CreateBuffer(&renderpoint_buffer_desc, NULL, &point_buffer_UAV);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when create snake controlpoint buffer", L"tip", MB_OK);
+		return hr;
+	}
+	//绘制点缓冲区
+	D3D11_UNORDERED_ACCESS_VIEW_DESC DescUAV;
+	ZeroMemory(&DescUAV, sizeof(D3D11_UNORDERED_ACCESS_VIEW_DESC));
+	DescUAV.Format = DXGI_FORMAT_UNKNOWN;
+	DescUAV.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+	DescUAV.Buffer.FirstElement = 0;
+	DescUAV.Buffer.NumElements = buffer_length;
+	//创建第一个UAV，绘制缓冲区
+	hr = device_pancy->CreateUnorderedAccessView(point_buffer_UAV, &DescUAV, &UAV_draw_point_bufeer);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when create snake draw UAV", L"tip", MB_OK);
+		return hr;
+	}
+	//细分绘制用的顶点缓冲区
+	D3D11_BUFFER_DESC vbd;
+	vbd.Usage = D3D11_USAGE_DYNAMIC;
+	vbd.ByteWidth = sizeof(point_snake) * buffer_length;
+	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vbd.CPUAccessFlags = 0;
+	vbd.MiscFlags = 0;
+	vbd.StructureByteStride = 0;
+
+	//D3D11_SUBRESOURCE_DATA vinitData;
+	//vinitData.pSysMem = v;
+
+	hr = device_pancy->CreateBuffer(&vbd, 0, &point_buffer_render);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when create snake draw buffer", L"tip", MB_OK);
+		return hr;
+	}
+	*/
+	USHORT *index_need = new USHORT[(buffer_length / 4) * 6];
+	for (int i = 0; i < (buffer_length / 4) * 6; i += 6) 
+	{
+		index_need[i] = (i / 6) * 4 + 0;
+		index_need[i+1] = (i / 6) * 4 + 1;
+		index_need[i+2] = (i / 6) * 4 + 2;
+		index_need[i+3] = (i / 6) * 4 + 0;
+		index_need[i+4] = (i / 6) * 4 + 2;
+		index_need[i+5] = (i / 6) * 4 + 3;
+	}
+	D3D11_BUFFER_DESC ibd;
+	ibd.Usage = D3D11_USAGE_IMMUTABLE;
+	ibd.ByteWidth = sizeof(USHORT) * (buffer_length / 4) * 6;
+	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	ibd.CPUAccessFlags = 0;
+	ibd.StructureByteStride = 0;
+	ibd.MiscFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA iinitData;
+	iinitData.pSysMem = index_need;
+
+	hr = device_pancy->CreateBuffer(&ibd, &iinitData, &index_buffer_render);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"error when create snake index buffer", L"tip", MB_OK);
+		return hr;
+	}
+	delete[] index_need;
+	
+	//contex_pancy->CopyResource(point_buffer_render, point_buffer_UAV);
+
+	return S_OK;
+}
+void snake_draw::release() 
+{
+	safe_release(UAV_controlpoint_first);
+	safe_release(SRV_controlpoint_first);
+	safe_release(UAV_controlpoint_second);
+	safe_release(SRV_controlpoint_second);
+	safe_release(UAV_draw_point_bufeer);
+	safe_release(point_buffer_UAV);
+	safe_release(CPU_read_buffer);
+	safe_release(index_buffer_render);
+	first_CSshader->release();
+	second_TLshader->release();
+}
+HRESULT snake_draw::create()
+{
+	first_CSshader = new shader_snakecompute(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\snake_compute.cso", device_pancy, contex_pancy);
+	HRESULT hr = first_CSshader->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when snake CS shader created", L"tip", MB_OK);
+		return hr;
+	}
+	second_TLshader = new shader_snaketesselate(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\snake_tesselation.cso", device_pancy, contex_pancy);
+	hr = second_TLshader->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when snake tesselation shader created", L"tip", MB_OK);
+		return hr;
+	}
+	if (FAILED(build_controlbuffer())) 
+	{
+		return E_FAIL;
+	}
+	if (FAILED(build_render_buffer()))
+	{
+		return E_FAIL;
+	}
+	return S_OK;
+}
+HRESULT snake_draw::CreateCPUaccessBuf()
+{
+	int buffer_length = max_snake_length * devide_num * 16 + 100;
+	//控制点缓冲区
+	D3D11_BUFFER_DESC controlpoint_buffer_desc;
+	controlpoint_buffer_desc.Usage = D3D11_USAGE_STAGING;
+	controlpoint_buffer_desc.BindFlags = 0;
+	controlpoint_buffer_desc.ByteWidth = buffer_length * sizeof(point_snake);
+	controlpoint_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+	controlpoint_buffer_desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	controlpoint_buffer_desc.StructureByteStride = sizeof(point_snake);
+
+	HRESULT hr = device_pancy->CreateBuffer(&controlpoint_buffer_desc, NULL, &CPU_read_buffer);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create CPU access read buffer error", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+void snake_draw::draw(XMFLOAT4X4 view_projmat) 
+{
+	//XMVECTOR check = XMLoadFloat3(&XMFLOAT3(-0.727,0.485,0.000));
+	//XMMATRIX rec =  XMMatrixRotationAxis(check,1.0643);
+	first_CSshader->set_input_buffer(SRV_controlpoint_first);
+	first_CSshader->set_output_buffer(UAV_draw_point_bufeer,UAV_controlpoint_second);
+	first_CSshader->set_piccturerange(snake_length, devide_num, snake_radius,0);
+	first_CSshader->dispatch(snake_length, devide_num);
+	//contex_pancy->CopyResource(point_buffer_render, point_buffer_UAV);
+	/*
+	contex_pancy->CopyResource(CPU_read_buffer, point_buffer_UAV);
+	D3D11_MAPPED_SUBRESOURCE mappedTex2D;
+	HRESULT hr;
+	D3D11_BUFFER_DESC rec_now;
+	CPU_read_buffer->GetDesc(&rec_now);
+	hr = contex_pancy->Map(CPU_read_buffer, 0, D3D11_MAP_READ, 0, &mappedTex2D);
+	point_snake rec_need[100];
+	memcpy(rec_need, mappedTex2D.pData, 100 * sizeof(point_snake));
+	//point_snake* rec = static_cast<point_snake*>(mappedTex2D.pData);
+	contex_pancy->Unmap(CPU_read_buffer, 0);
+	*/
+	
+	second_TLshader->set_trans_all(&view_projmat);
+	UINT stride = sizeof(point_snake);
+	UINT offset = 0;
+	/*
+	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	contex_pancy->IASetVertexBuffers(0, 1, &point_buffer_UAV, &stride, &offset);
+	contex_pancy->IASetIndexBuffer(index_buffer_render, DXGI_FORMAT_R16_UINT, 0);
+	ID3DX11EffectTechnique* tech;
+	second_TLshader->get_technique(&tech, "draw_snake");
+	D3DX11_TECHNIQUE_DESC techDesc;
+	tech->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		int buffer_length = snake_length * devide_num * 24;
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+		contex_pancy->DrawIndexed(buffer_length, 0, 0);
+	}
+	*/
+	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST);
+	contex_pancy->IASetVertexBuffers(0, 1, &point_buffer_UAV, &stride, &offset);
+	ID3DX11EffectTechnique* tech;
+	second_TLshader->get_technique(&tech, "draw_snake");
+	D3DX11_TECHNIQUE_DESC techDesc;
+	tech->GetDesc(&techDesc);
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		int buffer_length = snake_length * devide_num * 16;
+		//int buffer_length = 4;
+		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
+		contex_pancy->Draw(buffer_length, 0);
+	}
+	contex_pancy->HSSetShader(NULL, 0, 0);
+	contex_pancy->DSSetShader(NULL, 0, 0);
+}
+void snake_draw::draw_pass(shader_control * shader_lib)
+{
+}
+void snake_draw::update() 
+{
+}
+
+
+
 scene_root::scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need,light_control *light_need,int width, int height)
 {
 	user_input = input_need;
@@ -84,15 +569,26 @@ void scene_root::get_lbuffer(ID3D11ShaderResourceView *diffuse_need, ID3D11Shade
 	lbuffer_diffuse = diffuse_need;
 	lbuffer_specular = specular_need;
 }
+
+
 scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need,geometry_need, light_need,width, height)
 {
 	//nonshadow_light_list.clear();
 	//shadowmap_light_list.clear();
 	particle_fire = new particle_system<fire_point>(device_need, contex_need, 3000, lib_need, PARTICLE_TYPE_FIRE);
+	test_snake = new snake_draw(device_need, contex_need,1000,100);
 }
 HRESULT scene_engine_test::scene_create()
 {
 	HRESULT hr_need;
+	hr_need = test_snake->create();
+	if (FAILED(hr_need)) 
+	{
+		return E_FAIL;
+	}
+
+
+
 	hr_need = particle_fire->create(L"flare0.dds");
 	if (hr_need != S_OK)
 	{
@@ -162,6 +658,23 @@ HRESULT scene_engine_test::scene_create()
 }
 HRESULT scene_engine_test::display()
 {
+
+	XMFLOAT4X4 view_proj;
+	XMStoreFloat4x4(&view_proj, XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
+	/*
+	D3D11_RASTERIZER_DESC rsDesc;
+	ZeroMemory(&rsDesc, sizeof(rsDesc));
+	rsDesc.CullMode = D3D11_CULL_NONE;
+	rsDesc.DepthClipEnable = true;
+	rsDesc.FillMode = D3D11_FILL_WIREFRAME;
+	rsDesc.FrontCounterClockwise = false;
+	ID3D11RasterizerState *rsState(NULL);
+	device_pancy->CreateRasterizerState(&rsDesc, &rsState);
+	contex_pancy->RSSetState(rsState);
+	*/
+	contex_pancy->RSSetState(renderstate_lib->get_CULL_none_rs());
+	test_snake->draw(view_proj);
+	contex_pancy->RSSetState(NULL);
 	show_ball();
 	show_lightsource();
 	show_floor();
@@ -759,6 +1272,61 @@ HRESULT scene_engine_test::update(float delta_time)
 }
 HRESULT scene_engine_test::release()
 {
+	test_snake->release();
 	particle_fire->release();
 	return S_OK;
 }
+
+/*
+scene_engine_snake::scene_engine_snake(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height)
+{
+}
+HRESULT scene_engine_snake::scene_create()
+{
+	return S_OK;
+}
+HRESULT scene_engine_snake::display()
+{
+	return S_OK;
+}
+HRESULT scene_engine_snake::display_enviroment()
+{
+	return S_OK;
+}
+HRESULT scene_engine_snake::display_nopost()
+{
+	renderstate_lib->restore_rendertarget();
+	return S_OK;
+}
+HRESULT scene_engine_snake::release()
+{
+	return S_OK;
+}
+HRESULT scene_engine_test::update(float delta_time)
+{
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~更新场景摄像机~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	HRESULT hr = camera_move();
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"camera system has an error", L"tip", MB_OK);
+		return hr;
+	}
+	XMFLOAT3 eyePos_rec;
+	scene_camera->get_view_position(&eyePos_rec);
+	auto* shader_ref = shader_lib->get_shader_reflect();
+	shader_ref->set_view_pos(eyePos_rec);
+	auto* shader_test = shader_lib->get_shader_prelight();
+	shader_test->set_view_pos(eyePos_rec);
+	auto* shader_grass = shader_lib->get_shader_grass_billboard();
+	shader_grass->set_view_pos(eyePos_rec);
+	auto* shader_deff = shader_lib->get_shader_light_deffered_draw();
+	shader_deff->set_view_pos(eyePos_rec);
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~设置shadowmap光源~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	light_list->update_and_setlight();
+	XMFLOAT4X4 view_proj;
+	XMStoreFloat4x4(&view_proj, XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
+	time_game += delta_time*0.3;
+	particle_fire->update(delta_time*0.3, time_game, &view_proj, &eyePos_rec);
+	return S_OK;
+}
+*/

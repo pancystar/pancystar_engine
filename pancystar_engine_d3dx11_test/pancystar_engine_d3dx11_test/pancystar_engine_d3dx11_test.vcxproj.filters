@@ -175,6 +175,12 @@
     <FxCompile Include="reflect_final_pass.fx">
       <Filter>源文件</Filter>
     </FxCompile>
+    <FxCompile Include="snake_compute.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
+    <FxCompile Include="snake_tesselation.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram.cd" />

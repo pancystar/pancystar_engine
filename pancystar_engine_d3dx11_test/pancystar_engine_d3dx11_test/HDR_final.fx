@@ -77,6 +77,7 @@ float4 PS(VertexOut Input) : SV_TARGET
 	finalcolor = mul(color_lum, YUV2RGB) + 0.6f * input_bloomcolor;
 	finalcolor.w = alpha_rec;
 	return finalcolor;
+	//return input_texcolor;
 }
 technique11 draw_HDRfinal
 {

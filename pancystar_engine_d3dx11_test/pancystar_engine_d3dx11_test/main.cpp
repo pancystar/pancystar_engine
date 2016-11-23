@@ -32,6 +32,7 @@
 #include"pancy_pretreatment.h"
 #include<ShellScalingAPI.h>
 #pragma comment ( lib, "Shcore.lib")
+
 //¼Ì³ĞµÄd3d×¢²áÀà
 class d3d_pancy_1 :public d3d_pancy_basic
 {
@@ -268,14 +269,15 @@ void d3d_pancy_1::display()
 	render_state->set_posttreatment_rendertarget();
 	first_scene_test->display();
 	render_state->set_posttreatment_rendertarget();
-	posttreat_reflect->set_normaldepthcolormap(pretreat_scene->get_gbuffer_normalspec(), pretreat_scene->get_gbuffer_depth());
-	posttreat_reflect->draw_reflect(render_state->get_postrendertarget());
+	//posttreat_reflect->set_normaldepthcolormap(pretreat_scene->get_gbuffer_normalspec(), pretreat_scene->get_gbuffer_depth());
+	//posttreat_reflect->draw_reflect(render_state->get_postrendertarget());
 	render_state->restore_rendertarget();
 	posttreat_scene->display();
 	first_scene_test->display_nopost();
 	contex_pancy->RSSetState(0);
 	contex_pancy->OMSetDepthStencilState(0, 0);
 	//½»»»µ½ÆÁÄ»
+	contex_pancy->ClearState();
 	HRESULT hr = swapchain->Present(0, 0);
 	int a = 0;
 }

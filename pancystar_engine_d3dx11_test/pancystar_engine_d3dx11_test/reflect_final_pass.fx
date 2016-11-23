@@ -35,6 +35,7 @@ float4 PS(VertexOut pin) : SV_Target
 	float reflectance = 0.6f*reflect_color.a;
 	//float4 final_color = (1.0f - reflectance) * gInputImage.SampleLevel(samInputImage,pin.Tex,0) + reflectance * reflect_color;
 	float accept_range = 0.2f, final_count = 0.0f;
+	/*
 	//×ÔÊÊÓ¦µÄmultisample¿¹¾â³Ý
 	float total_count = 0.0f;
 	float4 final_blend = (0.0f,0.0f,0.0f,0.0f);
@@ -82,7 +83,7 @@ float4 PS(VertexOut pin) : SV_Target
 	if (total_count > 1.0f)
 	{
 		reflect_color = 0.4f * reflect_color + final_blend;
-	}
+	}*/
 	float4 final_color = (1.0f - reflectance) * gInputImage.SampleLevel(samInputImage, pin.Tex, 0) + reflectance * reflect_color;
 	//float4 final_color = reflect_color;
 	final_color.a = 1.0f;

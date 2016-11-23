@@ -224,6 +224,8 @@
     <FxCompile Include="shadowmap.fx" />
     <FxCompile Include="shadow_volume.fx" />
     <FxCompile Include="shadow_volume_draw.fx" />
+    <FxCompile Include="snake_compute.fx" />
+    <FxCompile Include="snake_tesselation.fx" />
     <FxCompile Include="ssao_blur_map.fx" />
     <FxCompile Include="ssao_draw_aomap.fx" />
     <FxCompile Include="gbuffer_normaldepth_map.fx" />

@@ -213,7 +213,7 @@ pixelOut PS(VertexOut pin) : SV_Target
 	float ray_st = 0.0f,ray_end = 1000.0f;
 	//二分探测射线段的精确长度
 	[unroll]
-	for (int i = 0; i < 15; ++i)
+	for (int i = 0; i < 7; ++i)
 	{
 		float length_final_rec = (ray_st + ray_end) / 2.0f;
 		float3 now_3D_point = position + ray_dir * length_final_rec;
@@ -233,7 +233,7 @@ pixelOut PS(VertexOut pin) : SV_Target
 	}
 	//按步长寻找第一个交点所在的区域
 	[unroll]
-	for (int i = 1; i <= 20; i++)
+	for (int i = 1; i <= 15; i++)
 	{
 		//步长移近一位
 		float now_distance = ray_end * step * i;
@@ -271,6 +271,10 @@ pixelOut PS(VertexOut pin) : SV_Target
 			st_find = now_distance;
 		}
 		delta_save = abs(rz - now_3D_point.z);
+		if (delta_save < 0.00005f) 
+		{
+			break;
+		}
 	}
 	float alpha_fade = pow(saturate(((20.0f - now_distance) / 20.0f)),4);
 	float3 normal_test_sample = gNormalDepthMap.Sample(samNormalDepth, answer_sampleloc).xyz;
