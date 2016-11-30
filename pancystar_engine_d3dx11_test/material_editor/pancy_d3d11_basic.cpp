@@ -4,16 +4,17 @@ d3d_pancy_basic::d3d_pancy_basic(HWND hwnd_need, UINT width_need, UINT hight_nee
 	device_pancy = NULL;
 	contex_pancy = NULL;
 	swapchain = NULL;
-	m_renderTargetView = NULL;
-	depthStencilView = NULL;
+	//m_renderTargetView = NULL;
+	//depthStencilView = NULL;
+	//posttreatment_RTV = NULL;
 	wind_hwnd  = hwnd_need;
 	wind_width = width_need;
 	wind_hight = hight_need;
 }
-bool d3d_pancy_basic::init(HWND hwnd_need, UINT width_need, UINT hight_need)
+HRESULT d3d_pancy_basic::init(HWND hwnd_need, UINT width_need, UINT hight_need)
 {
 	UINT create_flag = 0;
-	bool if_use_HIGHCARD = false;
+	bool if_use_HIGHCARD = true;
 	//debug格式下选择返回调试信息
 #if defined(DEBUG) || defined(_DEBUG)
 	create_flag = D3D11_CREATE_DEVICE_DEBUG;
@@ -29,7 +30,7 @@ bool d3d_pancy_basic::init(HWND hwnd_need, UINT width_need, UINT hight_need)
 		IDXGIAdapter1 * pAdapter = 0;
 		DXGI_ADAPTER_DESC1 pancy_star;
 		UINT i = 0;
-		HRESULT check_hardweare;
+		//HRESULT check_hardweare;
 		while (factory->EnumAdapters1(i, &pAdapter) != DXGI_ERROR_NOT_FOUND)
 		{
 			vAdapters.push_back(pAdapter);
@@ -94,13 +95,28 @@ bool d3d_pancy_basic::init(HWND hwnd_need, UINT width_need, UINT hight_need)
 	IDXGIFactory *pDxgiFactory(NULL);
 	hr1 = pDxgiAdapter->GetParent(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&pDxgiFactory));
 	hr1 = pDxgiFactory->CreateSwapChain(device_pancy, &swapchain_format, &swapchain);
+
+	render_state = new pancy_renderstate(device_pancy, contex_pancy);
+	hr = render_state->create(width_need, hight_need, swapchain);
+	if (FAILED(hr))
+	{
+		return false;
+	}
 	//释放接口  
 	pDxgiFactory->Release();
 	pDxgiAdapter->Release();
 	pDxgiDevice->Release();
-	change_size();
 	return true;
 }
+d3d_pancy_basic::~d3d_pancy_basic()
+{
+	//safe_release(device_pancy);
+	//safe_release(contex_pancy);
+	//safe_release(swapchain);
+	//safe_release(m_renderTargetView);
+	//safe_release(depthStencilView);
+}
+/*
 bool d3d_pancy_basic::change_size() 
 {
 
@@ -116,6 +132,10 @@ bool d3d_pancy_basic::change_size()
 		return false;
 	}
 	hr = device_pancy->CreateRenderTargetView(backBuffer, 0, &m_renderTargetView);
+	D3D11_TEXTURE2D_DESC check;
+	backBuffer->GetDesc(&check);
+
+
 	if (FAILED(hr))
 	{
 		MessageBox(wind_hwnd, L"change size error", L"tip", MB_OK);
@@ -151,7 +171,7 @@ bool d3d_pancy_basic::change_size()
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~绑定视图信息到渲染管线
 	contex_pancy->OMSetRenderTargets(1, &m_renderTargetView, depthStencilView);
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~设置视口变换信息
-	viewPort.Width = static_cast<FLOAT>(wind_width) - 300;
+	viewPort.Width = static_cast<FLOAT>(wind_width);
 	viewPort.Height = static_cast<FLOAT>(wind_hight);
 	viewPort.MaxDepth = 1.0f;
 	viewPort.MinDepth = 0.0f;
@@ -160,20 +180,14 @@ bool d3d_pancy_basic::change_size()
 	contex_pancy->RSSetViewports(1, &viewPort);
 	return true;
 }
-d3d_pancy_basic::~d3d_pancy_basic()
-{
-	safe_release(device_pancy);
-	safe_release(contex_pancy);
-	safe_release(swapchain);
-	safe_release(m_renderTargetView);
-	safe_release(depthStencilView);
-}
-bool d3d_pancy_basic::ifsucceed()
-{
-	return check_init;
-}
 void d3d_pancy_basic::restore_rendertarget()
 {
 	contex_pancy->OMSetRenderTargets(1, &m_renderTargetView, depthStencilView);
 	contex_pancy->RSSetViewports(1, &viewPort);
 }
+void d3d_pancy_basic::set_posttreatment_rendertarget() 
+{
+	contex_pancy->OMSetRenderTargets(1, &posttreatment_RTV, depthStencilView);
+	contex_pancy->RSSetViewports(1, &viewPort);
+}
+*/

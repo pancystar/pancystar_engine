@@ -3,7 +3,9 @@
 #include"shader_pancy.h"
 #include"pancy_model_import.h"
 #include"pancy_d3d11_basic.h"
+#include"pancy_posttreatment.h"
 #include<SpriteFont.h>
+using namespace DirectX;
 int mouse_position_x;
 int mouse_position_y;
 struct material_per_part 
@@ -346,6 +348,7 @@ class d3d_pancy_1 :public d3d_pancy_basic
 	ID3D11RenderTargetView *clip_RTV;
 	ID3D11DepthStencilView   *clip_DSV;
 	material_object          material_castel;
+	render_posttreatment_SSR *reflect_need;
 	int check_part;
 public:
 	d3d_pancy_1(HWND wind_hwnd, UINT wind_width, UINT wind_hight, HINSTANCE hInstance);
@@ -354,12 +357,15 @@ public:
 	void display();
 	void release();
 private:
+	void render_static_enviroment_map(XMFLOAT3 camera_location);
 	void show_model();
 	int find_clip_model(int pos_x, int pos_y);
 	HRESULT camera_move();
 	HRESULT create_texture();
 	HRESULT CreateCPUaccessBuf();
 	void CreateAndCopyToDebugBuf();
+	void set_proj_matrix(XMFLOAT4X4 proj_mat) { proj_matrix = proj_mat; };
+	void reset_proj_matrix() { XMStoreFloat4x4(&proj_matrix, DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, (window_width - 300)*1.0f / window_hight*1.0f, 0.1f, 300.f)); };
 };
 HRESULT d3d_pancy_1::camera_move()
 {
@@ -416,10 +422,9 @@ void d3d_pancy_1::release()
 	gui_test->release();
 	geometry_lib->release();       //几何体表
 	shader_lib->release();         //shader表
-	m_renderTargetView->Release();
 	swapchain->Release();
-	depthStencilView->Release();
 	contex_pancy->Release();
+	render_state->release();
 	//device_pancy->Release();
 #if defined(DEBUG) || defined(_DEBUG)
 	ID3D11Debug *d3dDebug;
@@ -445,8 +450,8 @@ d3d_pancy_1::d3d_pancy_1(HWND hwnd_need, UINT width_need, UINT hight_need, HINST
 }
 HRESULT d3d_pancy_1::init_create()
 {
-	check_init = init(wind_hwnd, wind_width, wind_hight);
-	if (check_init == false)
+	HRESULT hr = init(wind_hwnd, wind_width, wind_hight);
+	if (FAILED(hr))
 	{
 		MessageBox(0, L"create d3dx11 failed", L"tip", MB_OK);
 		return E_FAIL;
@@ -455,7 +460,7 @@ HRESULT d3d_pancy_1::init_create()
 	scene_camera = new pancy_camera(device_pancy, window_width, window_hight);
 	user_input = new pancy_input(wind_hwnd, device_pancy, hInstance);
 	geometry_lib = new geometry_control(device_pancy, contex_pancy);
-	HRESULT hr = shader_lib->shader_init(device_pancy, contex_pancy);
+	hr = shader_lib->shader_init(device_pancy, contex_pancy);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create shader failed", L"tip", MB_OK);
@@ -491,6 +496,10 @@ HRESULT d3d_pancy_1::init_create()
 		material_castel.material_data[i].diffuse_RGB_material = rec_diffuse2;
 		material_castel.material_data[i].specular_RGB_material = rec_specular2;
 	}
+
+	reflect_need = new render_posttreatment_SSR(scene_camera, render_state, device_pancy, contex_pancy, shader_lib, geometry_lib, wind_width, wind_hight, XM_PI*0.25f, 300.0f);
+
+
 	return S_OK;
 }
 void d3d_pancy_1::update()
@@ -542,19 +551,21 @@ void d3d_pancy_1::display()
 {
 	//初始化
 	XMVECTORF32 color = { 0.0f,0.0f,0.0f,1.0f };
-	contex_pancy->ClearRenderTargetView(m_renderTargetView, reinterpret_cast<float*>(&color));
-	contex_pancy->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
+	render_state->clear_basicrendertarget();
+	//contex_pancy->ClearRenderTargetView(m_renderTargetView, reinterpret_cast<float*>(&color));
+	//contex_pancy->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 	show_model();
 	if (user_input->check_mouseDown(0))
 	{
-		if (mouse_position_x < viewPort.Width && mouse_position_y < viewPort.Height)
+		if (mouse_position_x < wind_width - 300 && mouse_position_y < wind_hight)
 		{
 			check_part = find_clip_model(mouse_position_x, mouse_position_y);
 			gui_test->set_percent(material_castel.material_data[check_part]);
 		}
 	}
 	gui_test->display();
-	contex_pancy->RSSetViewports(1, &viewPort);
+	render_state->restore_rendertarget();
+	//contex_pancy->RSSetViewports(1, &viewPort);
 	//交换到屏幕
 	HRESULT hr = swapchain->Present(0, 0);
 	int a = 0;
@@ -622,13 +633,15 @@ int d3d_pancy_1::find_clip_model(int pos_x,int pos_y)
 {
 	//alpha混合设定
 	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	render_state->restore_rendertarget();
 	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
 	ID3D11RenderTargetView* renderTargets[1] = { clip_RTV };
 	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	contex_pancy->OMSetRenderTargets(1, renderTargets, clip_DSV);
 	contex_pancy->ClearRenderTargetView(clip_RTV, clearColor);
 	contex_pancy->ClearDepthStencilView(clip_DSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-	contex_pancy->RSSetViewports(1, &viewPort);
+	//contex_pancy->RSSetViewports(1, &viewPort);
 	auto *shader_need = shader_lib->get_shader_findclip();
 	//几何体的打包(动画)属性
 	auto* model_castel_pack = geometry_lib->get_model_list()->get_geometry_byname("model_castel");
@@ -658,7 +671,8 @@ int d3d_pancy_1::find_clip_model(int pos_x,int pos_y)
 	{
 		teque_need->GetPassByIndex(p)->Apply(0, contex_pancy);
 	}
-	restore_rendertarget();
+	//restore_rendertarget();
+	render_state->restore_rendertarget();
 
 	CreateAndCopyToDebugBuf();
 	D3D11_TEXTURE2D_DESC texElementDesc;
@@ -680,8 +694,8 @@ HRESULT d3d_pancy_1::create_texture()
 {
 	D3D11_TEXTURE2D_DESC dsDesc;
 	dsDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	dsDesc.Width = viewPort.Width;
-	dsDesc.Height = viewPort.Height;
+	dsDesc.Width = wind_width - 300;
+	dsDesc.Height = wind_hight;
 	dsDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	dsDesc.MipLevels = 1;
 	dsDesc.ArraySize = 1;
@@ -704,8 +718,8 @@ HRESULT d3d_pancy_1::create_texture()
 	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	texDesc.CPUAccessFlags = 0;
 	texDesc.MiscFlags = 0;
-	texDesc.Width = viewPort.Width;
-	texDesc.Height = viewPort.Height;
+	texDesc.Width = wind_width - 300;
+	texDesc.Height = wind_hight;
 	texDesc.Format = DXGI_FORMAT_R32_UINT;
 	HRESULT hr = device_pancy->CreateTexture2D(&texDesc, 0, &clipTex0);
 	if (FAILED(hr))
@@ -743,8 +757,8 @@ HRESULT d3d_pancy_1::CreateCPUaccessBuf()
 	texDesc.BindFlags = 0;
 	texDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 	texDesc.MiscFlags = 0;
-	texDesc.Width = viewPort.Width;
-	texDesc.Height = viewPort.Height;
+	texDesc.Width = wind_width - 300;
+	texDesc.Height = wind_hight;
 	texDesc.Format = DXGI_FORMAT_R32_UINT;
 	HRESULT hr = device_pancy->CreateTexture2D(&texDesc, NULL, &CPU_read_buffer);
 	if (FAILED(hr))
@@ -753,6 +767,47 @@ HRESULT d3d_pancy_1::CreateCPUaccessBuf()
 		return hr;
 	}
 	return S_OK;
+}
+void d3d_pancy_1::render_static_enviroment_map(XMFLOAT3 camera_location)
+{
+	XMFLOAT3 look_vec, up_vec;
+	XMFLOAT4X4 proj_matrix;
+	XMFLOAT3 up[6] =
+	{
+		XMFLOAT3(0.0f, 1.0f, 0.0f),
+		XMFLOAT3(0.0f, 1.0f, 0.0f),
+		XMFLOAT3(0.0f, 0.0f,-1.0f),
+		XMFLOAT3(0.0f, 0.0f, 1.0f),
+		XMFLOAT3(0.0f, 1.0f, 0.0f),
+		XMFLOAT3(0.0f, 1.0f, 0.0f)
+	};
+	XMFLOAT3 look[6] =
+	{
+		XMFLOAT3(1.0f, 0.0f, 0.0f),
+		XMFLOAT3(-1.0f, 0.0f, 0.0f),
+		XMFLOAT3(0.0f, 1.0f, 0.0f),
+		XMFLOAT3(0.0f,-1.0f, 0.0f),
+		XMFLOAT3(0.0f, 0.0f, 1.0f),
+		XMFLOAT3(0.0f, 0.0f,-1.0f)
+	};
+	reflect_need->set_static_cube_centerposition(camera_location);
+	for (int i = 0; i < 6; ++i)
+	{
+		reflect_need->set_static_cube_rendertarget(i, proj_matrix);
+		look_vec = look[i];
+		up_vec = up[i];
+		scene_camera->set_camera(look_vec, up_vec, camera_location);
+		set_proj_matrix(proj_matrix);
+		XMFLOAT4X4 rec_viewmat;
+		scene_camera->count_view_matrix(&rec_viewmat);
+		reflect_need->set_static_cube_view_matrix(i, rec_viewmat);
+		update();
+		show_model();
+		//reflect_need->set_static_cube_rendertarget(i, proj_matrix);
+		reflect_need->draw_static_cube(i);
+	}
+	reset_proj_matrix();
+	scene_camera->reset_camera();
 }
 //endl
 class engine_windows_main

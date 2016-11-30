@@ -554,6 +554,17 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 		}
 		//now_rec = now_rec->get_next_member();
 	}
+	for (int i = 0; i < geometry_lib->get_BuiltIn_model_view_num(); ++i)
+	{
+		buildin_geometry_resource_view *now_rec = geometry_lib->get_buildin_GeometryResourceView_by_index(i);
+		//shadowmap_deal->set_shaderresource(now_rec->get_world_matrix());
+		XMFLOAT4X4 final_matrix;
+		XMStoreFloat4x4(&final_matrix, XMLoadFloat4x4(&now_rec->get_world_matrix()) * XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
+		//set_normaldepth_mat(now_rec->get_world_matrix(), view_matrix, final_matrix);
+		g_shader->set_trans_world(&now_rec->get_world_matrix(), &view_matrix);
+		g_shader->set_trans_all(&final_matrix);
+		now_rec->draw_full_geometry(get_technique());
+	}
 	//»¹Ô­äÖÈ¾×´Ì¬
 	contex_pancy->RSSetState(0);
 	ID3D11Resource * normalDepthTex = 0;

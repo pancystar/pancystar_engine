@@ -71,8 +71,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>F:\vs2015_lib\dx11\include;F:\vs2015_lib\assimp\include;$(IncludePath)</IncludePath>
-    <LibraryPath>F:\vs2015_lib\dx11\lib;F:\vs2015_lib\assimp\lib32;$(LibraryPath)</LibraryPath>
+    <IncludePath>F:\vs2015_lib\dx11\include;F:\vs2015_lib\assimp\include;F:\physX sdk\PhysX-3.3-master\PhysXSDK\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>F:\vs2015_lib\dx11\lib;F:\vs2015_lib\assimp\lib32;F:\physX sdk\PhysX-3.3-master\PhysXSDK\Lib\vc14win32;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -94,6 +94,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

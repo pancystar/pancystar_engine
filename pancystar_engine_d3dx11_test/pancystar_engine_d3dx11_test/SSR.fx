@@ -205,7 +205,7 @@ pixelOut PS(VertexOut pin) : SV_Target
 	float pz = gdepth_map.Sample(samNormalDepth, pin.Tex).r;
 	//pz = 0.1f / (1.0f - pz);
 	float3 position = (pz / pin.ToFarPlane.z)*pin.ToFarPlane;
-	float step = 1.0f / 20;
+	float step = 1.0f / 15;
 	float st_find = 0.0f, end_find = 1000.0f;
 	float2 answer_sampleloc;
 	//发射反射光线
@@ -213,7 +213,7 @@ pixelOut PS(VertexOut pin) : SV_Target
 	float ray_st = 0.0f,ray_end = 1000.0f;
 	//二分探测射线段的精确长度
 	[unroll]
-	for (int i = 0; i < 7; ++i)
+	for (int i = 0; i < 15; ++i)
 	{
 		float length_final_rec = (ray_st + ray_end) / 2.0f;
 		float3 now_3D_point = position + ray_dir * length_final_rec;
@@ -232,6 +232,8 @@ pixelOut PS(VertexOut pin) : SV_Target
 		}
 	}
 	//按步长寻找第一个交点所在的区域
+	
+	float delta_save;
 	[unroll]
 	for (int i = 1; i <= 15; i++)
 	{
@@ -244,12 +246,12 @@ pixelOut PS(VertexOut pin) : SV_Target
 		float rz = gdepth_map.SampleLevel(samNormalDepth, now_2D_position.xy, 0.0f).r;
 		if (rz < now_3D_point.z)
 		{
+			delta_save = abs(rz - now_3D_point.z);
 			end_find = now_distance;
 			break;
 		}
 	}
 	//二分精确寻找第一个交点的详细位置
-	float delta_save;
 	float now_distance;
 	float3 now_3D_point;
 	[unroll]

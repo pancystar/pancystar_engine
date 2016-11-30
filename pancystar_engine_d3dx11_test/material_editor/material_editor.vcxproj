@@ -24,7 +24,9 @@
     <ClCompile Include="PancyCamera.cpp" />
     <ClCompile Include="PancyInput.cpp" />
     <ClCompile Include="pancy_d3d11_basic.cpp" />
+    <ClCompile Include="pancy_DXrenderstate.cpp" />
     <ClCompile Include="pancy_model_import.cpp" />
+    <ClCompile Include="pancy_posttreatment.cpp" />
     <ClCompile Include="shader_pancy.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -32,7 +34,9 @@
     <ClInclude Include="PancyCamera.h" />
     <ClInclude Include="PancyInput.h" />
     <ClInclude Include="pancy_d3d11_basic.h" />
+    <ClInclude Include="pancy_DXrenderstate.h" />
     <ClInclude Include="pancy_model_import.h" />
+    <ClInclude Include="pancy_posttreatment.h" />
     <ClInclude Include="shader_pancy.h" />
   </ItemGroup>
   <ItemGroup>

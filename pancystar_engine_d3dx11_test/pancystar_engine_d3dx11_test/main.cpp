@@ -108,6 +108,7 @@ HRESULT d3d_pancy_1::init_create()
 		MessageBox(0, L"create d3dx11 failed", L"tip", MB_OK);
 		return E_FAIL;
 	}
+	
 	test_camera = new pancy_camera(device_pancy, window_width, window_hight);
 	test_input = new pancy_input(wind_hwnd, device_pancy, hInstance);
 	geometry_list = new geometry_control(device_pancy, contex_pancy);
@@ -129,7 +130,7 @@ HRESULT d3d_pancy_1::init_create()
 	{
 		return hr;
 	}
-	first_scene_test = new scene_engine_test(device_pancy, contex_pancy, render_state, test_input, test_camera, shader_list, geometry_list, light_list, wind_width, wind_hight);
+	first_scene_test = new scene_engine_physicx(device_pancy, contex_pancy, render_state, test_input, test_camera, shader_list, geometry_list, light_list, wind_width, wind_hight);
 	hr = first_scene_test->scene_create();
 	if (FAILED(hr))
 	{
@@ -200,6 +201,12 @@ void d3d_pancy_1::render_static_enviroment_map(XMFLOAT3 camera_location)
 		test_camera->count_view_matrix(&rec_viewmat);
 		posttreat_reflect->set_static_cube_view_matrix(i, rec_viewmat);
 		update();
+		
+		pretreat_scene->display(true);
+		first_scene_test->get_gbuffer(pretreat_scene->get_gbuffer_normalspec(), pretreat_scene->get_gbuffer_depth());
+		first_scene_test->get_lbuffer(pretreat_scene->get_gbuffer_difusse(), pretreat_scene->get_gbuffer_specular());
+		display_shadowao(true, true);
+		posttreat_reflect->set_static_cube_rendertarget(i, proj_matrix);
 		first_scene_test->display_enviroment();
 		posttreat_reflect->draw_static_cube(i);
 	}
@@ -254,26 +261,31 @@ void d3d_pancy_1::update()
 }
 void d3d_pancy_1::display()
 {
-	//render_static_enviroment_map();
-	//初始化
+	//render_static_enviroment_map(XMFLOAT3(0.0f, 5.0f, 0.0f));
+	//初始化gbuffer与lbuffer
 	pretreat_scene->display(true);
 	render_state->clear_basicrendertarget();
-
 	render_state->clear_posttreatmentcrendertarget();
+	//场景设置
 	first_scene_test->get_gbuffer(pretreat_scene->get_gbuffer_normalspec(), pretreat_scene->get_gbuffer_depth());
 	first_scene_test->get_lbuffer(pretreat_scene->get_gbuffer_difusse(), pretreat_scene->get_gbuffer_specular());
 	render_state->set_posttreatment_rendertarget();
 	first_scene_test->get_environment_map(posttreat_reflect->get_cubemap());
-	//first_scene_test->display_shadowao(true, true);
+	//ao与阴影绘制
 	display_shadowao(true, true);
 	render_state->set_posttreatment_rendertarget();
+	//场景绘制
 	first_scene_test->display();
 	render_state->set_posttreatment_rendertarget();
+	//反射处理
 	//posttreat_reflect->set_normaldepthcolormap(pretreat_scene->get_gbuffer_normalspec(), pretreat_scene->get_gbuffer_depth());
 	//posttreat_reflect->draw_reflect(render_state->get_postrendertarget());
 	render_state->restore_rendertarget();
+	//HDR处理
 	posttreat_scene->display();
+	//绘制非后处理目标
 	first_scene_test->display_nopost();
+	//还原渲染状态
 	contex_pancy->RSSetState(0);
 	contex_pancy->OMSetDepthStencilState(0, 0);
 	//交换到屏幕

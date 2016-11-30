@@ -1168,7 +1168,7 @@ HRESULT geometry_control::create()
 		return hr_need;
 	}
 	init_buildin_geometry(floor_need,"geometry_cube", index_buildin_rec);
-	add_buildin_modelview_by_index(index_buildin_rec,"geometry_floor");
+	//add_buildin_modelview_by_index(index_buildin_rec,"geometry_floor");
 	Geometry<point_with_tangent>  *sky_need = new mesh_ball(device_pancy, contex_pancy, 50, 50);            //球体模型
 	//球体模型
 	hr_need = sky_need->create_object();
@@ -1178,7 +1178,7 @@ HRESULT geometry_control::create()
 		return hr_need;
 	}
 	init_buildin_geometry(sky_need, "geometry_ball", index_buildin_rec);
-	add_buildin_modelview_by_index(index_buildin_rec, "geometry_sky");
+	//add_buildin_modelview_by_index(index_buildin_rec, "geometry_sky");
 	//草地模型
 	hr_need = grass_billboard->create_object();
 	if (FAILED(hr_need))

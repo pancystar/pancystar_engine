@@ -493,6 +493,11 @@ HRESULT mesh_cubewithtargent::find_point(point_with_tangent *vertex, UINT *index
 		{ XMFLOAT3(1.0, -1.0, -1.0), XMFLOAT3(0.0, -1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(1.0, 0.0) },
 		{ XMFLOAT3(1.0, -1.0, 1.0), XMFLOAT3(0.0, -1.0, 0.0), XMFLOAT3(1.0, 0.0, 0.0),XMUINT4(1.0f,0.0f,0.0f,0.0f), XMFLOAT2(1.0, 1.0) }
 	};
+	for (int i = 0; i < 24; ++i) 
+	{
+		square_test[i].tex.x *= 100;
+		square_test[i].tex.y *= 100;
+	}
 	//创建索引数组。
 	num_vertex = sizeof(square_test) / sizeof(point_with_tangent);
 	for (int i = 0; i < num_vertex; ++i)

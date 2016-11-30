@@ -38,13 +38,13 @@ VertexOut VS(Vertex_IN vin)
 patch_tess ConstantHS(InputPatch<VertexOut, 4> patch, uint PatchID:SV_PrimitiveID)
 {
 	patch_tess pt;
-	pt.edge_tess[0] = 25;
-	pt.edge_tess[1] = 25;
-	pt.edge_tess[2] = 25;
-	pt.edge_tess[3] = 25;
+	pt.edge_tess[0] = 5;
+	pt.edge_tess[1] = 5;
+	pt.edge_tess[2] = 5;
+	pt.edge_tess[3] = 5;
 
-	pt.inside_tess[0] = 25;
-	pt.inside_tess[1] = 25;
+	pt.inside_tess[0] = 5;
+	pt.inside_tess[1] = 5;
 
 	return pt;
 }
@@ -89,7 +89,7 @@ Domin_out DS(
 	float3 c1 = lerp(quard[0].center_pos, quard[1].center_pos, uv.x);
 	float3 c2 = lerp(quard[2].center_pos, quard[3].center_pos, uv.x);
 	float3 c = lerp(c1, c2, uv.y);
-	float radiu = 1.0f;
+	float radiu = 0.3f;
 	float3 location_need = c + normalize((p - c)) * radiu;
 	rec.position = mul(float4(location_need, 1.0f), final_matrix);
 

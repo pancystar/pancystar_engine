@@ -30,9 +30,11 @@ public:
 	void walk_up(float distance);                        //摄像机向上平移
 	void count_view_matrix(XMFLOAT4X4* view_matrix);     //计算取景矩阵
 	void count_invview_matrix(XMFLOAT4X4* inv_view_matrix);  //计算取景矩阵逆矩阵
-	void pancy_camera::count_view_matrix(XMFLOAT3 rec_look, XMFLOAT3 rec_up, XMFLOAT3 rec_right, XMFLOAT4X4 *matrix);
+	void pancy_camera::count_view_matrix(XMFLOAT3 rec_look, XMFLOAT3 rec_up, XMFLOAT3 rec_pos, XMFLOAT4X4 *matrix);
 	void get_view_position(XMFLOAT3 *view_pos);
 	void get_view_direct(XMFLOAT3 *view_direct);
+	void set_camera(XMFLOAT3 rec_look, XMFLOAT3 rec_up, XMFLOAT3 rec_pos);
+	void reset_camera();
 private:
     
 

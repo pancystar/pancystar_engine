@@ -179,6 +179,12 @@ void light_with_shadowmap::draw_shadow()
 			}
 		}
 	}
+	for (int i = 0; i < geometry_lib->get_BuiltIn_model_view_num(); ++i)
+	{
+		buildin_geometry_resource_view *now_rec = geometry_lib->get_buildin_GeometryResourceView_by_index(i);
+		shadowmap_deal->set_shaderresource(now_rec->get_world_matrix());
+		now_rec->draw_full_geometry(shadowmap_deal->get_technique());
+	}
 	//»¹Ô­äÖÈ¾×´Ì¬
 	contex_pancy->RSSetState(0);
 	renderstate_lib->set_posttreatment_rendertarget();

@@ -18,9 +18,6 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pancy_d3d11_basic.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="geometry.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -36,11 +33,17 @@
     <ClCompile Include="shader_pancy.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="pancy_posttreatment.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="pancy_DXrenderstate.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="pancy_d3d11_basic.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="pancy_d3d11_basic.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="geometry.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -54,6 +57,15 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="shader_pancy.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="pancy_posttreatment.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="pancy_DXrenderstate.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="pancy_d3d11_basic.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

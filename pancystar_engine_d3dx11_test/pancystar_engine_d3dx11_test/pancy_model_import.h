@@ -1,6 +1,7 @@
 #pragma once
 #include<windows.h>
 #include"geometry.h"
+#include"shader_pancy.h"
 #include <assimp/Importer.hpp>      // 导入器在该头文件中定义
 #include <assimp/scene.h>           // 读取到的模型数据都放在scene中
 #include <assimp/postprocess.h>     // 该头文件中包含后处理的标志位定义
@@ -12,14 +13,18 @@ struct material_list
 {
 	char                       texture_diffuse[128];     //漫反射纹理地址
 	char                       texture_normal[128];      //法线贴图纹理地址
+	char                       texture_specular[128];    //法线贴图纹理地址
 	ID3D11ShaderResourceView   *tex_diffuse_resource;    //漫反射纹理
 	ID3D11ShaderResourceView   *texture_normal_resource; //法线贴图纹理
+	ID3D11ShaderResourceView   *texture_specular_resource; //法线贴图纹理
 	material_list()
 	{
 		texture_diffuse[0] = '\0';
 		texture_normal[0] = '\0';
+		texture_specular[0] = '\0';
 		tex_diffuse_resource = NULL;
 		texture_normal_resource = NULL;
+		texture_specular_resource = NULL;
 	}
 };
 struct meshview_list

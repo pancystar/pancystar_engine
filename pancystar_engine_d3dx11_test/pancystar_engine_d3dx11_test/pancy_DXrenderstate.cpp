@@ -126,14 +126,18 @@ void pancy_renderstate::restore_rendertarget(ID3D11DepthStencilView *depthStenci
 }
 void pancy_renderstate::clear_basicrendertarget()
 {
-	XMVECTORF32 color = { 0.75f,0.75f,0.75f,1.0f };
-	contex_pancy->ClearRenderTargetView(m_renderTargetView, reinterpret_cast<float*>(&color));
+	float color[4] = { 0.75f,0.75f,0.75f,1.0f };
+	contex_pancy->ClearRenderTargetView(m_renderTargetView, color);
 	contex_pancy->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 }
 void pancy_renderstate::clear_posttreatmentcrendertarget()
 {
-	XMVECTORF32 color = { 0.75f,0.75f,0.75f,1.0f };
-	contex_pancy->ClearRenderTargetView(posttreatment_RTV, reinterpret_cast<float*>(&color));
+	float color[4] = { 0.75f,0.75f,0.75f,1.0f };
+	if (posttreatment_RTV == NULL || contex_pancy == NULL)
+	{
+		int ke = 0;
+	}
+	contex_pancy->ClearRenderTargetView(posttreatment_RTV, color);
 	//contex_pancy->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 }
 void pancy_renderstate::set_posttreatment_rendertarget()

@@ -24,6 +24,10 @@ void pancy_camera::count_view_matrix(XMFLOAT4X4* view_matrix)
 	rec_camera_right = XMVector3Normalize(XMVector3Cross(rec_camera_up, rec_camera_look));
 	rec_camera_up = XMVector3Normalize(XMVector3Cross(rec_camera_look, rec_camera_right));
 	rec_camera_look = XMVector3Normalize(rec_camera_look);
+
+	XMStoreFloat3(&camera_look, rec_camera_look);
+	XMStoreFloat3(&camera_up, rec_camera_up);
+	XMStoreFloat3(&camera_right, rec_camera_right);
 	float x = -XMVectorGetX(XMVector3Dot(rec_camera_right, rec_camera_position));
 	float y = -XMVectorGetX(XMVector3Dot(rec_camera_up,rec_camera_position));
 	float z = -XMVectorGetX(XMVector3Dot(rec_camera_look,rec_camera_position));
@@ -35,28 +39,6 @@ void pancy_camera::count_view_matrix(XMFLOAT4X4* view_matrix)
 	Ry     Uy     Dy     0
 	Rz     Uz     Dz     0
 	-p▪R   -p▪R   -p▪R    1
-
-	*/
-	/*
-	view_matrix.r[0].m128_f32[0] = camera_right.x;
-	view_matrix.r[0].m128_f32[1] = camera_up.x;
-	view_matrix.r[0].m128_f32[2] = camera_look.x;
-	view_matrix.r[0].m128_f32[3] = 0.0f;
-	
-	view_matrix.r[1].m128_f32[0] = camera_right.y;
-	view_matrix.r[1].m128_f32[1] = camera_up.y;
-	view_matrix.r[1].m128_f32[2] = camera_look.y;
-	view_matrix.r[1].m128_f32[3] = 0.0f;
-
-	view_matrix.r[2].m128_f32[0] = camera_right.z;
-	view_matrix.r[2].m128_f32[1] = camera_up.z;
-	view_matrix.r[2].m128_f32[2] = camera_look.z;
-	view_matrix.r[2].m128_f32[3] = 0.0f;
-
-	view_matrix.r[3].m128_f32[0] = x;
-	view_matrix.r[3].m128_f32[1] = y;
-	view_matrix.r[3].m128_f32[2] = z;
-	view_matrix.r[3].m128_f32[3] = 1.0f;
 	*/
 	view_matrix->_11 = camera_right.x;
 	view_matrix->_12 = camera_up.x;
@@ -93,6 +75,11 @@ void pancy_camera::count_invview_matrix(XMFLOAT4X4* inv_view_matrix)
 	rec_camera_right = XMVector3Normalize(XMVector3Cross(rec_camera_up, rec_camera_look));
 	rec_camera_up = XMVector3Normalize(XMVector3Cross(rec_camera_look, rec_camera_right));
 	rec_camera_look = XMVector3Normalize(rec_camera_look);
+
+	XMStoreFloat3(&camera_look, rec_camera_look);
+	XMStoreFloat3(&camera_up, rec_camera_up);
+	XMStoreFloat3(&camera_right, rec_camera_right);
+
 	float x = -XMVectorGetX(XMVector3Dot(rec_camera_right, rec_camera_position));
 	float y = -XMVectorGetX(XMVector3Dot(rec_camera_up, rec_camera_position));
 	float z = -XMVectorGetX(XMVector3Dot(rec_camera_look, rec_camera_position));
@@ -123,9 +110,14 @@ void pancy_camera::count_view_matrix(XMFLOAT3 rec_look, XMFLOAT3 rec_up, XMFLOAT
 	XMVECTOR rec_camera_right = XMVector3Normalize(XMVector3Cross(rec_camera_up, rec_camera_look));
 	rec_camera_up = XMVector3Normalize(XMVector3Cross(rec_camera_look, rec_camera_right));
 	rec_camera_look = XMVector3Normalize(rec_camera_look);
+
 	float x = -XMVectorGetX(XMVector3Dot(rec_camera_right, rec_camera_position));
 	float y = -XMVectorGetX(XMVector3Dot(rec_camera_up, rec_camera_position));
 	float z = -XMVectorGetX(XMVector3Dot(rec_camera_look, rec_camera_position));
+
+	XMStoreFloat3(&camera_look, rec_camera_look);
+	XMStoreFloat3(&camera_up, rec_camera_up);
+	XMStoreFloat3(&camera_right, rec_camera_right);
 	/*
 	填充观察矩阵
 	V =
@@ -229,4 +221,17 @@ void pancy_camera::get_view_position(XMFLOAT3 *view_pos)
 void pancy_camera::get_view_direct(XMFLOAT3 *view_direct)
 {
 	*view_direct = camera_look;
+}
+void pancy_camera::set_camera(XMFLOAT3 rec_look, XMFLOAT3 rec_up, XMFLOAT3 rec_pos) 
+{
+	camera_look = rec_look;
+	camera_up = rec_up;
+	camera_position = rec_pos;
+}
+void pancy_camera::reset_camera() 
+{
+	camera_position = XMFLOAT3(0.f, 2.0f, -5.0f);
+	camera_right = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	camera_up = XMFLOAT3(0.0f, 1.0f, 0.0f);
+	camera_look = XMFLOAT3(0.0f, 0.0f, 1.0f);
 }

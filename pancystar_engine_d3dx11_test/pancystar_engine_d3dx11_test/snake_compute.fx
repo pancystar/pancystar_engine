@@ -10,8 +10,9 @@ struct point_snake_control
 	float3 position3;
 	float3 position4;
 };
-uint4                input_range;//(蛇体数量,每一节的细分程度,蛇体宽度(半径),保留参数)
-float4x4             Bspline_mat;//b样条矩阵
+float3   snake_head_position;
+uint4    input_range;//(蛇体数量,每一节的细分程度,蛇体宽度(半径),保留参数)
+float4x4 Bspline_mat;//b样条矩阵
 StructuredBuffer<point_snake_control>   input_buffer; //输入控制点集合
 
 //RWStructuredBuffer<point_snake>         output_buffer;//输出顶点数组
@@ -87,6 +88,25 @@ void main_first(uint3 DTid : SV_DispatchThreadID)
 	if (DTid.y >= input_range.y) 
 	{
 		return;
+	}
+	if (DTid.y == 0 && DTid.x < input_range.x)
+	{
+		if (DTid.x > 0) 
+		{
+			/*todo: in intel card HD4600 we can't use DTid-1 to find the corect array index*/
+			point_snake_control rec = input_buffer[DTid.x-1];
+			next_buffer[DTid.x].position1 = rec.position1;
+			next_buffer[DTid.x].position2 = rec.position2;
+			next_buffer[DTid.x].position3 = rec.position3;
+			next_buffer[DTid.x].position4 = rec.position4;
+		}
+		else 
+		{
+			next_buffer[DTid.x].position1 = snake_head_position;
+			next_buffer[DTid.x].position2 = now_control_point.position1;
+			next_buffer[DTid.x].position3 = now_control_point.position2;
+			next_buffer[DTid.x].position4 = now_control_point.position3;
+		}
 	}
 	//控制点矩阵
 	float4x3 control_mat = float4x3(now_control_point.position1, now_control_point.position2, now_control_point.position3, now_control_point.position4);
