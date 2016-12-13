@@ -20,6 +20,7 @@ class pancy_renderstate
 	D3D11_VIEWPORT          viewPort;            //视口信息
 	ID3D11DepthStencilView  *depthStencilView;   //缓冲区信息
 	ID3D11RenderTargetView  *posttreatment_RTV;  //用于后处理的渲染目标
+	ID3D11RenderTargetView  *reflectmask_RTV;    //用于遮蔽反射的渲染目标
 	IDXGISwapChain          *swapchain;
 public:
 	pancy_renderstate(ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
@@ -29,13 +30,16 @@ public:
 	ID3D11RasterizerState  *get_CULL_none_rs() { return CULL_none; };
 	ID3D11BlendState        *get_blend_common() { return blend_common; };
 	ID3D11RenderTargetView  *get_postrendertarget() { return posttreatment_RTV; };
+	ID3D11RenderTargetView  *get_reflectrendertarget() { return reflectmask_RTV; };
 	ID3D11RenderTargetView  *get_basicrendertarget() { return m_renderTargetView; };
 	void clear_basicrendertarget();
 	void clear_posttreatmentcrendertarget();
+	void clear_reflectrendertarget();
 	void restore_rendertarget();
 	void restore_rendertarget(ID3D11DepthStencilView *depthStenci_need);
 	void set_posttreatment_rendertarget();
 	void set_posttreatment_rendertarget(ID3D11DepthStencilView *depthStenci_need);
+	void set_posttreatment_reflect_rendertarget();
 	HRESULT change_size(int wind_width,int wind_height);
 private:
 	HRESULT init_CULL_front();

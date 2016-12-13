@@ -68,6 +68,7 @@ class render_posttreatment_SSR
 	ID3D11ShaderResourceView *normaldepth_tex;            //存储法线和深度的纹理资源
 	ID3D11ShaderResourceView *depth_tex;                  //存储法线和深度的纹理资源
 	ID3D11ShaderResourceView *color_tex;                  //存储渲染结果的纹理资源
+	ID3D11ShaderResourceView *input_mask_tex;                  //存储渲染结果的纹理资源
 
 	ID3D11RenderTargetView   *reflect_target;             //存储动态屏幕空间反射的渲染目标
 	ID3D11ShaderResourceView *reflect_tex;                //存储动态屏幕空间反射的纹理资源
@@ -106,7 +107,7 @@ public:
 	render_posttreatment_SSR(pancy_camera *camera_need, pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, geometry_control *geometry_need, int width, int height, float fovy, float farZ);
 	void set_normaldepthcolormap(ID3D11ShaderResourceView *normalspec_need, ID3D11ShaderResourceView *depth_need);
 	HRESULT create();
-	void draw_reflect(ID3D11RenderTargetView *rendertarget_input);
+	void draw_reflect(ID3D11RenderTargetView *rendertarget_input, ID3D11RenderTargetView *mask_target_input);
 	void draw_static_cube(int count_cube);
 	void set_static_cube_rendertarget(int count_cube, XMFLOAT4X4 &mat_project);
 	void set_static_cube_view_matrix(int count_cube, XMFLOAT4X4 mat_input);
@@ -119,7 +120,7 @@ private:
 	void build_fullscreen_picturebuff();
 	void BuildFrustumFarCorners(float fovy, float farZ);
 	HRESULT build_texture();
-	void build_reflect_map(ID3D11RenderTargetView *rendertarget_input);
+	void build_reflect_map(ID3D11RenderTargetView *rendertarget_input, ID3D11RenderTargetView *mask_target_input);
 	void blur_map();
 	void basic_blur(ID3D11ShaderResourceView *input, ID3D11RenderTargetView *output, bool if_horz);
 	void basic_blur(ID3D11ShaderResourceView *mask,ID3D11ShaderResourceView *input, ID3D11RenderTargetView *output, bool if_horz);

@@ -66,6 +66,7 @@ struct pancy_material
 	float4   ambient;   //材质的环境光反射系数
 	float4   diffuse;   //材质的漫反射系数
 	float4   specular;  //材质的镜面反射系数
+	float4   reflect;  //材质的镜面反射系数
 };
 void compute_dirlight(
 	pancy_material mat,

@@ -51,6 +51,7 @@ struct pancy_material//材质结构
 	XMFLOAT4 ambient;
 	XMFLOAT4 diffuse;
 	XMFLOAT4 specular;
+	XMFLOAT4 reflect;
 };
 class shader_basic
 {
@@ -438,6 +439,9 @@ class light_defered_draw : public shader_basic
 	ID3DX11EffectShaderResourceVariable   *texture_ssao_handle;      //环境光纹理资源句柄
 	ID3DX11EffectShaderResourceVariable   *texture_diffuse_handle;   //漫反射纹理资源句柄
 	ID3DX11EffectShaderResourceVariable   *texture_cube_handle;
+
+	ID3DX11EffectShaderResourceVariable   *texture_terainbump_handle;
+	ID3DX11EffectShaderResourceVariable   *texture_terain_handle;
 public:
 	light_defered_draw(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_view_pos(XMFLOAT3 eye_pos);
@@ -449,6 +453,8 @@ public:
 	HRESULT set_diffusetex(ID3D11ShaderResourceView *tex_in);		//设置漫反射纹理
 	HRESULT set_diffuse_light_tex(ID3D11ShaderResourceView *tex_in);//设置漫反射光纹理
 	HRESULT set_specular_light_tex(ID3D11ShaderResourceView *tex_in);//设置镜面反射光纹理
+	HRESULT set_terainbumptex(ID3D11ShaderResourceView *tex_in);	 //设置地形高度纹理
+	HRESULT set_teraintex(ID3D11ShaderResourceView *tex_in);	     //设置地形纹理
 	HRESULT set_enviroment_tex(ID3D11ShaderResourceView* srv);
 	virtual HRESULT set_bone_matrix(const XMFLOAT4X4* M, int cnt);	 //设置骨骼变换矩阵
 	void release();

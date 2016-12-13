@@ -22,7 +22,7 @@
     <ProjectGuid>{0ED5F823-8797-44DA-AACA-FF7A4BC81DF6}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>pancystar_engine_d3dx11_test</RootNamespace>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.10240.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

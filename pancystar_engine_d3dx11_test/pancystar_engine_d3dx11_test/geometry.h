@@ -39,6 +39,13 @@ struct point_with_tangent
 	XMUINT4  tex_id;
 	XMFLOAT2 tex;
 };
+struct point_terrain 
+{
+	XMFLOAT3 position;
+	XMUINT4  tex_id;
+	XMFLOAT2 tex_height;
+	XMFLOAT2 tex_diffuse;
+};
 //骨骼动画顶点格式(顶点坐标 + 法线 + 纹理 + 切线 + 骨骼id + 蒙皮权重)
 struct point_withskin
 {

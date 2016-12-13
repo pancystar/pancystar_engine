@@ -197,8 +197,14 @@ void compute_light_pos(
 pixelOut PS(VertexOut pin) : SV_Target
 {
 	pixelOut out_color;
-	out_color.color_need = float4(0.0f, 0.0f, 0.0f, 99.0f);
+	out_color.color_need = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	out_color.mask_need = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	float4 mask_color = mask_input.Sample(samTex_liner, pin.Tex);
+	if (mask_color.r < 0.01f) 
+	{
+		out_color.mask_need = float4(1.0f, 0.0f, 0.0f, 1.0f);
+		return out_color;
+	}
 	//还原点的世界坐标
 	float4 normalDepth = gNormalDepthMap.Sample(samNormalDepth, pin.Tex);
 	float3 n = normalDepth.xyz;

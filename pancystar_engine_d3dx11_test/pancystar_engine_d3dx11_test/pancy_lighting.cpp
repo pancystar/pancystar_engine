@@ -143,7 +143,7 @@ void light_with_shadowmap::draw_shadow()
 	for (int i = 0; i < geometry_lib->get_assimp_model_view_num(); ++i)
 	{
 		//assimpmodel_resource_view *now_rec = list->get_geometry_byindex(1);
-		assimpmodel_resource_view *now_rec = geometry_lib->get_assimp_ModelResourceView_by_index(1);
+		assimpmodel_resource_view *now_rec = geometry_lib->get_assimp_ModelResourceView_by_index(i);
 		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全部几何体(不透明)的阴影~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		//设置世界变换矩阵
 		shadowmap_deal->set_shaderresource(now_rec->get_world_matrix());

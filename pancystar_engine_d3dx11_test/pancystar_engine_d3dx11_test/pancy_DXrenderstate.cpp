@@ -62,6 +62,20 @@ HRESULT pancy_renderstate::change_size(int wind_width, int wind_height)
 	}
 	posttreatment_tex->Release();
 
+	ID3D11Texture2D* reflectmask_tex = 0;
+	hr = device_pancy->CreateTexture2D(&texDesc, 0, &reflectmask_tex);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create reflectmask render target tex error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = device_pancy->CreateRenderTargetView(reflectmask_tex, 0, &reflectmask_RTV);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create reflectmask render target view error", L"tip", MB_OK);
+		return hr;
+	}
+	reflectmask_tex->Release();
 	//~~~~~~~~~~~~~~~~~~~~~~~创建视图资源
 	ID3D11Texture2D *backBuffer = NULL;
 	//获取后缓冲区地址 
@@ -133,16 +147,24 @@ void pancy_renderstate::clear_basicrendertarget()
 void pancy_renderstate::clear_posttreatmentcrendertarget()
 {
 	float color[4] = { 0.75f,0.75f,0.75f,1.0f };
-	if (posttreatment_RTV == NULL || contex_pancy == NULL)
-	{
-		int ke = 0;
-	}
 	contex_pancy->ClearRenderTargetView(posttreatment_RTV, color);
+	//contex_pancy->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
+}
+void pancy_renderstate::clear_reflectrendertarget()
+{
+	float color[4] = { 0.0f,0.0f,0.0f,0.0f };
+	contex_pancy->ClearRenderTargetView(reflectmask_RTV, color);
 	//contex_pancy->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 }
 void pancy_renderstate::set_posttreatment_rendertarget()
 {
 	contex_pancy->OMSetRenderTargets(1, &posttreatment_RTV, depthStencilView);
+	contex_pancy->RSSetViewports(1, &viewPort);
+}
+void pancy_renderstate::set_posttreatment_reflect_rendertarget()
+{
+	ID3D11RenderTargetView* renderTargets[2] = { posttreatment_RTV,reflectmask_RTV };
+	contex_pancy->OMSetRenderTargets(2, renderTargets, depthStencilView);
 	contex_pancy->RSSetViewports(1, &viewPort);
 }
 void pancy_renderstate::set_posttreatment_rendertarget(ID3D11DepthStencilView *depthStenci_need)
@@ -160,6 +182,7 @@ void pancy_renderstate::release()
 	m_renderTargetView->Release();
 	depthStencilView->Release();
 	posttreatment_RTV->Release();
+	reflectmask_RTV->Release();
 }
 HRESULT pancy_renderstate::init_CULL_front()
 {

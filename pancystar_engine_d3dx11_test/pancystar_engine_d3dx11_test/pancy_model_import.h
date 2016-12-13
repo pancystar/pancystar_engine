@@ -366,7 +366,7 @@ HRESULT model_reader_assimp<T>::optimization_mesh(bool if_adj)
 		}
 	}
 	material_optimization = now_different;
-	mesh_optimization = now_different - 1;
+	mesh_optimization = now_different;
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~合并几何体~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	int all_vertex = 0, all_index = 0;
 	for (int i = 0; i < model_need->mNumMeshes; i++)
@@ -388,6 +388,8 @@ HRESULT model_reader_assimp<T>::optimization_mesh(bool if_adj)
 	//创建临时存储几何体的指针
 	mesh_list<T> *rec_optisave;
 	rec_optisave = new mesh_list<T>[mesh_optimization + 10];
+
+	int final_part_count = 0;
 	//为新的几何体组织顶点和索引数据
 	for (int i = 0; i < mesh_optimization; ++i)
 	{
@@ -399,7 +401,7 @@ HRESULT model_reader_assimp<T>::optimization_mesh(bool if_adj)
 		for (int j = 0; j < model_need->mNumMeshes; j++)
 		{
 			//找到所有使用材质相同的网格，并将它们合并
-			if (mesh_need[j].material_use == i + 1)
+			if (mesh_need[j].material_use == i)
 			{
 				T *vertex_rec;
 				UINT *index_rec;
@@ -429,15 +431,21 @@ HRESULT model_reader_assimp<T>::optimization_mesh(bool if_adj)
 				free(index_rec);
 			}
 		}
-		rec_optisave[i].point_buffer = new mesh_comman<T>(device_pancy, contex_pancy, now_count_vertex, now_count_index);
-		rec_optisave[i].material_use = i + 1;
-		HRESULT hr = rec_optisave[i].point_buffer->create_object(vertex_rec, index_rec, if_adj);
+		if (now_count_vertex == 0 || now_count_index == 0) 
+		{
+			continue;
+		}
+		rec_optisave[final_part_count].point_buffer = new mesh_comman<T>(device_pancy, contex_pancy, now_count_vertex, now_count_index);
+		rec_optisave[final_part_count].material_use = i;
+		HRESULT hr = rec_optisave[final_part_count].point_buffer->create_object(vertex_rec, index_rec, if_adj);
 		if (FAILED(hr))
 		{
 			MessageBox(0, L"combine scene error", L"tip", MB_OK);
 			return hr;
 		}
+		final_part_count += 1;
 	}
+	mesh_optimization = final_part_count;
 	free(vertex_rec);
 	free(index_rec);
 	for (int i = 0; i < model_need->mNumMeshes; ++i)

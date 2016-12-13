@@ -89,7 +89,47 @@ private:
 	void show_yuri_animation_deffered();
 	void show_billboard();
 };
-
+class pancy_terrain_build
+{
+	/*
+	map_first_level_width = 2;
+	map_second_level_width = 2;
+	共四张一级地图(四张高度图)
+	每个一级地图分解成四个二级地图
+	——————————————
+	|      |      |      |       |
+	|      |      |      |       |
+	|—————— | —————— |
+	|      |      |      |       |
+	|      |      |      |       |
+	——————————————
+	|      |      |      |       |
+	|      |      |      |       |
+	|—————— | —————— |
+	|      |      |      |       |
+	|      |      |      |       |
+	——————————————
+	*/
+	ID3D11Device             *device_pancy;           //d3d设备
+	ID3D11DeviceContext      *contex_pancy;           //设备描述表
+	shader_control           *shader_list;
+	int                      map_first_level_width;   //一级地图的数量(一张高度图代表一个一级地图)
+	int                      map_second_level_width;  //二级地图的数量(即每个一级地图分解成几个二级地图进行细分)
+	float                    map_width_physics;       //一级地图的物理宽度(地图大小)
+	ID3D11ShaderResourceView *diffuse_map_atrray;     //漫反射纹理数组
+	ID3D11ShaderResourceView *height_map_atrray;      //高度图纹理数组
+	ID3D11Buffer             *square_map_point;       //地图顶点缓冲区
+	std::vector<LPCWSTR>     height_map_file_name;
+	std::vector<LPCWSTR>     diffuse_map_file_name;
+public:
+	pancy_terrain_build(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, shader_control *shader_list, int map_number, int map_detail, float map_range, std::vector<LPCWSTR> height_map, std::vector<LPCWSTR> diffuse_map);
+	HRESULT create();
+	void show_terrain(XMFLOAT4X4 viewproj_mat);
+	void release();
+private:
+	HRESULT build_buffer();
+	HRESULT build_texture();
+};
 
 
 
@@ -164,6 +204,8 @@ public:
 	HRESULT create();
 	void draw(XMFLOAT4X4 view_projmat);
 	void update(float time_delta);
+	XMFLOAT3 get_head_location() { return snake_head_position; };
+	void get_head_rotation(XMFLOAT4X4 *mat) { snake_head_normal->count_invview_matrix(mat); };
 	void release();
 private:
 	HRESULT build_controlbuffer();
@@ -196,6 +238,7 @@ public:
 private:
 	void show_floor();
 	void show_ball();
+	void show_snake_animation_deffered();
 };
 
 
@@ -231,6 +274,7 @@ public:
 class scene_engine_physicx : public scene_root
 {
 	pancy_physx *physics_test;
+	pancy_terrain_build *terrain_test;
 public:
 	scene_engine_physicx(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height);
 	HRESULT scene_create();

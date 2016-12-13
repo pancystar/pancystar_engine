@@ -25,6 +25,11 @@ public:
 	void rotation_right(float angle);                    //沿着向右向量旋转
 	void rotation_up(float angle);                       //沿着向上向量旋转
 	void rotation_look(float angle);                     //沿着观察向量旋转
+
+	void rotation_x(float angle);                    //沿着x轴向量旋转
+	void rotation_y(float angle);                    //沿着y轴向量旋转
+	void rotation_z(float angle);                    //沿着z轴向量旋转
+
 	void walk_front(float distance);                     //摄像机向前平移
 	void walk_right(float distance);                     //摄像机向右平移
 	void walk_up(float distance);                        //摄像机向上平移

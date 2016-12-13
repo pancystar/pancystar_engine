@@ -196,6 +196,63 @@ void pancy_camera::rotation_look(float angle)
 	XMStoreFloat3(&camera_up, rec_camera_up);
 	XMStoreFloat3(&camera_right, rec_camera_right);
 }
+void pancy_camera::rotation_x(float angle)
+{
+	XMVECTOR rec_camera_look;
+	XMVECTOR rec_camera_up;
+	XMVECTOR rec_camera_right;
+	XMMATRIX trans_rotation;
+	rec_camera_look = XMLoadFloat3(&camera_look);
+	rec_camera_up = XMLoadFloat3(&camera_up);
+	rec_camera_right = XMLoadFloat3(&camera_right);
+
+	trans_rotation = XMMatrixRotationX(angle);
+	//trans_rotation = XMMatrixRotationAxis(rec_camera_right, angle);//获取旋转矩阵
+	rec_camera_up = XMVector3TransformCoord(rec_camera_up, trans_rotation);//更变摄像机的向上向量
+	rec_camera_look = XMVector3TransformCoord(rec_camera_look, trans_rotation);//更变摄像机的向右向量
+	rec_camera_right = XMVector3TransformCoord(rec_camera_right, trans_rotation);//更变摄像机的向右向量
+	XMStoreFloat3(&camera_look, rec_camera_look);
+	XMStoreFloat3(&camera_up, rec_camera_up);
+	XMStoreFloat3(&camera_right, rec_camera_right);
+}
+void pancy_camera::rotation_y(float angle)
+{
+	XMVECTOR rec_camera_look;
+	XMVECTOR rec_camera_up;
+	XMVECTOR rec_camera_right;
+	XMMATRIX trans_rotation;
+	rec_camera_look = XMLoadFloat3(&camera_look);
+	rec_camera_up = XMLoadFloat3(&camera_up);
+	rec_camera_right = XMLoadFloat3(&camera_right);
+
+	trans_rotation = XMMatrixRotationY(angle);
+	//trans_rotation = XMMatrixRotationAxis(rec_camera_right, angle);//获取旋转矩阵
+	rec_camera_up = XMVector3TransformCoord(rec_camera_up, trans_rotation);//更变摄像机的向上向量
+	rec_camera_look = XMVector3TransformCoord(rec_camera_look, trans_rotation);//更变摄像机的向右向量
+	rec_camera_right = XMVector3TransformCoord(rec_camera_right, trans_rotation);//更变摄像机的向右向量
+	XMStoreFloat3(&camera_look, rec_camera_look);
+	XMStoreFloat3(&camera_up, rec_camera_up);
+	XMStoreFloat3(&camera_right, rec_camera_right);
+}
+void pancy_camera::rotation_z(float angle)
+{
+	XMVECTOR rec_camera_look;
+	XMVECTOR rec_camera_up;
+	XMVECTOR rec_camera_right;
+	XMMATRIX trans_rotation;
+	rec_camera_look = XMLoadFloat3(&camera_look);
+	rec_camera_up = XMLoadFloat3(&camera_up);
+	rec_camera_right = XMLoadFloat3(&camera_right);
+
+	trans_rotation = XMMatrixRotationZ(angle);
+	//trans_rotation = XMMatrixRotationAxis(rec_camera_right, angle);//获取旋转矩阵
+	rec_camera_up = XMVector3TransformCoord(rec_camera_up, trans_rotation);//更变摄像机的向上向量
+	rec_camera_look = XMVector3TransformCoord(rec_camera_look, trans_rotation);//更变摄像机的向右向量
+	rec_camera_right = XMVector3TransformCoord(rec_camera_right, trans_rotation);//更变摄像机的向右向量
+	XMStoreFloat3(&camera_look, rec_camera_look);
+	XMStoreFloat3(&camera_up, rec_camera_up);
+	XMStoreFloat3(&camera_right, rec_camera_right);
+}
 void pancy_camera::walk_front(float distance)
 {
 	camera_position.x += camera_look.x *distance;

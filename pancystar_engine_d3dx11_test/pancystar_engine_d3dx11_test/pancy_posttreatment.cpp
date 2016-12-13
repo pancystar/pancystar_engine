@@ -636,16 +636,31 @@ HRESULT render_posttreatment_SSR::build_texture()
 	hr = device_pancy->CreateTexture2D(&texDesc, 0, &inputcolortex);
 	if (FAILED(hr))
 	{
-		MessageBox(0, L"create HDR_averagetex texture error", L"tip", MB_OK);
+		MessageBox(0, L"create SSR_color texture error", L"tip", MB_OK);
 		return hr;
 	}
 	hr = device_pancy->CreateShaderResourceView(inputcolortex, 0, &color_tex);
 	if (FAILED(hr))
 	{
-		MessageBox(0, L"create HDR_prepass texture error", L"tip", MB_OK);
+		MessageBox(0, L"create SSR_color texture error", L"tip", MB_OK);
 		return hr;
 	}
 	inputcolortex->Release();
+
+	ID3D11Texture2D* inputmasktex = 0;
+	hr = device_pancy->CreateTexture2D(&texDesc, 0, &inputmasktex);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create SSR_mask texture error", L"tip", MB_OK);
+		return hr;
+	}
+	hr = device_pancy->CreateShaderResourceView(inputmasktex, 0, &input_mask_tex);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create SSR_mask texture error", L"tip", MB_OK);
+		return hr;
+	}
+	inputmasktex->Release();
 	//作为shader resource view的普通纹理(无多重采样)
 	texDesc.Width = half_render_viewport.Width;
 	texDesc.Height = half_render_viewport.Height;
@@ -1094,6 +1109,7 @@ void render_posttreatment_SSR::release()
 {
 	safe_release(mask_tex);
 	safe_release(mask_target);
+	safe_release(input_mask_tex);
 	safe_release(reflectMap_VB);
 	safe_release(reflectMap_IB);
 	safe_release(reflect_target);
@@ -1115,17 +1131,28 @@ void render_posttreatment_SSR::release()
 		safe_release(reflect_cubestencil_RTV[i]);
 	}
 }
-void render_posttreatment_SSR::build_reflect_map(ID3D11RenderTargetView *rendertarget_input)
+void render_posttreatment_SSR::build_reflect_map(ID3D11RenderTargetView *rendertarget_input, ID3D11RenderTargetView *mask_target_input)
 {
+	//将多重采样纹理转换至非多重纹理
 	ID3D11Resource *rendertargetTex = 0;
 	ID3D11Resource *rendertargetTex_singlesample = 0;
 	rendertarget_input->GetResource(&rendertargetTex);
 	color_tex->GetResource(&rendertargetTex_singlesample);
-	//将多重采样纹理转换至非多重纹理
 	contex_pancy->ResolveSubresource(rendertargetTex_singlesample, D3D11CalcSubresource(0, 0, 1), rendertargetTex, D3D11CalcSubresource(0, 0, 1), DXGI_FORMAT_R16G16B16A16_FLOAT);
 	color_tex->Release();
 	color_tex = NULL;
 	device_pancy->CreateShaderResourceView(rendertargetTex_singlesample, 0, &color_tex);
+	rendertargetTex->Release();
+	rendertargetTex_singlesample->Release();
+
+	rendertargetTex = 0;
+	rendertargetTex_singlesample = 0;
+	mask_target_input->GetResource(&rendertargetTex);
+	input_mask_tex->GetResource(&rendertargetTex_singlesample);
+	contex_pancy->ResolveSubresource(rendertargetTex_singlesample, D3D11CalcSubresource(0, 0, 1), rendertargetTex, D3D11CalcSubresource(0, 0, 1), DXGI_FORMAT_R16G16B16A16_FLOAT);
+	input_mask_tex->Release();
+	input_mask_tex = NULL;
+	device_pancy->CreateShaderResourceView(rendertargetTex_singlesample, 0, &input_mask_tex);
 	rendertargetTex->Release();
 	rendertargetTex_singlesample->Release();
 	//绑定渲染目标纹理，不设置深度模缓冲区因为这里不需要
@@ -1161,7 +1188,8 @@ void render_posttreatment_SSR::build_reflect_map(ID3D11RenderTargetView *rendert
 	shader_reflectpass->set_NormalDepthtex(normaldepth_tex);
 	shader_reflectpass->set_Depthtex(depth_tex);
 	shader_reflectpass->set_diffusetex(color_tex);
-	
+	shader_reflectpass->set_color_mask_tex(input_mask_tex);
+
 	shader_reflectpass->set_camera_positions(center_position);
 	shader_reflectpass->set_cubeview_matrix(static_cube_view_matrix, 6);
 	//shader_reflectpass->set_enviroment_depth(reflect_depthcube_SRV);
@@ -1340,9 +1368,9 @@ void render_posttreatment_SSR::draw_to_posttarget()
 		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
 	}
 }
-void render_posttreatment_SSR::draw_reflect(ID3D11RenderTargetView *rendertarget_input)
+void render_posttreatment_SSR::draw_reflect(ID3D11RenderTargetView *rendertarget_input, ID3D11RenderTargetView *mask_target_input)
 {
-	build_reflect_map(rendertarget_input);
+	build_reflect_map(rendertarget_input,mask_target_input);
 	blur_map();
 	draw_to_posttarget();
 	renderstate_lib->clear_basicrendertarget();

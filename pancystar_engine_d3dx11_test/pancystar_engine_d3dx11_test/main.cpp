@@ -262,6 +262,7 @@ void d3d_pancy_1::update()
 void d3d_pancy_1::display()
 {
 	//render_static_enviroment_map(XMFLOAT3(0.0f, 5.0f, 0.0f));
+
 	//初始化gbuffer与lbuffer
 	pretreat_scene->display(true);
 	render_state->clear_basicrendertarget();
@@ -273,13 +274,14 @@ void d3d_pancy_1::display()
 	first_scene_test->get_environment_map(posttreat_reflect->get_cubemap());
 	//ao与阴影绘制
 	display_shadowao(true, true);
-	render_state->set_posttreatment_rendertarget();
+	render_state->clear_reflectrendertarget();
+	render_state->set_posttreatment_reflect_rendertarget();
 	//场景绘制
 	first_scene_test->display();
 	render_state->set_posttreatment_rendertarget();
 	//反射处理
 	//posttreat_reflect->set_normaldepthcolormap(pretreat_scene->get_gbuffer_normalspec(), pretreat_scene->get_gbuffer_depth());
-	//posttreat_reflect->draw_reflect(render_state->get_postrendertarget());
+	//posttreat_reflect->draw_reflect(render_state->get_postrendertarget(), render_state->get_reflectrendertarget());
 	render_state->restore_rendertarget();
 	//HDR处理
 	posttreat_scene->display();

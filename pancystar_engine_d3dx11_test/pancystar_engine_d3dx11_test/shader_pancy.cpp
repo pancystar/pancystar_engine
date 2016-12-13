@@ -1671,6 +1671,26 @@ HRESULT light_defered_draw::set_diffuse_light_tex(ID3D11ShaderResourceView *tex_
 	}
 	return S_OK;
 }
+HRESULT light_defered_draw::set_terainbumptex(ID3D11ShaderResourceView *tex_in) 
+{
+	HRESULT hr = texture_terainbump_handle->SetResource(tex_in);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting terainbump texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_draw::set_teraintex(ID3D11ShaderResourceView *tex_in) 
+{
+	HRESULT hr = texture_terain_handle->SetResource(tex_in);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting terain texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 HRESULT light_defered_draw::set_specular_light_tex(ID3D11ShaderResourceView *tex_in)
 {
 	HRESULT hr = tex_light_specular_handle->SetResource(tex_in);
@@ -1720,6 +1740,9 @@ void light_defered_draw::init_handle()
 	tex_light_specular_handle = fx_need->GetVariableByName("texture_light_specular")->AsShaderResource();    //阴影贴图句柄
 	texture_ssao_handle = fx_need->GetVariableByName("texture_ssao")->AsShaderResource();        //环境光贴图句柄
 	texture_cube_handle = fx_need->GetVariableByName("texture_cube")->AsShaderResource();
+
+	texture_terainbump_handle = fx_need->GetVariableByName("texture_terrain_bump")->AsShaderResource();
+	texture_terain_handle = fx_need->GetVariableByName("texture_terrain_diffuse")->AsShaderResource();
 	//几何变换句柄
 	view_pos_handle = fx_need->GetVariableByName("position_view");
 	world_matrix_handle = fx_need->GetVariableByName("world_matrix")->AsMatrix();           //世界变换句柄
