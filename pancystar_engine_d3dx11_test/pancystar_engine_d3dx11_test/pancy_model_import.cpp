@@ -962,13 +962,51 @@ void buildin_geometry_resource_view::update(XMFLOAT4X4 world_matrix_need, float 
 {
 	reset_world_matrix(world_matrix_need);
 }
-buildin_geometry_resource_view::buildin_geometry_resource_view(Geometry_basic *model_input, std::string name_need)
+buildin_geometry_resource_view::buildin_geometry_resource_view(Geometry_basic *model_input, std::string name_need, Geometry_type type_need, pancy_physx  *physic_need)
 {
+	physic_body = NULL;
+	physic_pancy = physic_need;
 	model_data = model_input;
 	geometry_name = name_need;
+	mesh_type = type_need;
 	indexnum_geometry = -1;
 	texture_need = new material_list();
 	XMStoreFloat4x4(&world_matrix, XMMatrixIdentity());
+}
+HRESULT buildin_geometry_resource_view::create_physics()
+{
+	mat_force = physic_pancy->create_material(0.5,0.5,0.5);
+	if (mesh_type == pancy_geometry_cube)
+	{
+		physx::PxTransform box_pos = physx::PxTransform(physx::PxVec3(0.0f, 50.0f, 0.0f));
+		physx::PxBoxGeometry box_geo = physx::PxBoxGeometry(physx::PxVec3(0.5f, 0.5f, 0.5f));
+		HRESULT hr = physic_pancy->create_dynamic_box(box_pos, box_geo, mat_force, &physic_body);
+		if (FAILED(hr)) 
+		{
+			return hr;
+		}
+	}
+	return S_OK;
+}
+HRESULT buildin_geometry_resource_view::update_physx_worldmatrix(float delta_time) 
+{
+	if (physic_body == NULL) 
+	{
+		return E_FAIL;
+	}
+	//设定世界变换
+	XMMATRIX trans_world, scal_world, rotation_world, rec_world;
+	trans_world = XMMatrixTranslation(physic_pancy->get_position(physic_body).x, physic_pancy->get_position(physic_body).y, physic_pancy->get_position(physic_body).z);
+	scal_world = XMMatrixScaling(0.5f, 0.5f, 0.5f);
+	float angle_rot;
+	XMFLOAT3 rotation_data;
+	physic_pancy->get_rotation_data(physic_body,angle_rot, rotation_data);
+	XMVECTOR rotation_vec = XMLoadFloat3(&rotation_data);
+	rotation_world = XMMatrixRotationAxis(rotation_vec, angle_rot);
+	rec_world = scal_world * rotation_world * trans_world;
+	XMStoreFloat4x4(&world_matrix, rec_world);
+	update(world_matrix, delta_time);
+	return S_OK;
 }
 void buildin_geometry_resource_view::draw_full_geometry(ID3DX11EffectTechnique *tech_common)
 {
@@ -980,16 +1018,19 @@ void buildin_geometry_resource_view::release()
 	delete texture_need;
 }
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~几何体管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-geometry_control::geometry_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need)
+geometry_control::geometry_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_physx *physic_need)
 {
 	device_pancy = device_need;
 	contex_pancy = contex_need;
+	physic_pancy = physic_need;
 	list_model_resource = new pancy_resource_list<model_resource_data>();
 	list_model_assimp = new geometry_ResourceView_list<assimpmodel_resource_view>();
 	list_buildin_geometry_resource = new pancy_resource_list<BuiltIngeometry_resource_data>();
 	list_buildin_model_view = new geometry_ResourceView_list<buildin_geometry_resource_view>();
 	grass_billboard = new mesh_billboard(device_need, contex_need);
 	list_texture_use = new pancy_resource_list<texture_pack>();
+	terrain_tesselation = NULL;
+	if_have_terrain = false;
 	/*
 	tex_floor = NULL;
 	tex_normal = NULL;
@@ -1090,7 +1131,7 @@ HRESULT geometry_control::init_buildin_geometry(Geometry_basic *data_in, std::st
 	geometry_index = data_need.resource_index;
 	return S_OK;
 }
-HRESULT geometry_control::add_buildin_modelview_by_name(std::string model_name, std::string model_view_name)
+HRESULT geometry_control::add_buildin_modelview_by_name(std::string model_name, std::string model_view_name, Geometry_type type_need)
 {
 	BuiltIngeometry_resource_data *data_need = list_buildin_geometry_resource->get_resource_by_name(model_name);
 	if (data_need == NULL)
@@ -1104,12 +1145,13 @@ HRESULT geometry_control::add_buildin_modelview_by_name(std::string model_name, 
 		MessageBox(0, L"find another assimp model view which have a same name as Specified buildin model view", L"tip", MB_OK);
 		return E_FAIL;
 	}
-	buildin_geometry_resource_view *rec_mesh_castel = new buildin_geometry_resource_view(data_need->data, model_view_name);
+	buildin_geometry_resource_view *rec_mesh_castel = new buildin_geometry_resource_view(data_need->data, model_view_name, type_need,physic_pancy);
+	rec_mesh_castel->create_physics();
 	list_buildin_model_view->add_new_geometry(*rec_mesh_castel);
 	delete rec_mesh_castel;
 	return S_OK;
 }
-HRESULT geometry_control::add_buildin_modelview_by_index(int model_ID, std::string model_view_name)
+HRESULT geometry_control::add_buildin_modelview_by_index(int model_ID, std::string model_view_name, Geometry_type type_need)
 {
 	BuiltIngeometry_resource_data *data_need = list_buildin_geometry_resource->get_resource_by_index(model_ID);
 	if (data_need == NULL)
@@ -1117,7 +1159,8 @@ HRESULT geometry_control::add_buildin_modelview_by_index(int model_ID, std::stri
 		MessageBox(0, L"could not find the Specified buildin model in resource list", L"tip", MB_OK);
 		return E_FAIL;
 	}
-	buildin_geometry_resource_view *rec_mesh_castel = new buildin_geometry_resource_view(data_need->data, model_view_name);
+	buildin_geometry_resource_view *rec_mesh_castel = new buildin_geometry_resource_view(data_need->data, model_view_name, type_need, physic_pancy);
+	rec_mesh_castel->create_physics();
 	list_buildin_model_view->add_new_geometry(*rec_mesh_castel);
 	delete rec_mesh_castel;
 	return S_OK;
@@ -1196,7 +1239,10 @@ void geometry_control::release()
 	list_model_assimp->release();
 	list_buildin_model_view->release();
 	list_model_assimp->release();
-	
+	if (check_if_have_terrain())
+	{
+		//terrain_tesselation->release();
+	}
 	list_texture_use->release();
 	grass_billboard->release();
 	delete list_model_resource; 

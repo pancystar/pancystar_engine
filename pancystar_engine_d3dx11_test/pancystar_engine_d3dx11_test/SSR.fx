@@ -256,12 +256,13 @@ pixelOut PS(VertexOut pin) : SV_Target
 			end_find = now_distance;
 			break;
 		}
+		st_find = now_distance;
 	}
 	//二分精确寻找第一个交点的详细位置
 	float now_distance;
 	float3 now_3D_point;
 	[unroll]
-	for (int i = 0; i < 25; ++i)
+	for (int i = 0; i < 15; ++i)
 	{
 		now_distance = (st_find + end_find) / 2.0f;
 		//float3 now_3D_point = mul(float4(position + ray_dir * now_distance, 1.0f), view_matrix).xyz;

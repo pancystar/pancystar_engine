@@ -81,7 +81,6 @@ struct VertexOut_terrain
 	uint4  texid           : TEXINDICES;   //纹理索引
 	float2 tex1            : TEXCOORD;     //纹理坐标
 	float2 tex2            : TEXCOORD1;    //纹理坐标
-	float4 pos_ssao        : POSITION1;    //ao顶点坐标
 };
 struct hull_out_terrain
 {
@@ -89,14 +88,13 @@ struct hull_out_terrain
 	uint4  texid           : TEXINDICES;     //纹理索引
 	float2 tex1            : TEXCOORD;       //深度纹理坐标
 	float2 tex2            : TEXCOORD1;      //普通纹理坐标
-	float4 pos_ssao        : POSITION1;      //ao顶点坐标
 };
 struct domin_out_terrain 
 {
 	float4 position        : SV_POSITION;    //变换后的顶点坐标
 	uint4  texid           : TEXINDICES;     //纹理索引
 	float2 tex             : TEXCOORD;       //纹理坐标
-	float4 pos_ssao        : POSITION1;      //阴影顶点坐标
+	float4 pos_ssao        : POSITION;      //阴影顶点坐标
 };
 VertexOut_terrain VS_terrain(Vertex_IN_terrain vin)
 {
@@ -105,8 +103,6 @@ VertexOut_terrain VS_terrain(Vertex_IN_terrain vin)
 	vout.texid = vin.texid;
 	vout.tex1 = vin.tex1;
 	vout.tex2 = vin.tex2;
-	float4 pos_world = mul(float4(vout.position, 1.0f), world_matrix);
-	vout.pos_ssao = mul(pos_world, ssao_matrix);
 	return vout;
 }
 patch_tess ConstantHS(InputPatch<VertexOut_terrain, 4> patch, uint PatchID:SV_PrimitiveID)
@@ -138,7 +134,6 @@ hull_out_terrain HS(
 	hout.texid = patch[i].texid;
 	hout.tex1 = patch[i].tex1;
 	hout.tex2 = patch[i].tex2;
-	hout.pos_ssao = patch[i].pos_ssao;
 	return hout;
 }
 [domain("quad")]
@@ -160,7 +155,7 @@ domin_out_terrain DS(
 	float2 tex1_need = lerp(v1_tex1, v2_tex1, uv.y);
 	float4 sample_normal = texture_terrain_bump.SampleLevel(samTex_liner, float3(tex1_need, quard[0].texid[0]),0);
 	float3 normal = sample_normal.xyz;
-	float height = sample_normal.w * 100.0f;
+	float height = (2.0f*sample_normal.w - 1.0f) * 30.0f;
 	/*
 	//求解图片所在自空间->模型所在统一世界空间的变换矩阵
 	float3 N = normal_before;
@@ -175,10 +170,8 @@ domin_out_terrain DS(
 	float2 v1_tex2 = lerp(quard[0].tex2, quard[1].tex2, uv.x);
 	float2 v2_tex2 = lerp(quard[2].tex2, quard[3].tex2, uv.x);
 	float2 tex2_need = lerp(v1_tex2, v2_tex2, uv.y);
-	//AO坐标插值
-	float4 v1_ao = lerp(quard[0].pos_ssao, quard[1].pos_ssao, uv.x);
-	float4 v2_ao = lerp(quard[2].pos_ssao, quard[3].pos_ssao, uv.x);
-	float4 aopos_before = lerp(v1_ao, v2_ao, uv.y);
+	float4 aopos_before = mul(float4(position_before, 1.0f), ssao_matrix);
+	//aopos_before /= aopos_before.w;
 	//生成新的顶点
 	rec.position = mul(float4(position_before, 1.0f), final_matrix);
 	rec.texid = quard[0].texid;
@@ -188,8 +181,8 @@ domin_out_terrain DS(
 };
 PixelOut PS_terrain(domin_out_terrain pin) :SV_TARGET
 {
-	pin.pos_ssao /= pin.pos_ssao.w;
-	float4 tex_color = texture_terrain_diffuse.Sample(samTex_liner, float3(pin.tex, pin.texid[1]));
+	pin.pos_ssao /= pin.pos_ssao.w + (pin.position / pin.position.w) *0.001f;
+	float4 tex_color = texture_terrain_diffuse.Sample(samTex, float3(pin.tex, pin.texid[1]));
 	//clip(tex_color.a - 0.6f);
 	float4 ambient = 0.6f*float4(1.0f, 1.0f, 1.0f, 0.0f) * texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
 	float4 diffuse = material_need.diffuse * texture_light_diffuse.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f);      //漫反射光
@@ -198,7 +191,7 @@ PixelOut PS_terrain(domin_out_terrain pin) :SV_TARGET
 	final_color.a = tex_color.a;
 
 	PixelOut ans_pix;
-	ans_pix.final_color = tex_color;
+	ans_pix.final_color = final_color;
 	ans_pix.reflect_message = material_need.reflect;
 	return ans_pix;
 }

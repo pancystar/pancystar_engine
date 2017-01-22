@@ -2,6 +2,7 @@
 #include<windows.h>
 #include"geometry.h"
 #include"shader_pancy.h"
+#include"pancy_terrain.h"
 #include <assimp/Importer.hpp>      // 导入器在该头文件中定义
 #include <assimp/scene.h>           // 读取到的模型数据都放在scene中
 #include <assimp/postprocess.h>     // 该头文件中包含后处理的标志位定义
@@ -803,13 +804,19 @@ struct BuiltIngeometry_resource_data
 };
 class buildin_geometry_resource_view 
 {
-	std::string geometry_name;
-	int indexnum_geometry;
-	Geometry_basic *model_data;
-	XMFLOAT4X4 world_matrix;
-	material_list *texture_need;
+	Geometry_type mesh_type;           //几何体类型
+	std::string geometry_name;         //几何体名称
+	int indexnum_geometry;             //几何体索引
+	Geometry_basic *model_data;        //几何体数据
+	XMFLOAT4X4 world_matrix;           //几何体变换矩阵
+	material_list *texture_need;       //几何体光学材质
+	pancy_physx  *physic_pancy;        //物理引擎单例
+	physx::PxRigidDynamic *physic_body;//几何体物理模型
+	physx::PxMaterial *mat_force;      //几何体物理材质
 public:
-	buildin_geometry_resource_view(Geometry_basic *model_input, std::string name_need);
+	HRESULT update_physx_worldmatrix(float delta_time);
+	buildin_geometry_resource_view(Geometry_basic *model_input, std::string name_need, Geometry_type type_need, pancy_physx  *physic_need);
+	HRESULT create_physics();
 	void draw_full_geometry(ID3DX11EffectTechnique *tech_common);
 	XMFLOAT4X4 get_world_matrix() { return world_matrix; };
 	void update(XMFLOAT4X4 world_matrix_need, float delta_time);
@@ -1117,19 +1124,21 @@ class geometry_control
 {
 	ID3D11Device        *device_pancy;     //d3d设备
 	ID3D11DeviceContext *contex_pancy;     //设备描述表
+	pancy_physx         *physic_pancy;     //物理引擎
 	//assimp访问表及资源表
-	
 	pancy_resource_list<model_resource_data> *list_model_resource;                     //assimp模型资源
     geometry_ResourceView_list<assimpmodel_resource_view> *list_model_assimp;             //assimp模型访问表
 
 	pancy_resource_list<BuiltIngeometry_resource_data> *list_buildin_geometry_resource;//内置几何体资源表
 	geometry_ResourceView_list<buildin_geometry_resource_view> *list_buildin_model_view;   //内置几何体访问表
-
+	
+	bool if_have_terrain;
+	pancy_terrain_build *terrain_tesselation;
 	pancy_resource_list<texture_pack> *list_texture_use;
 
 	mesh_billboard                *grass_billboard;     //公告板
 public:
-	geometry_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	geometry_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_physx *physic_need);
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~assimp模型的导入器，访问器及存储器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	HRESULT load_modelresource_from_file(char* filename,char* texture_path,bool if_animation, bool if_optimized, bool if_create_adj, int alpha_part_num,int*alpha_part_index,std::string resource_name,int &index_output);
 	int get_assimp_model_view_num() { return list_model_assimp->get_geometry_num(); };
@@ -1144,14 +1153,19 @@ public:
 	HRESULT init_buildin_geometry(Geometry_basic *data_in, std::string geometry_name,int &geometry_index);
 	int get_BuiltIn_model_view_num() { return list_buildin_model_view->get_geometry_num(); };
 	int get_BuiltIn_model_resource_num() { return list_buildin_geometry_resource->get_geometry_num(); };
-	HRESULT add_buildin_modelview_by_name(std::string model_name, std::string model_view_name);
-	HRESULT add_buildin_modelview_by_index(int model_ID, std::string model_view_name);
+
+	HRESULT add_buildin_modelview_by_name(std::string model_name, std::string model_view_name, Geometry_type type_need);
+	HRESULT add_buildin_modelview_by_index(int model_ID, std::string model_view_name, Geometry_type type_need);
 	buildin_geometry_resource_view *get_buildin_GeometryResourceView_by_name(std::string model_view_name);
 	buildin_geometry_resource_view *get_buildin_GeometryResourceView_by_index(int model_view_idnex);
 	void update_buildin_GRV_byname(std::string name_input, XMFLOAT4X4 world_matrix_need, float delta_time) { list_buildin_model_view->update_geometry_byname(name_input, world_matrix_need, delta_time); };
 	void update_buildin_GRV_byindex(int index_input, XMFLOAT4X4 world_matrix_need, float delta_time) { list_buildin_model_view->update_geometry_byindex(index_input, world_matrix_need, delta_time); };
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~特殊几何体的导入器，访问器及存储器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	int get_special_model_view_num() { return 0; };
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~地形几何体创建~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	bool check_if_have_terrain() { return if_have_terrain; };
+	void build_terrain_from_memory(pancy_terrain_build *terrain_data) { if_have_terrain = true; terrain_tesselation = terrain_data; };
+	pancy_terrain_build* get_terrain_data() {return terrain_tesselation;};
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~纹理资源管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	HRESULT load_texture_from_file(wchar_t *file_name, bool if_use_mipmap, std::string resource_name, int &index_output);
 	int get_texture_num() { return list_texture_use->get_geometry_num(); };

@@ -7,6 +7,13 @@ cbuffer PerFrame
 };
 Texture2D        texture_diffuse;  //漫反射贴图
 Texture2D        texture_normal;   //法线贴图
+Texture2DArray   texture_terrain_bump;       //地形高度图
+Texture2DArray   texture_terrain_diffuse;    //地形纹理图
+struct patch_tess
+{
+	float edge_tess[4]: SV_TessFactor;
+	float inside_tess[2] : SV_InsideTessFactor;
+};
 SamplerState samTex_liner
 {
 	Filter = MIN_MAG_MIP_LINEAR;
@@ -39,6 +46,124 @@ struct Vertex_IN_bone//含法线贴图顶点
 	uint4   texid       : TEXINDICES;   //纹理索引
 	float2  tex1        : TEXCOORD;     //顶点纹理坐标
 };
+
+
+
+struct Vertex_IN_terrain
+{
+	float3	pos 	: POSITION;     //顶点位置
+	uint4   texid   : TEXINDICES;   //纹理索引
+	float2  tex1    : TEXCOORD;     //深度图纹理坐标
+	float2  tex2    : TEXCOORD1;    //漫反射纹理坐标
+};
+struct VertexOut_terrain
+{
+	float3 position        : POSITION;
+	uint4  texid           : TEXINDICES;   //纹理索引
+	float2 tex1            : TEXCOORD;     //纹理坐标
+	float2 tex2            : TEXCOORD1;    //纹理坐标
+};
+struct hull_out_terrain
+{
+	float3 position        : POSITION;
+	uint4  texid           : TEXINDICES;     //纹理索引
+	float2 tex1            : TEXCOORD;       //深度纹理坐标
+	float2 tex2            : TEXCOORD1;      //普通纹理坐标
+};
+struct domin_out_terrain
+{
+	float4 position        : SV_POSITION;    //变换后的顶点坐标
+	float3 NormalV         : NORMAL;
+	uint4  texid           : TEXINDICES;     //纹理索引
+	float2 tex             : TEXCOORD;       //纹理坐标
+};
+VertexOut_terrain VS_terrain(Vertex_IN_terrain vin)
+{
+	VertexOut_terrain vout;
+	vout.position = vin.pos;
+	vout.texid = vin.texid;
+	vout.tex1 = vin.tex1;
+	vout.tex2 = vin.tex2;
+	return vout;
+}
+patch_tess ConstantHS(InputPatch<VertexOut_terrain, 4> patch, uint PatchID:SV_PrimitiveID)
+{
+	patch_tess pt;
+	pt.edge_tess[0] = 64;
+	pt.edge_tess[1] = 64;
+	pt.edge_tess[2] = 64;
+	pt.edge_tess[3] = 64;
+
+	pt.inside_tess[0] = 64;
+	pt.inside_tess[1] = 64;
+
+	return pt;
+}
+[domain("quad")]
+[partitioning("integer")]
+[outputtopology("triangle_cw")]
+[outputcontrolpoints(4)]
+[patchconstantfunc("ConstantHS")]
+[maxtessfactor(64.0f)]
+hull_out_terrain HS(
+	InputPatch<VertexOut_terrain, 4> patch,
+	uint i : SV_OutputControlPointID,
+	uint PatchID : SV_PrimitiveID)
+{
+	hull_out_terrain hout;
+	hout.position = patch[i].position;
+	hout.texid = patch[i].texid;
+	hout.tex1 = patch[i].tex1;
+	hout.tex2 = patch[i].tex2;
+	return hout;
+}
+[domain("quad")]
+domin_out_terrain DS(
+	patch_tess patchTess,
+	float2 uv : SV_DomainLocation,
+	const OutputPatch<hull_out_terrain, 4> quard
+	)
+{
+	domin_out_terrain rec;
+	float3 v1_pos = lerp(quard[0].position, quard[1].position, uv.x);
+	float3 v2_pos = lerp(quard[2].position, quard[3].position, uv.x);
+	float3 position_before = lerp(v1_pos, v2_pos, uv.y);
+	float3 normal_before = float3(0.0f, 1.0f, 0.0f);
+	float3 tangent_before = float3(1.0f, 0.0f, 0.0f);
+	//法线贴图坐标插值
+	float2 v1_tex1 = lerp(quard[0].tex1, quard[1].tex1, uv.x);
+	float2 v2_tex1 = lerp(quard[2].tex1, quard[3].tex1, uv.x);
+	float2 tex1_need = lerp(v1_tex1, v2_tex1, uv.y);
+	float4 sample_normal = texture_terrain_bump.SampleLevel(samTex_liner, float3(tex1_need, quard[0].texid[0]), 0);
+	float3 normal = sample_normal.xyz;
+	float height = (2.0f*sample_normal.w - 1.0f) * 30.0f;
+	//求解图片所在自空间->模型所在统一世界空间的变换矩阵
+	float3 N = normal_before;
+	float3 T = normalize(tangent_before - N * tangent_before * N);
+	float3 B = cross(N, T);
+	float3x3 T2W = float3x3(T, B, N);
+	normal = 2 * normal - 1;               //将向量从图片坐标[0,1]转换至真实坐标[-1,1]
+	normal = normalize(mul(normal, T2W));  //切线空间至世界空间
+	normal = normalize(mul(normal, normal_matrix));
+	position_before.y = height;
+	//地形纹理坐标插值
+	float2 v1_tex2 = lerp(quard[0].tex2, quard[1].tex2, uv.x);
+	float2 v2_tex2 = lerp(quard[2].tex2, quard[3].tex2, uv.x);
+	float2 tex2_need = lerp(v1_tex2, v2_tex2, uv.y);
+	//生成新的顶点
+	rec.position = mul(float4(position_before, 1.0f), final_matrix);
+	rec.texid = quard[0].texid;
+	rec.tex = tex2_need;
+	rec.NormalV = normal;
+	return rec;
+};
+float4 PS_terrain(domin_out_terrain pin) :SV_TARGET
+{
+	pin.NormalV = normalize(pin.NormalV);
+    return float4(pin.NormalV,10.0);
+}
+
+
 VertexOut VS(VertexIn vin)
 {
 	VertexOut vout;
@@ -161,5 +286,16 @@ technique11 NormalDepth_skin_withnormal
 		SetVertexShader(CompileShader(vs_5_0, VS_bone()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS_withnormal()));
+	}
+}
+technique11 NormalDepth_terrain
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_5_0, VS_terrain()));
+		SetHullShader(CompileShader(hs_5_0, HS()));
+		SetDomainShader(CompileShader(ds_5_0, DS()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_5_0, PS_terrain()));
 	}
 }

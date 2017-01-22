@@ -99,7 +99,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>DirectXTK.lib;Effects11.lib;assimp.lib;DirectXMeshd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DirectXTK.lib;Effects11.lib;assimp.lib;DirectXMeshd.lib;PhysXVisualDebuggerSDKDEBUG.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <StackReserveSize>20000000</StackReserveSize>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -181,10 +181,12 @@
     <ClInclude Include="pancy_DXrenderstate.h" />
     <ClInclude Include="pancy_lighting.h" />
     <ClInclude Include="pancy_model_import.h" />
+    <ClInclude Include="pancy_physx.h" />
     <ClInclude Include="pancy_posttreatment.h" />
     <ClInclude Include="pancy_pretreatment.h" />
     <ClInclude Include="pancy_scene_design.h" />
     <ClInclude Include="pancy_ssao.h" />
+    <ClInclude Include="pancy_terrain.h" />
     <ClInclude Include="pancy_time_basic.h" />
     <ClInclude Include="particle_system.h" />
     <ClInclude Include="shader_pancy.h" />
@@ -199,10 +201,12 @@
     <ClCompile Include="pancy_DXrenderstate.cpp" />
     <ClCompile Include="pancy_lighting.cpp" />
     <ClCompile Include="pancy_model_import.cpp" />
+    <ClCompile Include="pancy_physx.cpp" />
     <ClCompile Include="pancy_posttreatment.cpp" />
     <ClCompile Include="pancy_pretreatment.cpp" />
     <ClCompile Include="pancy_scene_design.cpp" />
     <ClCompile Include="pancy_ssao.cpp" />
+    <ClCompile Include="pancy_terrain.cpp" />
     <ClCompile Include="pancy_time_basic.cpp" />
     <ClCompile Include="shader_pancy.cpp" />
   </ItemGroup>
@@ -237,6 +241,7 @@
   <ItemGroup>
     <None Include="ClassDiagram.cd" />
     <None Include="ClassDiagram1.cd" />
+    <None Include="ClassDiagram2.cd" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

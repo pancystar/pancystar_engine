@@ -1,273 +1,4 @@
 #include"pancy_scene_design.h"
-pancy_terrain_build::pancy_terrain_build(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, shader_control *shader_need, int map_number, int map_devide, float map_range, std::vector<LPCWSTR> height_map, std::vector<LPCWSTR> diffuse_map)
-{
-	device_pancy = device_need;
-	contex_pancy = contex_need;
-	shader_list = shader_need;
-	map_first_level_width = map_number;
-	map_second_level_width = map_devide;
-	map_width_physics = map_range;
-	for (int i = 0; i < height_map.size(); ++i) 
-	{
-		height_map_file_name.push_back(height_map[i]);
-	}
-	for (int i = 0; i < diffuse_map.size(); ++i) 
-	{
-		diffuse_map_file_name.push_back(diffuse_map[i]);
-	}
-	height_map_atrray = NULL;
-	square_map_point = NULL;
-}
-HRESULT pancy_terrain_build::create()
-{
-	HRESULT hr = build_buffer();
-	if (FAILED(hr)) 
-	{
-		return hr;
-	}
-	hr = build_texture();
-	if (FAILED(hr))
-	{
-		return hr;
-	}
-	return S_OK;
-}
-void pancy_terrain_build::show_terrain(XMFLOAT4X4 viewproj_mat)
-{
-	auto shader_deffered = shader_list->get_shader_light_deffered_draw();
-	shader_deffered->set_terainbumptex(height_map_atrray);
-	shader_deffered->set_teraintex(diffuse_map_atrray);
-	XMFLOAT4X4 world_mat;
-	XMStoreFloat4x4(&world_mat,XMMatrixIdentity());
-	shader_deffered->set_trans_world(&world_mat);
-	shader_deffered->set_trans_all(&viewproj_mat);
-
-	UINT stride = sizeof(point_terrain);
-	UINT offset = 0;
-	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST);
-	contex_pancy->IASetVertexBuffers(0, 1, &square_map_point, &stride, &offset);
-	ID3DX11EffectTechnique* tech;
-	//设置顶点声明
-	D3D11_INPUT_ELEMENT_DESC rec_point[] =
-	{
-		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
-		{ "POSITION"    ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
-		{ "TEXINDICES"  ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
-		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,28 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
-		{ "TEXCOORD"    ,1  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
-	};
-	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
-	shader_deffered->get_technique(rec_point, num_member,&tech, "Lightterrain");
-	D3DX11_TECHNIQUE_DESC techDesc;
-	tech->GetDesc(&techDesc);
-	for (UINT p = 0; p < techDesc.Passes; ++p)
-	{
-		int buffer_length = map_first_level_width * map_first_level_width * map_second_level_width * map_second_level_width * 4;
-		tech->GetPassByIndex(p)->Apply(0, contex_pancy);
-		contex_pancy->Draw(buffer_length, 0);
-	}
-	contex_pancy->HSSetShader(NULL, 0, 0);
-	contex_pancy->DSSetShader(NULL, 0, 0);
-}
-HRESULT pancy_terrain_build::build_buffer()
-{
-	HRESULT hr;
-	int number_point = map_first_level_width * map_first_level_width * map_second_level_width * map_second_level_width * 4;
-	point_terrain *data = new point_terrain[number_point];
-	int real_range1 = map_first_level_width * map_first_level_width;
-	int real_range2 = map_second_level_width * map_second_level_width;
-
-	XMFLOAT3 square[4] =
-	{
-		XMFLOAT3(-1.0f,0.0f,1.0f),
-		XMFLOAT3(1.0f,0.0f,1.0f),
-		XMFLOAT3(-1.0f,0.0f,-1.0f),
-		XMFLOAT3(1.0f,0.0f,-1.0f)
-	};
-	float uv_need[4][2] = { 0.0f,1.0f, 1.0f,1.0f,0.0f,0.0f,1.0f,0.0f};
-	for (int i = 0; i < real_range1; ++i)
-	{
-		for (int j = 0; j < real_range2; ++j)
-		{
-			//当前一级地图的中心点位置
-			XMFLOAT3 firstlevel_center_point, secondlevel_center_point,final_center_point;
-			int first_x = i / map_first_level_width;
-			int first_z = i % map_first_level_width;
-			float first_step_need = map_width_physics / static_cast<float>(map_first_level_width);
-			float first_rightdown_st = 0.5f * first_step_need - (map_width_physics / 2.0f);
-			firstlevel_center_point.x = first_rightdown_st + first_x * first_step_need;
-			firstlevel_center_point.y = 0.0f;
-			firstlevel_center_point.z = first_rightdown_st + first_z * first_step_need;
-			//当前二级地图的中心点位置
-			int second_x = j / map_second_level_width;
-			int second_z = j % map_second_level_width;
-			float second_step_need = first_step_need / static_cast<float>(map_second_level_width);
-			float second_rightdown_st = 0.5f * second_step_need - (first_step_need / 2.0f);
-			secondlevel_center_point.x = second_rightdown_st + second_x * second_step_need;
-			secondlevel_center_point.y = 0.0f;
-			secondlevel_center_point.z = second_rightdown_st + second_z * second_step_need;
-			//当前中心点的物理位置
-			final_center_point.x = firstlevel_center_point.x + secondlevel_center_point.x;
-			final_center_point.y = 0.0f;
-			final_center_point.z = firstlevel_center_point.z + secondlevel_center_point.z;
-			float map_self_offset = second_step_need / 2.0f;
-			float texuv_offset = 1.0f / static_cast<float>(map_second_level_width);
-			for (int k = 0; k < 4; ++k)
-			{
-				data[i * real_range2 + j * 4 + k].tex_id = XMUINT4(i, i, 0, 1);
-
-				data[i * real_range2 + j * 4 + k].position.x = final_center_point.x + square[k].x * map_self_offset;
-				data[i * real_range2 + j * 4 + k].position.y = final_center_point.y + square[k].y;
-				data[i * real_range2 + j * 4 + k].position.z = final_center_point.z + square[k].z * map_self_offset;
-
-				float now_uvst_x = static_cast<float>(second_x) / static_cast<float>(map_second_level_width);
-				float now_uvst_z = static_cast<float>(second_z) / static_cast<float>(map_second_level_width);
-				data[i * real_range2 + j * 4 + k].tex_height.x = now_uvst_x + uv_need[k][0] * texuv_offset;
-				data[i * real_range2 + j * 4 + k].tex_height.y = now_uvst_z + uv_need[k][1] * texuv_offset;
-				data[i * real_range2 + j * 4 + k].tex_diffuse.x = now_uvst_x + uv_need[k][0] * texuv_offset;
-				data[i * real_range2 + j * 4 + k].tex_diffuse.y = now_uvst_z + uv_need[k][1] * texuv_offset;
-			}
-		}
-	}
-	D3D11_BUFFER_DESC data_desc;
-	data_desc.Usage = D3D11_USAGE_IMMUTABLE;
-	data_desc.ByteWidth = sizeof(point_terrain) * number_point;
-	data_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	data_desc.CPUAccessFlags = 0;
-	data_desc.MiscFlags = 0;
-	data_desc.StructureByteStride = 0;
-	D3D11_SUBRESOURCE_DATA data_buf;
-	data_buf.pSysMem = data;
-	hr = device_pancy->CreateBuffer(&data_desc, &data_buf, &square_map_point);
-	if (FAILED(hr))
-	{
-		MessageBox(0, L"create terrain buffer error", L"tip", MB_OK);
-		return hr;
-	}
-	delete[] data;
-	return S_OK;
-}
-HRESULT pancy_terrain_build::build_texture() 
-{
-	HRESULT hr;
-	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~地形的深度图~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	std::vector<ID3D11Texture2D*> depthmap_Tex(height_map_file_name.size());
-	//从文件中导入纹理资源
-	for (int i = 0; i < height_map_file_name.size(); ++i)
-	{
-		hr = CreateDDSTextureFromFileEx(device_pancy, height_map_file_name[i], 0, D3D11_USAGE_STAGING, 0, D3D11_CPU_ACCESS_WRITE | D3D11_CPU_ACCESS_READ, 0, false, (ID3D11Resource**)&depthmap_Tex[i], 0, 0);
-		if (FAILED(hr)) 
-		{
-			MessageBox(0,L"create terrain depth texture error",L"tip",MB_OK);
-			return hr;
-		}
-	}
-	//创建纹理数组
-	D3D11_TEXTURE2D_DESC texElementDesc;
-	depthmap_Tex[0]->GetDesc(&texElementDesc);
-	D3D11_TEXTURE2D_DESC texArrayDesc;
-	texArrayDesc.Width = texElementDesc.Width;
-	texArrayDesc.Height = texElementDesc.Height;
-	texArrayDesc.MipLevels = texElementDesc.MipLevels;
-	texArrayDesc.ArraySize = height_map_file_name.size();
-	texArrayDesc.Format = texElementDesc.Format;
-	texArrayDesc.SampleDesc.Count = 1;
-	texArrayDesc.SampleDesc.Quality = 0;
-	texArrayDesc.Usage = D3D11_USAGE_DEFAULT;
-	texArrayDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	texArrayDesc.CPUAccessFlags = 0;
-	texArrayDesc.MiscFlags = 0;
-	ID3D11Texture2D* texArray = 0;
-	device_pancy->CreateTexture2D(&texArrayDesc, 0, &texArray);
-	//填充纹理数组
-	for (UINT texElement = 0; texElement < height_map_file_name.size(); ++texElement)
-	{
-		//每层mipmap都需要填充
-		for (UINT mipLevel = 0; mipLevel < texElementDesc.MipLevels; ++mipLevel)
-		{
-			D3D11_MAPPED_SUBRESOURCE mappedTex2D;
-			HRESULT hr;
-			hr = contex_pancy->Map(depthmap_Tex[texElement], mipLevel, D3D11_MAP_READ, 0, &mappedTex2D);
-			contex_pancy->UpdateSubresource(texArray, D3D11CalcSubresource(mipLevel, texElement, texElementDesc.MipLevels), 0, mappedTex2D.pData, mappedTex2D.RowPitch, mappedTex2D.DepthPitch);
-			contex_pancy->Unmap(depthmap_Tex[texElement], mipLevel);
-		}
-	}
-	//创建SRV
-	D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc;
-	viewDesc.Format = texArrayDesc.Format;
-	viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-	viewDesc.Texture2DArray.MostDetailedMip = 0;
-	viewDesc.Texture2DArray.MipLevels = texArrayDesc.MipLevels;
-	viewDesc.Texture2DArray.FirstArraySlice = 0;
-	viewDesc.Texture2DArray.ArraySize = height_map_file_name.size();
-	device_pancy->CreateShaderResourceView(texArray, &viewDesc, &height_map_atrray);
-	//释放资源
-	texArray->Release();
-	for (UINT i = 0; i < height_map_file_name.size(); ++i) 
-	{
-		depthmap_Tex[i]->Release();
-	}
-	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~地形的纹理图~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	std::vector<ID3D11Texture2D*> diffusemap_Tex(diffuse_map_file_name.size());
-	for (int i = 0; i < diffuse_map_file_name.size(); ++i)
-	{
-		hr = CreateDDSTextureFromFileEx(device_pancy, diffuse_map_file_name[i], 0, D3D11_USAGE_STAGING, 0, D3D11_CPU_ACCESS_WRITE | D3D11_CPU_ACCESS_READ, 0, false, (ID3D11Resource**)&diffusemap_Tex[i], 0, 0);
-		if (FAILED(hr))
-		{
-			MessageBox(0, L"create terrain diffuse texture error", L"tip", MB_OK);
-			return hr;
-		}
-	}
-	diffusemap_Tex[0]->GetDesc(&texElementDesc);
-	texArrayDesc.Width = texElementDesc.Width;
-	texArrayDesc.Height = texElementDesc.Height;
-	texArrayDesc.MipLevels = texElementDesc.MipLevels;
-	texArrayDesc.ArraySize = diffuse_map_file_name.size();
-	texArrayDesc.Format = texElementDesc.Format;
-	texArrayDesc.SampleDesc.Count = 1;
-	texArrayDesc.SampleDesc.Quality = 0;
-	texArrayDesc.Usage = D3D11_USAGE_DEFAULT;
-	texArrayDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	texArrayDesc.CPUAccessFlags = 0;
-	texArrayDesc.MiscFlags = 0;
-	texArray = NULL;
-	device_pancy->CreateTexture2D(&texArrayDesc, 0, &texArray);
-	//填充纹理数组
-	for (UINT texElement = 0; texElement < diffuse_map_file_name.size(); ++texElement)
-	{
-		//每层mipmap都需要填充
-		for (UINT mipLevel = 0; mipLevel < texElementDesc.MipLevels; ++mipLevel)
-		{
-			D3D11_MAPPED_SUBRESOURCE mappedTex2D;
-			HRESULT hr;
-			hr = contex_pancy->Map(diffusemap_Tex[texElement], mipLevel, D3D11_MAP_READ, 0, &mappedTex2D);
-			contex_pancy->UpdateSubresource(texArray, D3D11CalcSubresource(mipLevel, texElement, texElementDesc.MipLevels), 0, mappedTex2D.pData, mappedTex2D.RowPitch, mappedTex2D.DepthPitch);
-			contex_pancy->Unmap(diffusemap_Tex[texElement], mipLevel);
-		}
-	}
-	//创建SRV
-	viewDesc.Format = texArrayDesc.Format;
-	viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-	viewDesc.Texture2DArray.MostDetailedMip = 0;
-	viewDesc.Texture2DArray.MipLevels = texArrayDesc.MipLevels;
-	viewDesc.Texture2DArray.FirstArraySlice = 0;
-	viewDesc.Texture2DArray.ArraySize = diffuse_map_file_name.size();
-	device_pancy->CreateShaderResourceView(texArray, &viewDesc, &diffuse_map_atrray);
-	//释放资源
-	texArray->Release();
-	for (UINT i = 0; i < diffuse_map_file_name.size(); ++i)
-	{
-		diffusemap_Tex[i]->Release();
-	}
-	return S_OK;
-}
-void pancy_terrain_build::release() 
-{
-	diffuse_map_atrray->Release();
-	height_map_atrray->Release();
-	square_map_point->Release();
-}
-
 shader_snakecompute::shader_snakecompute(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
 {
 }
@@ -913,6 +644,55 @@ scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceCont
 HRESULT scene_engine_test::scene_create()
 {
 	HRESULT hr_need;
+	//光源注册
+	basic_lighting rec_need(point_light, shadow_none, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
+	light_list->add_light_without_shadow(rec_need);
+	rec_need.set_light_range(5.0f);
+	rec_need.set_light_ambient(0.0f, 0.0f, 0.0f, 0.0f);
+	rec_need.set_light_diffuse(0.3f, 0.3f, 0.0f, 0.0f);
+	rec_need.set_light_specular(0.3f, 0.3f, 0.0f, 0.0f);
+	rec_need.set_light_decay(0.2f, 1.2f, 0.0f);
+	light_list->add_light_without_shadow(rec_need);
+	for (int i = 0; i < 6; ++i)
+	{
+		rec_need.set_light_position(7.3f, 4.8f, 13.0f - 4.8f*i);
+		light_list->add_light_without_shadow(rec_need);
+		//nonshadow_light_list.push_back(rec_need);
+	}
+	for (int i = 0; i < 6; ++i)
+	{
+		rec_need.set_light_position(-7.3f, 4.8f, 12.85f - 4.8*i);
+		light_list->add_light_without_shadow(rec_need);
+		//nonshadow_light_list.push_back(rec_need);
+	}
+	light_with_shadowmap rec_shadow(direction_light, shadow_map, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
+	hr_need = rec_shadow.create(1024, 1024);
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	light_list->add_light_witn_shadow_map(rec_shadow);
+	/*
+	light_with_shadowmap rec_shadow1(spot_light, shadow_map, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
+	rec_shadow1.set_light_position(1,2.5,2.5);
+	rec_shadow1.set_light_dir(-1.0f, -1.0f, -1.0f);
+	hr_need = rec_shadow1.create(1024, 1024);
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	light_list->add_light_witn_shadow_map(rec_shadow1);
+	
+	light_with_shadowmap rec_shadow2(spot_light, shadow_map, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
+	rec_shadow2.set_light_position(-1, 2.5, 2.5);
+	rec_shadow2.set_light_dir(1.0f, -1.0f, -1.0f);
+	hr_need = rec_shadow2.create(1024, 1024);
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	light_list->add_light_witn_shadow_map(rec_shadow2);
+	*/
 	//外部模型导入及创建访问器
 	hr_need = particle_fire->create(L"flare0.dds");
 	if (hr_need != S_OK)
@@ -947,13 +727,19 @@ HRESULT scene_engine_test::scene_create()
 		return hr_need;
 	}
 	//内置模型访问器
-	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_floor");
+	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_floor",pancy_geometry_cube);
 	if (FAILED(hr_need))
 	{
 		MessageBox(0, L"add buildin model error", L"tip", MB_OK);
 		return hr_need;
 	}
-	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_ball", "geometry_sky");
+	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_ball", "geometry_sky", pancy_geometry_ball);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"add buildin model error", L"tip", MB_OK);
+		return hr_need;
+	}
+	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_aotest",pancy_geometry_cube);
 	if (FAILED(hr_need))
 	{
 		MessageBox(0, L"add buildin model error", L"tip", MB_OK);
@@ -1015,7 +801,7 @@ HRESULT scene_engine_test::display()
 	show_floor();
 	show_castel_deffered("LightTech");
 	//show_castel("draw_withshadowssao", "draw_withshadowssaonormal");
-	//show_aotestproj();
+	show_aotestproj();
 	//show_yuri();
 	show_yuri_animation_deffered();
 	show_yuri_animation();
@@ -1325,6 +1111,7 @@ void scene_engine_test::show_ball()
 	ID3DX11EffectTechnique *teque_need;
 	shader_test->get_technique(&teque_need, "draw_reflect");
 
+	/*
 	//设定世界变换
 	XMMATRIX trans_world;
 	XMMATRIX scal_world;
@@ -1335,13 +1122,14 @@ void scene_engine_test::show_ball()
 	scal_world = XMMatrixScaling(50.0f, 50.0f, 50.0f);
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
-	shader_test->set_trans_world(&world_matrix);
+	*/
+	shader_test->set_trans_world(&ball_need->get_world_matrix());
 	//设定立方贴图
 	shader_test->set_tex_resource(tex_skycube);
 	//设定总变换
 	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
 	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
-	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&ball_need->get_world_matrix());
 	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
 	XMFLOAT4X4 world_viewrec;
 	XMStoreFloat4x4(&world_viewrec, worldViewProj);
@@ -1422,7 +1210,7 @@ void scene_engine_test::show_floor()
 	//纹理设定
 	shader_test->set_diffusetex(tex_floor);
 	shader_test->set_normaltex(tex_normal);
-
+	/*
 	//设定世界变换
 	XMMATRIX trans_world;
 	XMMATRIX scal_world;
@@ -1434,13 +1222,14 @@ void scene_engine_test::show_floor()
 
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
-	shader_test->set_trans_world(&world_matrix);
+	*/
+	shader_test->set_trans_world(&floor_need->get_world_matrix());
 	std::vector<light_with_shadowmap> shadowmap_light_list;
 	shadowmap_light_list = *light_list->get_lightdata_shadow();
 	//设定总变换
 	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
 	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
-	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&floor_need->get_world_matrix());
 
 	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
 
@@ -1454,15 +1243,17 @@ void scene_engine_test::show_floor()
 }
 void scene_engine_test::show_aotestproj()
 {
-	auto* shader_test = shader_lib->get_shader_prelight();
-	auto* floor_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_floor");
+	auto* shader_test = shader_lib->get_shader_light_deffered_draw();
+	auto* floor_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_aotest");
 	//auto* tex_floor = geometry_lib->get_basic_floor_tex();
 	//auto* tex_normal = geometry_lib->get_floor_normal_tex();
 	auto* tex_floor = geometry_lib->get_texture_byname("floor_diffuse")->data->get_data();
 	auto* tex_normal = geometry_lib->get_texture_byname("floor_normal")->data->get_data();
+	shader_test->set_diffuse_light_tex(lbuffer_diffuse);
+	shader_test->set_specular_light_tex(lbuffer_specular);
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
-	shader_test->get_technique(&teque_need, "draw_withshadowssao");
+	shader_test->get_technique(&teque_need, "LightTech");
 
 	//地面的材质
 	pancy_material test_Mt;
@@ -1472,27 +1263,16 @@ void scene_engine_test::show_aotestproj()
 	test_Mt.ambient = rec_ambient2;
 	test_Mt.diffuse = rec_diffuse2;
 	test_Mt.specular = rec_specular2;
+	test_Mt.reflect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	shader_test->set_material(test_Mt);
 	//纹理设定
 	shader_test->set_diffusetex(tex_floor);
-	shader_test->set_normaltex(tex_normal);
-
-	//设定世界变换
-	XMMATRIX trans_world;
-	XMMATRIX scal_world;
-	XMMATRIX rotation_world;
-	XMMATRIX rec_world;
-	XMFLOAT4X4 world_matrix;
-	trans_world = XMMatrixTranslation(0.0f, 0.0f, -1.1f);
-	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-
-	rec_world = scal_world * trans_world;
-	XMStoreFloat4x4(&world_matrix, rec_world);
-	shader_test->set_trans_world(&world_matrix);
+	//shader_test->set_normaltex(tex_normal);
+	shader_test->set_trans_world(&floor_need->get_world_matrix());
 	//设定总变换
 	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
 	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
-	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&floor_need->get_world_matrix());
 
 	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
 
@@ -1580,10 +1360,28 @@ HRESULT scene_engine_test::update(float delta_time)
 	//更新光源世界变换
 	trans_world = XMMatrixTranslation(0.0, 2.5, 2.5);
 	scal_world = XMMatrixScaling(0.1f, 0.1f, 0.1f);
+	//更新天空球世界变换
+	trans_world = XMMatrixTranslation(0.0, 0.0, 0.0);
+	scal_world = XMMatrixScaling(50.0f, 50.0f, 50.0f);
+	rec_world = scal_world * trans_world;
+	XMStoreFloat4x4(&world_matrix, rec_world);
+	geometry_lib->update_buildin_GRV_byname("geometry_sky", world_matrix, delta_time);
 
+
+	//设定世界变换
+	trans_world = XMMatrixTranslation(0.0f, -1.2f, 0.0f);
+	scal_world = XMMatrixScaling(35.0f, 0.55f, 35.0f);
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
 	geometry_lib->update_buildin_GRV_byname("geometry_floor", world_matrix, delta_time);
+	//设定ao遮蔽板的世界变换
+	trans_world = XMMatrixTranslation(0.0f, 0.0f, -1.1f);
+	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
+
+	rec_world = scal_world * trans_world;
+	XMStoreFloat4x4(&world_matrix, rec_world);
+	shader_test->set_trans_world(&world_matrix);
+	geometry_lib->update_buildin_GRV_byname("geometry_aotest", world_matrix, delta_time);
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~设置shadowmap光源~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	light_list->update_and_setlight();
 	/*
@@ -1641,7 +1439,6 @@ HRESULT scene_engine_snake::scene_create()
 		MessageBox(0, L"load fire particle error", L"tip", MB_OK);
 		return hr_need;
 	}
-
 	int index_model_rec;
 	hr_need = geometry_lib->load_modelresource_from_file("snakemodel\\snake.FBX", "snakemodel\\", true, false, false, 0, NULL, "snake_model_resource", index_model_rec);
 	if (FAILED(hr_need))
@@ -1671,13 +1468,13 @@ HRESULT scene_engine_snake::scene_create()
 		return hr_need;
 	}
 	//内置模型访问器
-	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_floor");
+	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_floor",pancy_geometry_cube);
 	if (FAILED(hr_need))
 	{
 		MessageBox(0, L"add buildin model error", L"tip", MB_OK);
 		return hr_need;
 	}
-	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_ball", "geometry_sky");
+	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_ball", "geometry_sky", pancy_geometry_ball);
 	if (FAILED(hr_need))
 	{
 		MessageBox(0, L"add buildin model error", L"tip", MB_OK);
@@ -1926,140 +1723,46 @@ HRESULT scene_engine_snake::update(float delta_time)
 	return S_OK;
 }
 
-class pancy_collision_callback : public physx::PxSimulationEventCallback
+
+
+scene_engine_physicx::scene_engine_physicx(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_physx *physx_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height)
 {
-public:
-	void onConstraintBreak(physx::PxConstraintInfo* constraints, physx::PxU32 count) {};
-	void onWake(physx::PxActor** actors, physx::PxU32 count) {};
-	void onSleep(physx::PxActor** actors, physx::PxU32 count) {}
-	void onContact(const physx::PxContactPairHeader& pairHeader, const physx::PxContactPair* pairs, physx::PxU32 nbPairs)
-	{
-		int a = 0;
-	}
-	void onTrigger(physx::PxTriggerPair* pairs, physx::PxU32 count)
-	{
-		int a = 0;
-	};
-};
-pancy_physx::pancy_physx()
-{
-	physic_device = NULL;
-	now_scene = NULL;
-	foundation_need = NULL;
-	plane = NULL;
-	box = NULL;
-}
-HRESULT pancy_physx::create()
-{
-	physx::PxDefaultErrorCallback error_message;
-	//physx::PxDefaultAllocator allocator_defaule;
-	foundation_need = PxCreateFoundation(PX_PHYSICS_VERSION, allocator_defaule, error_message);
-	//physx::PxTolerancesScale scale;
-	physic_device = PxCreatePhysics(PX_PHYSICS_VERSION, *foundation_need, scale);
-	if (physic_device == NULL)
-	{
-		MessageBox(0, L"create physx device error", L"tip", MB_OK);
-		return E_FAIL;
-	}
-
-	mat_force = physic_device->createMaterial(0.5, 0.5, 0.5);
-	plan_pos = new physx::PxTransform(physx::PxVec3(0.0f, 0.0f, 0.0f), physx::PxQuat(physx::PxHalfPi, physx::PxVec3(0.0f, 0.0f, 1.0f)));
-	box_pos = new physx::PxTransform(physx::PxVec3(0.0f, 10.0f, 0.0f));
-	box_geo = new physx::PxBoxGeometry(physx::PxVec3(0.5f, 0.5f, 0.5f));
-
-	physx::PxSimulationEventCallback *callback_scene = new pancy_collision_callback();
-	physx::PxSceneDesc scene_desc(physic_device->getTolerancesScale());
-	scene_desc.gravity = physx::PxVec3(0.0f, -9.8f, 0.0f);
-	scene_desc.cpuDispatcher = physx::PxDefaultCpuDispatcherCreate(1);
-	scene_desc.filterShader = physx::PxDefaultSimulationFilterShader;
-	scene_desc.simulationEventCallback = callback_scene;
-	now_scene = physic_device->createScene(scene_desc);
-
-	plane = physic_device->createRigidStatic(*plan_pos);
-	plane->createShape(physx::PxPlaneGeometry(), *mat_force);
-	now_scene->addActor(*plane);
-
-	physx::PxShape *trigger;
-	plane->getShapes(&trigger, 1);
-	trigger->setFlag(physx::PxShapeFlag::eSIMULATION_SHAPE, true);
-	trigger->setFlag(physx::PxShapeFlag::eTRIGGER_SHAPE, true);
-
-	box = physx::PxCreateDynamic(*physic_device, *box_pos, *box_geo, *mat_force, 1);
-	now_scene->addActor(*box);
-
-
-	//box->setMass(0.2f);
-	physx::PxReal rec = box->getMass();
-	physx::PxVec3 dir_force(19.0f, 0.0f, 0.0f);
-	box->addForce(dir_force, physx::PxForceMode::eIMPULSE);
-
-	physx::PxShape *trigger1;
-	box->getShapes(&trigger1, 1);
-	trigger1->setFlag(physx::PxShapeFlag::eSIMULATION_SHAPE, true);
-	trigger1->setFlag(physx::PxShapeFlag::eTRIGGER_SHAPE, true);
-
-	return S_OK;
-}
-HRESULT pancy_physx::add_actor(physx::PxRigidDynamic *box)
-{
-	now_scene->addActor(*box);
-	return S_OK;
-}
-void pancy_physx::get_rotation_data(float &angle, XMFLOAT3 &vector)
-{
-	physx::PxReal angle_need;
-	physx::PxVec3 vector_need;
-	box->getGlobalPose().q.toRadiansAndUnitAxis(angle_need, vector_need);
-	angle = static_cast<float>(angle_need);
-	vector.x = static_cast<float>(vector_need.x);
-	vector.y = static_cast<float>(vector_need.y);
-	vector.z = static_cast<float>(vector_need.z);
-}
-void pancy_physx::update(float delta_time)
-{
-	//physx::PxReal rec = box->getMass();
-	//physx::PxVec3 dir_force(0.0f, 9.8f, 0.0f);
-	//box->addForce(dir_force, physx::PxForceMode::eIMPULSE);
-	now_scene->simulate(static_cast<physx::PxReal>(delta_time));
-	now_scene->fetchResults(true);
-}
-void pancy_physx::release()
-{
-	now_scene->release();
-	physic_device->release();
-	foundation_need->release();
-}
-XMFLOAT3 pancy_physx::get_position()
-{
-	XMFLOAT3 rec_pos;
-	rec_pos.x = static_cast<float>(box->getGlobalPose().p.x);
-	rec_pos.y = static_cast<float>(box->getGlobalPose().p.y);
-	rec_pos.z = static_cast<float>(box->getGlobalPose().p.z);
-	return rec_pos;
-}
-
-scene_engine_physicx::scene_engine_physicx(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height)
-{
-	physics_test = new pancy_physx();
-	std::vector<LPCWSTR> height_map;
-	std::vector<LPCWSTR> diffuse_map;
-	height_map.push_back(L"terrain_height.dds");
-	diffuse_map.push_back(L"terrain_color.dds");
-	terrain_test = new pancy_terrain_build(device_pancy,contex_pancy,shader_lib,1,5,300, height_map, diffuse_map);
+	physics_pancy = physx_need;
+	//physics_test = new pancy_physx(device_need, contex_need);
 }
 HRESULT scene_engine_physicx::scene_create()
 {
 	HRESULT hr_need;
+	//光源注册
+	light_with_shadowmap rec_shadow(direction_light, shadow_map, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
+	hr_need = rec_shadow.create(1024, 1024);
+	rec_shadow.set_light_dir(0.0f, 0.3f, 1.0f);
+	rec_shadow.set_light_diffuse(0.6f, 0.6f,0.6f,1.0f);
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	light_list->add_light_witn_shadow_map(rec_shadow);
+
+	//物理引擎
+	std::vector<LPCWSTR> height_map;
+	std::vector<LPCWSTR> diffuse_map;
+	height_map.push_back(L"terrain_height.dds");
+	diffuse_map.push_back(L"terrain_color.dds");
+	/*
 	hr_need = physics_test->create();
 	if (FAILED(hr_need))
 	{
 		return hr_need;
 	}
+	*/
+	terrain_test = new pancy_terrain_build(physics_pancy, device_pancy, contex_pancy, shader_lib, 1, 5, 300, height_map, diffuse_map);
 	hr_need = terrain_test->create();
 	if (FAILED(hr_need))
 	{
 		return hr_need;
 	}
+	geometry_lib->build_terrain_from_memory(terrain_test);
 	//读取场景需要的纹理
 	int texture_index;
 	hr_need = geometry_lib->load_texture_from_file(L"floor.dds", true, "floor_diffuse", texture_index);
@@ -2078,19 +1781,17 @@ HRESULT scene_engine_physicx::scene_create()
 		return hr_need;
 	}
 	//内置模型访问器
-	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_floor");
+	//hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_floor");
+	//if (FAILED(hr_need))
+	//{
+	//	return hr_need;
+	//}
+	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_boxtest", pancy_geometry_cube);
 	if (FAILED(hr_need))
 	{
 		return hr_need;
 	}
-	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_boxtest");
-	if (FAILED(hr_need))
-	{
-		return hr_need;
-	}
-
-
-	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_ball", "geometry_sky");
+	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_ball", "geometry_sky", pancy_geometry_ball);
 	if (FAILED(hr_need))
 	{
 		return hr_need;
@@ -2107,24 +1808,13 @@ void scene_engine_physicx::show_ball()
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
 	shader_test->get_technique(&teque_need, "draw_reflect");
-
-	//设定世界变换
-	XMMATRIX trans_world;
-	XMMATRIX scal_world;
-	XMMATRIX rotation_world;
-	XMMATRIX rec_world;
-	XMFLOAT4X4 world_matrix;
-	trans_world = XMMatrixTranslation(0.0, 0.0, 0.0);
-	scal_world = XMMatrixScaling(50.0f, 50.0f, 50.0f);
-	rec_world = scal_world * trans_world;
-	XMStoreFloat4x4(&world_matrix, rec_world);
-	shader_test->set_trans_world(&world_matrix);
+	shader_test->set_trans_world(&ball_need->get_world_matrix());
 	//设定立方贴图
 	shader_test->set_tex_resource(tex_skycube);
 	//设定总变换
 	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
 	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
-	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&ball_need->get_world_matrix());
 	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
 	XMFLOAT4X4 world_viewrec;
 	XMStoreFloat4x4(&world_viewrec, worldViewProj);
@@ -2228,9 +1918,9 @@ HRESULT scene_engine_physicx::display()
 	shader_deffered->set_diffuse_light_tex(lbuffer_diffuse);
 	shader_deffered->set_specular_light_tex(lbuffer_specular);
 	terrain_test->show_terrain(view_proj);
-	//show_ball();
-	show_floor();
-	//show_box();
+	show_ball();
+	//show_floor();
+	show_box();
 	return S_OK;
 }
 HRESULT scene_engine_physicx::display_enviroment()
@@ -2244,16 +1934,12 @@ HRESULT scene_engine_physicx::display_nopost()
 }
 HRESULT scene_engine_physicx::release()
 {
-	physics_test->release();
+	//physics_test->release();
 	terrain_test->release();
 	return S_OK;
 }
 HRESULT scene_engine_physicx::update(float delta_time)
 {
-	if (delta_time > 0.000000001 && delta_time < 1.0f / 30.0f)
-	{
-		physics_test->update(delta_time);
-	}
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~更新场景摄像机~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	HRESULT hr = camera_move();
 	if (hr != S_OK)
@@ -2272,32 +1958,22 @@ HRESULT scene_engine_physicx::update(float delta_time)
 	auto* shader_deff = shader_lib->get_shader_light_deffered_draw();
 	shader_deff->set_view_pos(eyePos_rec);
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~更新场景信息~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	auto* floor_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_floor");
+	//auto* floor_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_floor");
 	//设定世界变换
 	XMMATRIX trans_world;
 	XMMATRIX scal_world;
 	XMMATRIX rotation_world;
 	XMMATRIX rec_world;
 	XMFLOAT4X4 world_matrix;
-	trans_world = XMMatrixTranslation(0, -0.5f, 0);
-
-	scal_world = XMMatrixScaling(55.0f, 0.55f, 55.0f);
+	//设定世界变换
+	auto* box_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_boxtest");
+	box_need->update_physx_worldmatrix(delta_time);
+	//更新天空球世界变换
+	trans_world = XMMatrixTranslation(0.0, 0.0, 0.0);
+	scal_world = XMMatrixScaling(200.0f, 200.0f, 200.0f);
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
-	floor_need->update(world_matrix, delta_time);
-	//设定世界变换
-
-	auto* box_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_boxtest");
-	trans_world = XMMatrixTranslation(physics_test->get_position().x, physics_test->get_position().y, physics_test->get_position().z);
-	scal_world = XMMatrixScaling(0.5f, 0.5f, 0.5f);
-	float angle_rot;
-	XMFLOAT3 rotation_data;
-	physics_test->get_rotation_data(angle_rot, rotation_data);
-	XMVECTOR rotation_vec = XMLoadFloat3(&rotation_data);
-	rotation_world = XMMatrixRotationAxis(rotation_vec, angle_rot);
-	rec_world = scal_world * rotation_world * trans_world;
-	XMStoreFloat4x4(&world_matrix, rec_world);
-	box_need->update(world_matrix, delta_time);
+	geometry_lib->update_buildin_GRV_byname("geometry_sky", world_matrix, delta_time);
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~设置shadowmap光源~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	light_list->update_and_setlight();
 	XMFLOAT4X4 view_proj;

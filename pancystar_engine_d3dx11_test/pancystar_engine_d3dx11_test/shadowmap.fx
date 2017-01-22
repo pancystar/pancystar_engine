@@ -13,6 +13,10 @@ RasterizerState Depth
 	DepthBiasClamp = 0.0f;
 	SlopeScaledDepthBias = 1.0f;
 };
+RasterizerState DisableCulling
+{
+	CullMode = FRONT;
+};
 struct Vertex_IN//含法线贴图顶点
 {
 	float3	pos 	: POSITION;     //顶点位置
@@ -86,7 +90,8 @@ technique11 ShadowTech
 		SetVertexShader(CompileShader(vs_5_0, VS()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS()));
-		SetRasterizerState(Depth);
+		SetRasterizerState(DisableCulling);
+		//SetRasterizerState(Depth);
 	}
 }
 technique11 ShadowTech_transparent
@@ -96,7 +101,8 @@ technique11 ShadowTech_transparent
 		SetVertexShader(CompileShader(vs_5_0, VS()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS_withalpha()));
-		SetRasterizerState(Depth);
+		//SetRasterizerState(Depth);
+		SetRasterizerState(DisableCulling);
 	}
 }
 technique11 Shadow_skinTech
@@ -107,6 +113,7 @@ technique11 Shadow_skinTech
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS()));
 		SetRasterizerState(Depth);
+		//SetRasterizerState(DisableCulling);
 	}
 }
 technique11 Shadow_skinTech_transparent
@@ -117,5 +124,6 @@ technique11 Shadow_skinTech_transparent
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS_withalpha()));
 		SetRasterizerState(Depth);
+		//SetRasterizerState(DisableCulling);
 	}
 }

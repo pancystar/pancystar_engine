@@ -59,10 +59,10 @@ basic_lighting::basic_lighting(light_type type_need_light, shadow_type type_need
 }
 void basic_lighting::init_comman_dirlight(shadow_type type_need_shadow)
 {
-	XMFLOAT4 rec_ambient(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_diffuse(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_specular(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT3 rec_dir(0.0f, -1.0f, 0.0f);
+	XMFLOAT4 rec_ambient(0.0f, 0.0f, 0.0f, 1.0f);
+	XMFLOAT4 rec_diffuse(0.3f, 0.3f, 0.3f, 1.0f);
+	XMFLOAT4 rec_specular(0.3f, 0.3f, 0.3f, 1.0f);
+	XMFLOAT3 rec_dir(-1.0f, -1.0f, 0.0f);
 	light_data.ambient = rec_ambient;
 	light_data.diffuse = rec_diffuse;
 	light_data.specular = rec_specular;
@@ -121,7 +121,7 @@ light_with_shadowmap::light_with_shadowmap(light_type type_need_light, shadow_ty
 {
 	shadowmap_deal = new shadow_basic(device_need, contex_need, shader_lib);
 	cube_range.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	cube_range.Radius = sqrtf(1.0f*1.0f + 1.0f*1.0f);
+	cube_range.Radius = sqrtf(10.0f*10.0f + 10.0f*10.0f);
 }
 HRESULT light_with_shadowmap::create(int width_need, int height_need)
 {
@@ -136,7 +136,7 @@ void light_with_shadowmap::draw_shadow()
 {
 	//更新渲染状态
 	//contex_pancy->RSSetState(renderstate_lib->get_CULL_front_rs());
-	shadowmap_deal->set_renderstate(light_data.position, light_data.dir, cube_range, spot_light);
+	shadowmap_deal->set_renderstate(light_data.position, light_data.dir, cube_range, static_cast<light_type>(light_data.light_type.x));
 	//绘制阴影
 	//geometry_ResourceView_list *list = geometry_lib->get_model_list();
 	//assimpmodel_resource_view *now_rec = list->get_geometry_head();
@@ -258,6 +258,7 @@ light_control::light_control(ID3D11Device *device_need, ID3D11DeviceContext *con
 }
 void light_control::release()
 {
+	ShadowTextureArray->Release();
 	shadow_map_resource->Release();
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
@@ -268,10 +269,20 @@ void light_control::release()
 		rec_shadow_volume._Ptr->release();
 	}
 }
+void light_control::add_light_without_shadow(basic_lighting light_input)
+{
+	nonshadow_light_list.push_back(light_input);
+}
+void light_control::add_light_witn_shadow_map(light_with_shadowmap light_input)
+{
+	shadowmap_light_list.push_back(light_input);
+	light_input.init_texture(ShadowTextureArray, shadowmap_light_list.size()-1);
+}
 HRESULT light_control::create(shader_control *shader_need, geometry_control *geometry_lib, pancy_renderstate *renderstate_lib)
 {
 	shader_lib = shader_need;
 	HRESULT hr;
+	/*
 	basic_lighting rec_need(point_light, shadow_none, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
 	nonshadow_light_list.push_back(rec_need);
 	rec_need.set_light_range(5.0f);
@@ -283,12 +294,12 @@ HRESULT light_control::create(shader_control *shader_need, geometry_control *geo
 	for (int i = 0; i < 6; ++i) 
 	{
 		rec_need.set_light_position(7.3f, 4.8f, 13.0f - 4.8f*i);
-		nonshadow_light_list.push_back(rec_need);
+		//nonshadow_light_list.push_back(rec_need);
 	}
 	for (int i = 0; i < 6; ++i) 
 	{
 		rec_need.set_light_position(-7.3f, 4.8f, 12.85f - 4.8*i);
-		nonshadow_light_list.push_back(rec_need);
+		//nonshadow_light_list.push_back(rec_need);
 	}
 	light_with_shadowmap rec_shadow(spot_light, shadow_map, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
 	hr = rec_shadow.create(1024, 1024);
@@ -297,8 +308,9 @@ HRESULT light_control::create(shader_control *shader_need, geometry_control *geo
 		return hr;
 	}
 	shadowmap_light_list.push_back(rec_shadow);
-
-	ID3D11Texture2D* ShadowTextureArray;
+	*/
+	//ID3D11Texture2D* ShadowTextureArray;
+	//~~~~~~~~~~~~~~~~~~~~创建阴影图纹理数组资源~~~~~~~~~~~~~~~~~~~
 	D3D11_TEXTURE2D_DESC texDesc;
 	texDesc.Width = 1024;
 	texDesc.Height = 1024;
@@ -317,6 +329,7 @@ HRESULT light_control::create(shader_control *shader_need, geometry_control *geo
 		MessageBox(NULL, L"create shadowmap texarray error", L"tip", MB_OK);
 		return hr;
 	}
+	//~~~~~~~~~~~~~~~~~~~~创建阴影图纹理数组访问器~~~~~~~~~~~~~~~~~~~
 	D3D11_SHADER_RESOURCE_VIEW_DESC dsrvd = {
 		DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
 		D3D11_SRV_DIMENSION_TEXTURE2DARRAY,
@@ -325,23 +338,22 @@ HRESULT light_control::create(shader_control *shader_need, geometry_control *geo
 	dsrvd.Texture2DArray.FirstArraySlice = 0;
 	dsrvd.Texture2DArray.MipLevels = 1;
 	dsrvd.Texture2DArray.MostDetailedMip = 0;
-
 	hr = device_pancy->CreateShaderResourceView(ShadowTextureArray, &dsrvd, &shadow_map_resource);
 	if (FAILED(hr))
 	{
 		MessageBox(NULL, L"create shadowmap texarray error", L"tip", MB_OK);
 		return hr;
 	}
+	/*
 	int shadow_count = 0;
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
 		rec_shadow_light._Ptr->init_texture(ShadowTextureArray, shadow_count++);
 	}
-	ShadowTextureArray->Release();
+	//ShadowTextureArray->Release();
+	*/
 	/*
-
 	DXUT_SetDebugName(m_pCascadedShadowMapVarianceSRVArraySingle, "VSM Cascaded SM Var Array SRV");
-
 	for (int index = 0; index < m_CopyOfCascadeConfig.m_nCascadeLevels; ++index)
 	*/
 	return S_OK;
@@ -352,22 +364,27 @@ void light_control::update_and_setlight()
 	int count_shadow_point = 0, count_shadow_dir = 0, count_shadow_spot = 0;
 	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
 	{
-		rec_shadow_light._Ptr->set_frontlight(count);
-		rec_shadow_light._Ptr->set_defferedlight(count);
 		light_type check_shadow = rec_shadow_light._Ptr->get_light_type();
 		if (check_shadow == direction_light) 
 		{
+			rec_shadow_light._Ptr->set_frontlight(count);
+			rec_shadow_light._Ptr->set_defferedlight(count);
 			count_shadow_dir += 1;
+			count += 1;
 		}
-		else if (check_shadow == point_light) 
-		{
-			count_shadow_point += 1;
-		}
-		else if (check_shadow == spot_light) 
-		{
+	}
+	for (auto rec_shadow_light = shadowmap_light_list.begin(); rec_shadow_light != shadowmap_light_list.end(); ++rec_shadow_light)
+	{
+		
+		light_type check_shadow = rec_shadow_light._Ptr->get_light_type();
+		if (check_shadow == spot_light)
+		{	
+			rec_shadow_light._Ptr->set_frontlight(count);
+			rec_shadow_light._Ptr->set_defferedlight(count);
 			count_shadow_spot += 1;
+			count += 1;
 		}
-		count += 1;
+		
 	}
 	//设置无影光源
 	for (auto rec_non_light = nonshadow_light_list.begin(); rec_non_light != nonshadow_light_list.end(); ++rec_non_light)

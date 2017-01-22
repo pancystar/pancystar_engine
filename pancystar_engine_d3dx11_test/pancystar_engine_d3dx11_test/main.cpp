@@ -36,6 +36,7 @@
 //继承的d3d注册类
 class d3d_pancy_1 :public d3d_pancy_basic
 {
+	pancy_physx              *physics_pancy;
 	scene_root               *first_scene_test;
 	geometry_control         *geometry_list;       //几何体表
 	shader_control           *shader_list;         //shader表
@@ -108,10 +109,15 @@ HRESULT d3d_pancy_1::init_create()
 		MessageBox(0, L"create d3dx11 failed", L"tip", MB_OK);
 		return E_FAIL;
 	}
-	
+	physics_pancy = new pancy_physx(device_pancy, contex_pancy);
+	hr = physics_pancy->create();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
 	test_camera = new pancy_camera(device_pancy, window_width, window_hight);
 	test_input = new pancy_input(wind_hwnd, device_pancy, hInstance);
-	geometry_list = new geometry_control(device_pancy, contex_pancy);
+	geometry_list = new geometry_control(device_pancy, contex_pancy,physics_pancy);
 	light_list = new light_control(device_pancy, contex_pancy, 20);
 	hr = shader_list->shader_init(device_pancy, contex_pancy);
 	if (FAILED(hr))
@@ -130,7 +136,7 @@ HRESULT d3d_pancy_1::init_create()
 	{
 		return hr;
 	}
-	first_scene_test = new scene_engine_physicx(device_pancy, contex_pancy, render_state, test_input, test_camera, shader_list, geometry_list, light_list, wind_width, wind_hight);
+	first_scene_test = new scene_engine_physicx(device_pancy, contex_pancy, physics_pancy, render_state, test_input, test_camera, shader_list, geometry_list, light_list, wind_width, wind_hight);
 	hr = first_scene_test->scene_create();
 	if (FAILED(hr))
 	{
@@ -245,9 +251,11 @@ void d3d_pancy_1::display_shadowao(bool if_shadow, bool if_ao)
 	}
 	if (if_shadow)
 	{
+		//contex_pancy->RSSetState(render_state->get_CULL_front_rs());
 		light_list->draw_shadow();
 		auto shader_pre = shader_list->get_shader_prelight();
 		shader_pre->set_shadowtex(light_list->get_shadow_map_resource());
+		contex_pancy->RSSetState(NULL);
 	}
 }
 void d3d_pancy_1::update()
@@ -256,6 +264,10 @@ void d3d_pancy_1::update()
 	time_game += delta_time;
 	delta_need += XM_PI*0.5f*delta_time;
 	time_need.refresh();
+	if (delta_time > 0.000000001 && delta_time < 1.0f / 30.0f)
+	{
+		physics_pancy->update(delta_time);
+	}
 	first_scene_test->update(delta_time);
 	return;
 }
@@ -280,8 +292,8 @@ void d3d_pancy_1::display()
 	first_scene_test->display();
 	render_state->set_posttreatment_rendertarget();
 	//反射处理
-	//posttreat_reflect->set_normaldepthcolormap(pretreat_scene->get_gbuffer_normalspec(), pretreat_scene->get_gbuffer_depth());
-	//posttreat_reflect->draw_reflect(render_state->get_postrendertarget(), render_state->get_reflectrendertarget());
+	posttreat_reflect->set_normaldepthcolormap(pretreat_scene->get_gbuffer_normalspec(), pretreat_scene->get_gbuffer_depth());
+	posttreat_reflect->draw_reflect(render_state->get_postrendertarget(), render_state->get_reflectrendertarget());
 	render_state->restore_rendertarget();
 	//HDR处理
 	posttreat_scene->display();

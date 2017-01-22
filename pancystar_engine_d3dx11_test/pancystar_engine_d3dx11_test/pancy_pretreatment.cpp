@@ -470,6 +470,27 @@ ID3DX11EffectTechnique* Pretreatment_gbuffer::get_technique_skin_normal()
 	}
 	return teque_need;
 }
+ID3DX11EffectTechnique* Pretreatment_gbuffer::get_techniqueterrain()
+{
+	ID3DX11EffectTechnique* tech;
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec_point[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION"    ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXINDICES"  ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,28 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD"    ,1  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	HRESULT hr = shader_list->get_shader_gbufferdepthnormal()->get_technique(rec_point, num_member, &tech, "NormalDepth_terrain");
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"get technique error when get terrain depthnormal technique", L"tip", MB_OK);
+		return NULL;
+	}
+	return tech;
+}
 void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix)
 {
 	//关闭alpha混合
@@ -565,6 +586,20 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 		g_shader->set_trans_all(&final_matrix);
 		now_rec->draw_full_geometry(get_technique());
 	}
+	if (geometry_lib->check_if_have_terrain())
+	{
+		pancy_terrain_build *terrain_data = geometry_lib->get_terrain_data();
+		g_shader->set_terainbumptex(terrain_data->get_heightmap());
+		g_shader->set_teraintex(terrain_data->get_diffusemap());
+		XMFLOAT4X4 final_matrix;
+		XMStoreFloat4x4(&final_matrix, XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
+		XMFLOAT4X4 world;
+		XMStoreFloat4x4(&world, XMMatrixIdentity());
+		g_shader->set_trans_world(&world, &view_matrix);
+		g_shader->set_trans_all(&final_matrix);
+		terrain_data->show_terrainshape(get_techniqueterrain());
+	}
+
 	//还原渲染状态
 	contex_pancy->RSSetState(0);
 	ID3D11Resource * normalDepthTex = 0;
@@ -671,11 +706,11 @@ void Pretreatment_gbuffer::render_lbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 inv
 	lbuffer_shader->set_invview_matrix(&invview_matrix);
 	lbuffer_shader->set_shadow_tex(light_list->get_shadow_map_resource());
 	ID3DX11EffectTechnique *tech_need;
-	if (if_shadow == true) 
+	if (if_shadow == true)
 	{
 		lbuffer_shader->get_technique(&tech_need, "draw_common");
 	}
-	else 
+	else
 	{
 		lbuffer_shader->get_technique(&tech_need, "draw_withoutshadow");
 	}

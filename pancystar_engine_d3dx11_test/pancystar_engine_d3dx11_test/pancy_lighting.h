@@ -69,7 +69,8 @@ class light_control
 {
 	ID3D11Device           *device_pancy;     //d3d设备
 	ID3D11DeviceContext    *contex_pancy;     //设备描述表
-	shader_control          *shader_lib;
+	shader_control         *shader_lib;
+	ID3D11Texture2D        *ShadowTextureArray;      //阴影图数组资源
 	std::vector<basic_lighting>                nonshadow_light_list;
 	std::vector<light_with_shadowmap>          shadowmap_light_list;
 	std::vector<light_with_shadowvolume>       shadowvalume_light_list;
@@ -77,6 +78,8 @@ class light_control
 	int max_shadow_num;
 public:
 	light_control(ID3D11Device *device_need,ID3D11DeviceContext *contex_need,int shadow_num_need);
+	void add_light_without_shadow(basic_lighting light_input);
+	void add_light_witn_shadow_map(light_with_shadowmap light_input);
 	HRESULT create(shader_control *shader_lib, geometry_control *geometry_lib, pancy_renderstate *renderstate_lib);
 	std::vector<light_with_shadowmap>* get_lightdata_shadow() { return &shadowmap_light_list; };
 	ID3D11ShaderResourceView  *get_shadow_map_resource() { return shadow_map_resource; };

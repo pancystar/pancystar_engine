@@ -148,12 +148,16 @@ class shader_gbufferdepthnormal_map : public shader_basic
 	ID3DX11EffectMatrixVariable           *BoneTransforms;             //骨骼变换矩阵
 	ID3DX11EffectShaderResourceVariable   *texture_need;
 	ID3DX11EffectShaderResourceVariable   *texture_normal;
+	ID3DX11EffectShaderResourceVariable   *texture_terainbump_handle;
+	ID3DX11EffectShaderResourceVariable   *texture_terain_handle;
 public:
 	shader_gbufferdepthnormal_map(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_trans_world(XMFLOAT4X4 *mat_world, XMFLOAT4X4 *mat_view);
 	HRESULT set_trans_all(XMFLOAT4X4 *mat_final);
 	HRESULT set_texture(ID3D11ShaderResourceView *tex_in);
 	HRESULT set_texture_normal(ID3D11ShaderResourceView *tex_in);
+	HRESULT set_terainbumptex(ID3D11ShaderResourceView *tex_in);	 //设置地形高度纹理
+	HRESULT set_teraintex(ID3D11ShaderResourceView *tex_in);	     //设置地形纹理
 	HRESULT set_bone_matrix(const XMFLOAT4X4* M, int cnt);		     //设置骨骼变换矩阵
 	void release();
 private:

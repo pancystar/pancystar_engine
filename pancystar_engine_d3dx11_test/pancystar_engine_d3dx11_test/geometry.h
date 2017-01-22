@@ -15,6 +15,11 @@ enum CullMode
 	Cull_CCW = 1,
 	Cull_NONE = 2
 };
+enum Geometry_type
+{
+	pancy_geometry_cube = 0,
+	pancy_geometry_ball = 1,
+};
 struct simpletex_point 
 {
 	XMFLOAT3 position;

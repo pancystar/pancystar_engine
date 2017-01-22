@@ -376,6 +376,28 @@ void shader_gbufferdepthnormal_map::init_handle()
 	BoneTransforms = fx_need->GetVariableByName("gBoneTransforms")->AsMatrix();
 	texture_need = fx_need->GetVariableByName("texture_diffuse")->AsShaderResource();
 	texture_normal = fx_need->GetVariableByName("texture_normal")->AsShaderResource();
+	texture_terainbump_handle = fx_need->GetVariableByName("texture_terrain_bump")->AsShaderResource();
+	texture_terain_handle = fx_need->GetVariableByName("texture_terrain_diffuse")->AsShaderResource();
+}
+HRESULT shader_gbufferdepthnormal_map::set_terainbumptex(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = texture_terainbump_handle->SetResource(tex_in);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting terainbump texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_gbufferdepthnormal_map::set_teraintex(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = texture_terain_handle->SetResource(tex_in);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting terain texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
 }
 HRESULT shader_gbufferdepthnormal_map::set_trans_world(XMFLOAT4X4 *mat_world, XMFLOAT4X4 *mat_view)
 {

@@ -132,7 +132,7 @@ VertexOut VS(Vertex_IN vin)
 	vout.normal = mul(float4(vin.normal, 0.0f), normal_matrix).xyz;
 	vout.tangent = mul(float4(vin.tangent, 0.0f), normal_matrix).xyz;
 	vout.tex = vin.tex1;
-	vout.position_bef = mul(float4(vin.pos, 0.0f), world_matrix).xyz;
+	vout.position_bef = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
 	vout.pos_ssao = mul(float4(vout.position_bef, 1.0f), ssao_matrix);
 	return vout;
 }
@@ -162,7 +162,7 @@ VertexOut VS_bone(Vertex_IN_bone vin)
 	vout.normal = mul(float4(normalL, 0.0f), normal_matrix).xyz;
 	vout.tangent = mul(float4(tangentL, 0.0f), normal_matrix).xyz;
 	vout.tex = vin.tex1;
-	vout.position_bef = mul(float4(posL, 0.0f), world_matrix).xyz;
+	vout.position_bef = mul(float4(posL, 1.0f), world_matrix).xyz;
 	vout.pos_ssao = mul(float4(vout.position_bef, 1.0f), ssao_matrix);
 	return vout;
 }
