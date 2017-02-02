@@ -11,6 +11,9 @@ class ssao_pancy
 	ID3D11Device             *device_pancy;
 	ID3D11DeviceContext      *contex_pancy;
 	pancy_renderstate        *renderstate_lib;
+	float                    perspective_near_plane;
+	float                    perspective_far_plane;
+	float                    perspective_angle;
 	ID3D11Buffer             *AoMap_VB;            //ao图片顶点缓冲区
 	ID3D11Buffer             *AoMap_IB;            //ao图片索引缓冲区
 	ID3D11ShaderResourceView *randomtex;           //随机纹理资源
@@ -31,7 +34,7 @@ class ssao_pancy
 	shader_control           *shader_list;         //shader表
 	geometry_control         *geometry_lib;        //几何体表
 public:
-	ssao_pancy(pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, geometry_control *geometry_lib_need, int width, int height, float fovy, float farZ);
+	ssao_pancy(pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, geometry_control *geometry_lib_need, int width, int height, float near_plane, float far_plane, float angle_view);
 	HRESULT basic_create();
 	void compute_ssaomap();
 	void get_normaldepthmap(ID3D11ShaderResourceView *normalspec_need, ID3D11ShaderResourceView *depth_need);

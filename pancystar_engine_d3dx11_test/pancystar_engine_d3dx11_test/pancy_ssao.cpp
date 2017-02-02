@@ -1,9 +1,12 @@
 #include"pancy_ssao.h"
-ssao_pancy::ssao_pancy(pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, geometry_control *geometry_lib_need, int width, int height, float fovy, float farZ)
+ssao_pancy::ssao_pancy(pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, geometry_control *geometry_lib_need, int width, int height,float near_plane, float far_plane, float angle_view)
 {
 	device_pancy = device;
 	contex_pancy = dc;
-	set_size(width, height, fovy, farZ);
+	perspective_near_plane = near_plane;
+	perspective_far_plane = far_plane;
+	perspective_angle = angle_view;
+	set_size(width, height, angle_view, far_plane);
 	shader_list = shader_need;
 	renderstate_lib = renderstate_need;
 	geometry_lib = geometry_lib_need;
@@ -189,7 +192,7 @@ void ssao_pancy::compute_ssaomap()
 		0.0f, 0.0f, 1.0f, 0.0f,
 		0.5f, 0.5f, 0.0f, 1.0f);
 
-	XMMATRIX P = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, map_width*1.0f / map_height*1.0f, 0.1f, 300.0f);
+	XMMATRIX P = DirectX::XMMatrixPerspectiveFovLH(perspective_angle, map_width*1.0f / map_height*1.0f, perspective_near_plane, perspective_far_plane);
 	XMFLOAT4X4 PT;
 	XMStoreFloat4x4(&PT, P*T);
 	auto *shader_aopass = shader_list->get_shader_ssaodraw();

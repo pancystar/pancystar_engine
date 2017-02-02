@@ -401,6 +401,12 @@ private:
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~defered lighting lightbuffer~~~~~~~~~~~~~~~~~~~~~
 class light_defered_lightbuffer : public shader_basic
 {
+	ID3DX11EffectVariable                 *light_sun;                  //太阳光
+	ID3DX11EffectVariable                 *sunlight_num;               //太阳光分级数量
+	ID3DX11EffectVariable                 *depth_devide;               //每一级的深度
+	ID3DX11EffectShaderResourceVariable   *suntexture_shadow;          //太阳光阴影纹理资源句柄
+	ID3DX11EffectMatrixVariable           *sunshadow_matrix_handle;    //太阳光阴影图变换
+
 	ID3DX11EffectVariable                 *light_list;                 //灯光
 	ID3DX11EffectVariable                 *light_num_handle;           //光源数量
 	ID3DX11EffectVariable                 *shadow_num_handle;           //光源数量
@@ -413,6 +419,13 @@ class light_defered_lightbuffer : public shader_basic
 	ID3DX11EffectShaderResourceVariable   *texture_shadow;             //阴影纹理资源句柄
 public:
 	light_defered_lightbuffer(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+
+	HRESULT set_sunlight(pancy_light_basic light_need);             //设置太阳光源
+	HRESULT set_sunshadow_matrix(const XMFLOAT4X4* M, int cnt);     //设置太阳阴影图变换矩阵
+	HRESULT set_sunlight_num(XMUINT3 all_light_num);                //设置太阳光源数量
+	HRESULT set_sunshadow_tex(ID3D11ShaderResourceView *tex_in);	//设置阴影纹理
+	HRESULT set_depth_devide(XMFLOAT4 v);                           //设置太阳光分级
+
 	HRESULT set_light(pancy_light_basic light_need, int light_num); //设置一个光源
 	HRESULT set_light_num(XMUINT3 all_light_num);                   //设置光源数量
 	HRESULT set_shadow_num(XMUINT3 all_light_num);                  //设置光源数量

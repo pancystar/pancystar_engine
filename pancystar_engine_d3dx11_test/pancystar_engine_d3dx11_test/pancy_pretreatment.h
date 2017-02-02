@@ -18,7 +18,9 @@ class Pretreatment_gbuffer
 	geometry_control         *geometry_lib;               //几何体表
 	light_control            *light_list;                 //光源表
 	pancy_camera             *camera_use;                 //摄像机
-
+	float                    perspective_near_plane;
+	float                    perspective_far_plane;
+	float                    perspective_angle;
 	ID3D11ShaderResourceView *depthmap_tex;               //保存深度信息的纹理资源
 	ID3D11DepthStencilView   *depthmap_target;            //用作渲染目标的缓冲区资源
 
@@ -42,13 +44,13 @@ class Pretreatment_gbuffer
 	ID3D11Buffer             *lightbuffer_IB;             //光照纹理索引缓冲区
 	XMFLOAT4X4               proj_matrix_gbuffer;         //投影变换
 public:
-	Pretreatment_gbuffer(int width_need, int height_need, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *renderstate_need, shader_control *shader_need, geometry_control *geometry_need, pancy_camera *camera_need, light_control *light_need);
+	Pretreatment_gbuffer(int width_need, int height_need, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *renderstate_need, shader_control *shader_need, geometry_control *geometry_need, pancy_camera *camera_need, light_control *light_need, float near_plane, float far_plane, float angle_view);
 	HRESULT create();
 	//void update();
 	void display(bool if_shadow);
 	void release();
 	void set_proj_matrix(XMFLOAT4X4 proj_mat_need) { proj_matrix_gbuffer = proj_mat_need; };
-	void restore_proj_matrix() { XMStoreFloat4x4(&proj_matrix_gbuffer, DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, map_width*1.0f / map_height*1.0f, 0.1f, 300.0f)); };
+	void restore_proj_matrix() { XMStoreFloat4x4(&proj_matrix_gbuffer, DirectX::XMMatrixPerspectiveFovLH(perspective_angle, map_width*1.0f / map_height*1.0f, perspective_near_plane, perspective_far_plane)); };
 	ID3D11ShaderResourceView *get_gbuffer_normalspec() { return normalspec_tex; };
 	ID3D11ShaderResourceView *get_gbuffer_depth() { return depthmap_single_tex; };
 	ID3D11ShaderResourceView *get_gbuffer_difusse() { return gbuffer_diffuse_tex; };

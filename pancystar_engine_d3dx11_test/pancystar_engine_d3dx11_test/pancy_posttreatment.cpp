@@ -571,12 +571,15 @@ HRESULT render_posttreatment_HDR::build_fullscreen_picturebuff()
 	return S_OK;
 }
 
-render_posttreatment_SSR::render_posttreatment_SSR(pancy_camera *camera_need, pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, geometry_control *geometry_need, int width, int height, float fovy, float farZ)
+render_posttreatment_SSR::render_posttreatment_SSR(pancy_camera *camera_need, pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, geometry_control *geometry_need, int width, int height, float near_plane, float far_plane, float angle_view)
 {
 	camera_use = camera_need;
 	device_pancy = device;
 	contex_pancy = dc;
-	set_size(width, height, fovy, farZ);
+	set_size(width, height, angle_view, far_plane);
+	perspective_near_plane = near_plane;
+	perspective_far_plane = far_plane;
+	perspective_angle = angle_view;
 	shader_list = shader_need;
 	renderstate_lib = renderstate_need;
 	geometry_lib = geometry_need;
@@ -969,7 +972,7 @@ void render_posttreatment_SSR::set_static_cube_rendertarget(int count_cube, XMFL
 	shadow_map_VP.MinDepth = 0.0f;
 	shadow_map_VP.MaxDepth = 1.0f;
 	contex_pancy->RSSetViewports(1, &shadow_map_VP);
-	XMMATRIX P = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.5f, 1.0f, 0.1f, 300.0f);
+	XMMATRIX P = DirectX::XMMatrixPerspectiveFovLH(0.5f*XM_PI, 1.0f, perspective_near_plane, perspective_far_plane);
 	XMStoreFloat4x4(&mat_project, P);
 }
 void render_posttreatment_SSR::draw_static_cube(int count_cube)
@@ -1169,7 +1172,7 @@ void render_posttreatment_SSR::build_reflect_map(ID3D11RenderTargetView *rendert
 		0.0f, 0.0f, 1.0f, 0.0f,
 		0.5f, 0.5f, 0.0f, 1.0f);
 
-	XMMATRIX P = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, map_width*1.0f / map_height*1.0f, 0.1f, 300.0f);
+	XMMATRIX P = DirectX::XMMatrixPerspectiveFovLH(perspective_angle, map_width*1.0f / map_height*1.0f, perspective_near_plane, perspective_far_plane);
 	XMFLOAT4X4 PT;
 	XMStoreFloat4x4(&PT, P*T);
 	auto *shader_reflectpass = shader_list->get_shader_ssreflect();

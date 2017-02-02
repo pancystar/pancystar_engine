@@ -181,10 +181,11 @@ domin_out_terrain DS(
 };
 PixelOut PS_terrain(domin_out_terrain pin) :SV_TARGET
 {
-	pin.pos_ssao /= pin.pos_ssao.w + (pin.position / pin.position.w) *0.001f;
+	//pin.pos_ssao /= pin.pos_ssao.w + (pin.position / pin.position.w) *0.001f;
+	pin.pos_ssao /= pin.pos_ssao.w;
 	float4 tex_color = texture_terrain_diffuse.Sample(samTex, float3(pin.tex, pin.texid[1]));
 	//clip(tex_color.a - 0.6f);
-	float4 ambient = 0.6f*float4(1.0f, 1.0f, 1.0f, 0.0f) * texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
+	float4 ambient = 0.2f*float4(1.0f, 1.0f, 1.0f, 0.0f) * texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
 	float4 diffuse = material_need.diffuse * texture_light_diffuse.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f);      //漫反射光
 	float4 spec = material_need.specular * texture_light_specular.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f);       //镜面反射光
 	float4 final_color = tex_color *(ambient + diffuse) + spec;

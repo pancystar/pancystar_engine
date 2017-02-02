@@ -1466,6 +1466,57 @@ void shader_resolvedepth::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_p
 light_defered_lightbuffer::light_defered_lightbuffer(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) :shader_basic(filename, device_need, contex_need)
 {
 }
+
+HRESULT light_defered_lightbuffer::set_sunlight(pancy_light_basic light_need)
+{
+	HRESULT hr = light_sun->SetRawValue(&light_need, 0, sizeof(light_need));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting sunlight", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_lightbuffer::set_sunshadow_matrix(const XMFLOAT4X4* M, int cnt)
+{
+	HRESULT hr = sunshadow_matrix_handle->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_lightbuffer::set_sunlight_num(XMUINT3 all_light_num)
+{
+	HRESULT hr = sunlight_num->SetRawValue((void*)&all_light_num, 0, sizeof(all_light_num));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting light num", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_lightbuffer::set_sunshadow_tex(ID3D11ShaderResourceView *tex_in)
+{
+	HRESULT hr = suntexture_shadow->SetResource(tex_in);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting ssao texture", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_lightbuffer::set_depth_devide(XMFLOAT4 v)
+{
+	HRESULT hr = depth_devide->SetRawValue((void*)&v, 0, sizeof(v));
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting depth divide", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+
 HRESULT light_defered_lightbuffer::set_light(pancy_light_basic light_need, int light_num)
 {
 	HRESULT hr = light_list->SetRawValue(&light_need, light_num * sizeof(light_need), sizeof(light_need));
@@ -1572,6 +1623,13 @@ void light_defered_lightbuffer::release()
 }
 void light_defered_lightbuffer::init_handle()
 {
+	//太阳光属性
+	light_sun = fx_need->GetVariableByName("sun_light");                  //太阳光
+	sunlight_num = fx_need->GetVariableByName("sun_light_num");               //太阳光分级数量
+	depth_devide = fx_need->GetVariableByName("depth_devide");               //每一级的深度
+	suntexture_shadow = fx_need->GetVariableByName("texture_sunshadow")->AsShaderResource();          //太阳光阴影纹理资源句柄
+	sunshadow_matrix_handle = fx_need->GetVariableByName("sunlight_shadowmat")->AsMatrix();    //太阳光阴影图变换
+    //普通光源属性
 	shadow_matrix_handle = fx_need->GetVariableByName("shadowmap_matrix")->AsMatrix();//阴影变换句柄
 	view_matrix_handle = fx_need->GetVariableByName("view_matrix")->AsMatrix();       //取景变换句柄	
 	invview_matrix_handle = fx_need->GetVariableByName("invview_matrix")->AsMatrix(); //取景变换逆变换句柄

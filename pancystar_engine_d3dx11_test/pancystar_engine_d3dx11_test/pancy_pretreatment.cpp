@@ -1,5 +1,5 @@
 #include"pancy_pretreatment.h"
-Pretreatment_gbuffer::Pretreatment_gbuffer(int width_need, int height_need, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *renderstate_need, shader_control *shader_need, geometry_control *geometry_need, pancy_camera *camera_need, light_control *light_need)
+Pretreatment_gbuffer::Pretreatment_gbuffer(int width_need, int height_need, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *renderstate_need, shader_control *shader_need, geometry_control *geometry_need, pancy_camera *camera_need, light_control *light_need, float near_plane, float far_plane, float angle_view)
 {
 	map_width = width_need;
 	map_height = height_need;
@@ -10,6 +10,9 @@ Pretreatment_gbuffer::Pretreatment_gbuffer(int width_need, int height_need, ID3D
 	geometry_lib = geometry_need;
 	camera_use = camera_need;
 	light_list = light_need;
+	perspective_near_plane = near_plane;
+	perspective_far_plane = far_plane;
+	perspective_angle = angle_view;
 	depthmap_tex = NULL;
 	depthmap_target = NULL;
 	normalspec_target = NULL;
@@ -297,10 +300,10 @@ void Pretreatment_gbuffer::set_size()
 	render_viewport.Height = static_cast<float>(map_height);
 	render_viewport.MinDepth = 0.0f;
 	render_viewport.MaxDepth = 1.0f;
-	float fovy = XM_PI*0.25f;
-	float farZ = 300.0f;
-	XMStoreFloat4x4(&proj_matrix_gbuffer, DirectX::XMMatrixPerspectiveFovLH(fovy, map_width*1.0f / map_height*1.0f, 0.1f, farZ));
-	BuildFrustumFarCorners(fovy, farZ);
+	//float fovy = XM_PI*0.25f;
+	//float farZ = 300.0f;
+	XMStoreFloat4x4(&proj_matrix_gbuffer, DirectX::XMMatrixPerspectiveFovLH(perspective_angle, map_width*1.0f / map_height*1.0f, perspective_near_plane, perspective_far_plane));
+	BuildFrustumFarCorners(perspective_angle, perspective_far_plane);
 }
 void Pretreatment_gbuffer::BuildFrustumFarCorners(float fovy, float farZ)
 {
@@ -622,7 +625,7 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 	shader_resolve->set_texture_MSAA(depthmap_tex);
 	XMFLOAT3 rec_proj_vec;
 	rec_proj_vec.x = 1.0f / proj_matrix_gbuffer._43;
-	rec_proj_vec.y = -1.0f / proj_matrix_gbuffer._43;
+	rec_proj_vec.y = -proj_matrix_gbuffer._33 / proj_matrix_gbuffer._43;
 	rec_proj_vec.z = 0.0f;
 	shader_resolve->set_projmessage(rec_proj_vec);
 	ID3DX11EffectTechnique *tech_need;

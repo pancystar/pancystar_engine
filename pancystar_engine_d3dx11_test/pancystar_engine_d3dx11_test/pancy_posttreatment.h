@@ -57,6 +57,9 @@ class render_posttreatment_SSR
 {
 	int                      map_width;
 	int                      map_height;
+	float                    perspective_near_plane;
+	float                    perspective_far_plane;
+	float                    perspective_angle;
 	ID3D11Device             *device_pancy;
 	ID3D11DeviceContext      *contex_pancy;
 	pancy_renderstate        *renderstate_lib;
@@ -104,7 +107,7 @@ class render_posttreatment_SSR
 
 	float  width_static_cube;
 public:
-	render_posttreatment_SSR(pancy_camera *camera_need, pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, geometry_control *geometry_need, int width, int height, float fovy, float farZ);
+	render_posttreatment_SSR(pancy_camera *camera_need, pancy_renderstate *renderstate_need, ID3D11Device* device, ID3D11DeviceContext* dc, shader_control *shader_need, geometry_control *geometry_need, int width, int height, float near_plane, float far_plane, float angle_view);
 	void set_normaldepthcolormap(ID3D11ShaderResourceView *normalspec_need, ID3D11ShaderResourceView *depth_need);
 	HRESULT create();
 	void draw_reflect(ID3D11RenderTargetView *rendertarget_input, ID3D11RenderTargetView *mask_target_input);

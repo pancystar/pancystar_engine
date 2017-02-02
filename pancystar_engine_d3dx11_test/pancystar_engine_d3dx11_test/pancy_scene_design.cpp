@@ -548,7 +548,7 @@ void snake_draw::update(float time_delta)
 
 
 
-scene_root::scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height)
+scene_root::scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view)
 {
 	user_input = input_need;
 	scene_camera = camera_need;
@@ -563,7 +563,10 @@ scene_root::scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_ne
 	light_list = light_need;
 	time_game = 0.0f;
 	//初始化投影以及取景变换矩阵
-	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, scene_window_width*1.0f / scene_window_height*1.0f, 0.1f, 300.f);
+	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(angle_view, scene_window_width*1.0f / scene_window_height*1.0f, near_plane, far_plane);
+	perspective_near_plane = near_plane;
+	perspective_far_plane = far_plane;
+	perspective_angle = angle_view;
 	//ssao_part = new ssao_pancy(render_state,device_need, contex_need, shader_lib,geometry_lib,scene_window_width, scene_window_height, XM_PI*0.25f, 300.0f);
 	XMStoreFloat4x4(&proj_matrix, proj);
 	XMMATRIX iden = XMMatrixIdentity();
@@ -571,31 +574,32 @@ scene_root::scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_ne
 }
 HRESULT scene_root::camera_move()
 {
+	float move_speed = 0.05f;
 	XMMATRIX view;
 	user_input->get_input();
 	if (user_input->check_keyboard(DIK_A))
 	{
-		scene_camera->walk_right(-0.01f);
+		scene_camera->walk_right(-move_speed);
 	}
 	if (user_input->check_keyboard(DIK_W))
 	{
-		scene_camera->walk_front(0.01f);
+		scene_camera->walk_front(move_speed);
 	}
 	if (user_input->check_keyboard(DIK_R))
 	{
-		scene_camera->walk_up(0.01f);
+		scene_camera->walk_up(move_speed);
 	}
 	if (user_input->check_keyboard(DIK_D))
 	{
-		scene_camera->walk_right(0.01f);
+		scene_camera->walk_right(move_speed);
 	}
 	if (user_input->check_keyboard(DIK_S))
 	{
-		scene_camera->walk_front(-0.01f);
+		scene_camera->walk_front(-move_speed);
 	}
 	if (user_input->check_keyboard(DIK_F))
 	{
-		scene_camera->walk_up(-0.01f);
+		scene_camera->walk_up(-move_speed);
 	}
 	if (user_input->check_keyboard(DIK_Q))
 	{
@@ -620,7 +624,7 @@ void scene_root::set_proj_matrix(XMFLOAT4X4 proj_mat_need)
 }
 void scene_root::reset_proj_matrix()
 {
-	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, scene_window_width*1.0f / scene_window_height*1.0f, 0.1f, 300.f);
+	XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(perspective_angle, scene_window_width*1.0f / scene_window_height*1.0f, perspective_near_plane, perspective_far_plane);
 	XMStoreFloat4x4(&proj_matrix, proj);
 }
 void scene_root::get_gbuffer(ID3D11ShaderResourceView *normalspec_need, ID3D11ShaderResourceView *depth_need)
@@ -635,7 +639,7 @@ void scene_root::get_lbuffer(ID3D11ShaderResourceView *diffuse_need, ID3D11Shade
 }
 
 
-scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height)
+scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height,near_plane,far_plane,angle_view)
 {
 	//nonshadow_light_list.clear();
 	//shadowmap_light_list.clear();
@@ -1420,7 +1424,7 @@ HRESULT scene_engine_test::release()
 }
 
 
-scene_engine_snake::scene_engine_snake(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height)
+scene_engine_snake::scene_engine_snake(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height,near_plane, far_plane, angle_view)
 {
 	particle_fire = new particle_system<fire_point>(device_need, contex_need, 3000, lib_need, PARTICLE_TYPE_FIRE);
 	test_snake = new snake_draw(device_need, contex_need, user_input, 1000, 3);
@@ -1725,7 +1729,7 @@ HRESULT scene_engine_snake::update(float delta_time)
 
 
 
-scene_engine_physicx::scene_engine_physicx(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_physx *physx_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height)
+scene_engine_physicx::scene_engine_physicx(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_physx *physx_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height, near_plane, far_plane, angle_view)
 {
 	physics_pancy = physx_need;
 	//physics_test = new pancy_physx(device_need, contex_need);
@@ -1734,16 +1738,18 @@ HRESULT scene_engine_physicx::scene_create()
 {
 	HRESULT hr_need;
 	//光源注册
+	/*
 	light_with_shadowmap rec_shadow(direction_light, shadow_map, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
 	hr_need = rec_shadow.create(1024, 1024);
-	rec_shadow.set_light_dir(0.0f, 0.3f, 1.0f);
+	rec_shadow.set_light_dir(0.0f, -1.0f, 0.0f);
 	rec_shadow.set_light_diffuse(0.6f, 0.6f,0.6f,1.0f);
 	if (FAILED(hr_need))
 	{
 		return hr_need;
 	}
 	light_list->add_light_witn_shadow_map(rec_shadow);
-
+	*/
+	light_list->set_sunlight(XMFLOAT3(0.0f, -1.0f, 0.0f),0.75,4,1024,1024);
 	//物理引擎
 	std::vector<LPCWSTR> height_map;
 	std::vector<LPCWSTR> diffuse_map;
@@ -1796,6 +1802,12 @@ HRESULT scene_engine_physicx::scene_create()
 	{
 		return hr_need;
 	}
+
+	//hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_project_aabb", pancy_geometry_cube);
+	//if (FAILED(hr_need))
+	//{
+	//	return hr_need;
+	//}
 	return S_OK;
 }
 void scene_engine_physicx::show_ball()
@@ -1825,7 +1837,7 @@ void scene_engine_physicx::show_ball()
 void scene_engine_physicx::show_floor()
 {
 	auto* shader_test = shader_lib->get_shader_prelight();
-	auto* floor_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_floor");
+	auto* floor_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_project_aabb");
 	//auto* tex_floor = geometry_lib->get_basic_floor_tex();
 	//auto* tex_normal = geometry_lib->get_floor_normal_tex();
 	auto* tex_floor = geometry_lib->get_texture_byname("floor_diffuse")->data->get_data();

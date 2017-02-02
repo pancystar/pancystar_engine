@@ -89,6 +89,11 @@ void compute_dirlight(
 
 		spec = spec_angle * mat.specular * light_dir.specular;    //镜面反射光
 	}
+	else 
+	{
+		diffuse = 0.0f;//漫反射光
+		spec = 0.0f;;    //镜面反射光
+	}
 }
 
 void compute_pointlight(

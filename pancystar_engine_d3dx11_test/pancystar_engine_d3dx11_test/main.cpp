@@ -51,6 +51,9 @@ class d3d_pancy_1 :public d3d_pancy_basic
 	render_posttreatment_SSR *posttreat_reflect;   //反射后处理
 	Pretreatment_gbuffer     *pretreat_scene;      //场景预处理
 	ssao_pancy               *ssao_part;           //ssao
+	float                    perspective_near_plane;
+	float                    perspective_far_plane;
+	float                    perspective_angle;
 public:
 	d3d_pancy_1(HWND wind_hwnd, UINT wind_width, UINT wind_hight, HINSTANCE hInstance);
 	HRESULT init_create();
@@ -88,6 +91,9 @@ void d3d_pancy_1::release()
 }
 d3d_pancy_1::d3d_pancy_1(HWND hwnd_need, UINT width_need, UINT hight_need, HINSTANCE hInstance_need) :d3d_pancy_basic(hwnd_need, width_need, hight_need)
 {
+	perspective_near_plane = 0.1f;
+	perspective_far_plane = 300.0f;
+	perspective_angle = XM_PI * 0.25f;
 	time_need.reset();
 	time_game = 0.0f;
 	shader_list = new shader_control();
@@ -118,7 +124,7 @@ HRESULT d3d_pancy_1::init_create()
 	test_camera = new pancy_camera(device_pancy, window_width, window_hight);
 	test_input = new pancy_input(wind_hwnd, device_pancy, hInstance);
 	geometry_list = new geometry_control(device_pancy, contex_pancy,physics_pancy);
-	light_list = new light_control(device_pancy, contex_pancy, 20);
+	light_list = new light_control(device_pancy, contex_pancy, test_camera,20,perspective_near_plane, perspective_far_plane, perspective_angle,window_width, window_hight);
 	hr = shader_list->shader_init(device_pancy, contex_pancy);
 	if (FAILED(hr))
 	{
@@ -136,14 +142,14 @@ HRESULT d3d_pancy_1::init_create()
 	{
 		return hr;
 	}
-	first_scene_test = new scene_engine_physicx(device_pancy, contex_pancy, physics_pancy, render_state, test_input, test_camera, shader_list, geometry_list, light_list, wind_width, wind_hight);
+	first_scene_test = new scene_engine_physicx(device_pancy, contex_pancy, physics_pancy, render_state, test_input, test_camera, shader_list, geometry_list, light_list, wind_width, wind_hight, perspective_near_plane, perspective_far_plane, perspective_angle);
 	hr = first_scene_test->scene_create();
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create scene failed", L"tip", MB_OK);
 		return hr;
 	}
-	ssao_part = new ssao_pancy(render_state, device_pancy, contex_pancy, shader_list, geometry_list, window_width, window_hight, XM_PI*0.25f, 300.0f);
+	ssao_part = new ssao_pancy(render_state, device_pancy, contex_pancy, shader_list, geometry_list, window_width, window_hight, perspective_near_plane, perspective_far_plane, perspective_angle);
 	hr = ssao_part->basic_create();
 	if (FAILED(hr))
 	{
@@ -156,14 +162,14 @@ HRESULT d3d_pancy_1::init_create()
 		MessageBox(0, L"create posttreat_class failed", L"tip", MB_OK);
 		return hr;
 	}
-	posttreat_reflect = new render_posttreatment_SSR(test_camera, render_state, device_pancy, contex_pancy, shader_list, geometry_list, wind_width, wind_hight, XM_PI*0.25f, 300.0f);
+	posttreat_reflect = new render_posttreatment_SSR(test_camera, render_state, device_pancy, contex_pancy, shader_list, geometry_list, wind_width, wind_hight, perspective_near_plane, perspective_far_plane, perspective_angle);
 	hr = posttreat_reflect->create();
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create posttreat_reflect failed", L"tip", MB_OK);
 		return hr;
 	}
-	pretreat_scene = new Pretreatment_gbuffer(wind_width, wind_hight, device_pancy, contex_pancy, render_state, shader_list, geometry_list, test_camera, light_list);
+	pretreat_scene = new Pretreatment_gbuffer(wind_width, wind_hight, device_pancy, contex_pancy, render_state, shader_list, geometry_list, test_camera, light_list, perspective_near_plane, perspective_far_plane, perspective_angle);
 	hr = pretreat_scene->create();
 	if (FAILED(hr))
 	{
@@ -234,7 +240,7 @@ void d3d_pancy_1::display_shadowao(bool if_shadow, bool if_ao)
 		XMFLOAT4X4 view_mat_rec;
 		test_camera->count_view_matrix(&view_mat_rec);
 		XMMATRIX view_rec = XMLoadFloat4x4(&view_mat_rec);
-		XMMATRIX proj_rec = DirectX::XMMatrixPerspectiveFovLH(XM_PI*0.25f, wind_width*1.0f / wind_hight*1.0f, 0.1f, 300.f);
+		XMMATRIX proj_rec = DirectX::XMMatrixPerspectiveFovLH(perspective_angle, wind_width*1.0f / wind_hight*1.0f, perspective_near_plane, perspective_far_plane);
 		XMMATRIX T_need(
 			0.5f, 0.0f, 0.0f, 0.0f,
 			0.0f, -0.5f, 0.0f, 0.0f,

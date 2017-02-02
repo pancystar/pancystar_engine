@@ -77,6 +77,24 @@ HRESULT shadow_basic::set_renderstate(XMFLOAT3 light_position, XMFLOAT3 light_di
 
 	return S_OK;
 }
+HRESULT shadow_basic::set_renderstate(XMFLOAT4X4 shadow_matrix)
+{
+	shadow_build = shadow_matrix;
+	XMMATRIX final_matrix = XMLoadFloat4x4(&shadow_matrix);
+	//3D重建后的对比投影矩阵
+	XMMATRIX T_need(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f
+		);
+	XMStoreFloat4x4(&shadow_rebuild, final_matrix*T_need);
+	contex_pancy->RSSetViewports(1, &shadow_map_VP);
+	ID3D11RenderTargetView* renderTargets[1] = { 0 };
+	contex_pancy->OMSetRenderTargets(1, renderTargets, depthmap_target);
+	contex_pancy->ClearDepthStencilView(depthmap_target, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	return S_OK;
+}
 
 ID3D11ShaderResourceView* shadow_basic::get_mapresource()
 {
@@ -169,7 +187,7 @@ HRESULT shadow_basic::init_texture(ID3D11Texture2D* depthMap_array, int index_ne
 	D3D11_TEXTURE2D_DESC texDesc;
 	depthMap_array->GetDesc(&texDesc);
 	//建立GPU上的两种资源：纹理资源以及渲染目标资源
-	D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = 
+	D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc =
 	{
 		DXGI_FORMAT_D24_UNORM_S8_UINT,
 		D3D11_DSV_DIMENSION_TEXTURE2DARRAY
@@ -183,7 +201,7 @@ HRESULT shadow_basic::init_texture(ID3D11Texture2D* depthMap_array, int index_ne
 		return hr;
 	}
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~深度信息访问资源~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = 
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc =
 	{
 		DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
 		D3D11_SRV_DIMENSION_TEXTURE2DARRAY
@@ -257,7 +275,7 @@ ID3DX11EffectTechnique* shadow_basic::get_technique_skin()
 
 	ID3DX11EffectTechnique   *teque_need;       //渲染路径
 	auto* shader_test = shader_list->get_shader_shadowmap();
-	HRESULT hr = shader_test->get_technique(rec_point, num_member,&teque_need, "Shadow_skinTech");
+	HRESULT hr = shader_test->get_technique(rec_point, num_member, &teque_need, "Shadow_skinTech");
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"get technique error when create shadowmap resource", L"tip", MB_OK);
@@ -283,7 +301,7 @@ ID3DX11EffectTechnique* shadow_basic::get_technique_skin_transparent()
 
 	ID3DX11EffectTechnique   *teque_need;       //渲染路径
 	auto* shader_test = shader_list->get_shader_shadowmap();
-	HRESULT hr = shader_test->get_technique(rec_point, num_member,&teque_need, "Shadow_skinTech_transparent");
+	HRESULT hr = shader_test->get_technique(rec_point, num_member, &teque_need, "Shadow_skinTech_transparent");
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"get technique error when create shadowmap resource", L"tip", MB_OK);
@@ -308,11 +326,11 @@ HRESULT shadow_basic::set_shaderresource(XMFLOAT4X4 word_matrix)
 	}
 	return S_OK;
 }
-HRESULT shadow_basic::set_bone_matrix(XMFLOAT4X4 *bone_matrix,int cnt_need) 
+HRESULT shadow_basic::set_bone_matrix(XMFLOAT4X4 *bone_matrix, int cnt_need)
 {
 	auto* shader_test = shader_list->get_shader_shadowmap();
-	HRESULT hr = shader_test->set_bone_matrix(bone_matrix,cnt_need);
-	if (FAILED(hr)) 
+	HRESULT hr = shader_test->set_bone_matrix(bone_matrix, cnt_need);
+	if (FAILED(hr))
 	{
 		return hr;
 	}
@@ -327,7 +345,7 @@ pancy_shadow_volume::pancy_shadow_volume(ID3D11Device *device_need, ID3D11Device
 	shader_list = shader_list_need;
 	vertex_need = NULL;
 }
-HRESULT pancy_shadow_volume::set_renderstate(ID3D11DepthStencilView* depth_input,XMFLOAT3 light_position, XMFLOAT3 light_dir, light_type check)
+HRESULT pancy_shadow_volume::set_renderstate(ID3D11DepthStencilView* depth_input, XMFLOAT3 light_position, XMFLOAT3 light_dir, light_type check)
 {
 	//绑定深度模板缓冲区，保留之前的深度
 	ID3D11RenderTargetView* renderTargets[1] = { 0 };
@@ -415,7 +433,7 @@ HRESULT pancy_shadow_volume::set_view_projmat(XMFLOAT4X4 mat_need)
 	auto shader_need = shader_list->get_shader_shadowvolume_draw();
 	auto shader_need2 = shader_list->get_shader_shadowvolume();
 	HRESULT hr = shader_need->set_trans_all(&mat_need);
-	if (FAILED(hr)) 
+	if (FAILED(hr))
 	{
 		return hr;
 	}
