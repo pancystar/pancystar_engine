@@ -574,7 +574,7 @@ scene_root::scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_ne
 }
 HRESULT scene_root::camera_move()
 {
-	float move_speed = 0.05f;
+	float move_speed = 0.15f;
 	XMMATRIX view;
 	user_input->get_input();
 	if (user_input->check_keyboard(DIK_A))
@@ -639,7 +639,7 @@ void scene_root::get_lbuffer(ID3D11ShaderResourceView *diffuse_need, ID3D11Shade
 }
 
 
-scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height,near_plane,far_plane,angle_view)
+scene_engine_test::scene_engine_test(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height, near_plane, far_plane, angle_view)
 {
 	//nonshadow_light_list.clear();
 	//shadowmap_light_list.clear();
@@ -686,7 +686,7 @@ HRESULT scene_engine_test::scene_create()
 		return hr_need;
 	}
 	light_list->add_light_witn_shadow_map(rec_shadow1);
-	
+
 	light_with_shadowmap rec_shadow2(spot_light, shadow_map, shader_lib, device_pancy, contex_pancy, renderstate_lib, geometry_lib);
 	rec_shadow2.set_light_position(-1, 2.5, 2.5);
 	rec_shadow2.set_light_dir(1.0f, -1.0f, -1.0f);
@@ -731,7 +731,7 @@ HRESULT scene_engine_test::scene_create()
 		return hr_need;
 	}
 	//内置模型访问器
-	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_floor",pancy_geometry_cube);
+	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_floor", pancy_geometry_cube);
 	if (FAILED(hr_need))
 	{
 		MessageBox(0, L"add buildin model error", L"tip", MB_OK);
@@ -743,7 +743,7 @@ HRESULT scene_engine_test::scene_create()
 		MessageBox(0, L"add buildin model error", L"tip", MB_OK);
 		return hr_need;
 	}
-	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_aotest",pancy_geometry_cube);
+	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_aotest", pancy_geometry_cube);
 	if (FAILED(hr_need))
 	{
 		MessageBox(0, L"add buildin model error", L"tip", MB_OK);
@@ -1424,7 +1424,7 @@ HRESULT scene_engine_test::release()
 }
 
 
-scene_engine_snake::scene_engine_snake(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height,near_plane, far_plane, angle_view)
+scene_engine_snake::scene_engine_snake(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height, near_plane, far_plane, angle_view)
 {
 	particle_fire = new particle_system<fire_point>(device_need, contex_need, 3000, lib_need, PARTICLE_TYPE_FIRE);
 	test_snake = new snake_draw(device_need, contex_need, user_input, 1000, 3);
@@ -1472,7 +1472,7 @@ HRESULT scene_engine_snake::scene_create()
 		return hr_need;
 	}
 	//内置模型访问器
-	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_floor",pancy_geometry_cube);
+	hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_floor", pancy_geometry_cube);
 	if (FAILED(hr_need))
 	{
 		MessageBox(0, L"add buildin model error", L"tip", MB_OK);
@@ -1729,10 +1729,411 @@ HRESULT scene_engine_snake::update(float delta_time)
 
 
 
+
+player_basic::player_basic(string model_resource_name, string player_name, geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, model_data_type model_type_need)
+{
+	model_resource = model_resource_name;
+	model_view_data_name = player_name;
+	geometry_pancy = geometry_need;
+	physic_pancy = physic_need;
+	shader_lib = shader_need;
+	model_type = model_type_need;
+	rotation_angle = 0.0f;
+	player = NULL;
+	mat_force = NULL;
+	x_speed = 0.0f;
+	z_speed = 0.0f;
+
+	rec_offset_x = 0;
+	rec_offset_z = 0;
+}
+HRESULT player_basic::create()
+{
+	HRESULT hr;
+	/*
+	hr = init_geometry_bounding_box();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	*/
+	if (model_type == model_data_type::pancy_model_buildin)
+	{
+		hr = init_geometry_buildin();
+		if (FAILED(hr))
+		{
+			return hr;
+		}
+	}
+	else if (model_type == model_data_type::pancy_model_assimp)
+	{
+		hr = init_geometry_assimp();
+		if (FAILED(hr))
+		{
+			return hr;
+		}
+	}
+	else 
+	{
+		return E_FAIL;
+	}
+
+	hr = init_physics();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT player_basic::init_geometry_buildin()
+{
+	HRESULT hr = geometry_pancy->add_buildin_modelview_by_name(model_resource, model_view_data_name, Geometry_type::pancy_geometry_cube);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT player_basic::init_geometry_assimp()
+{
+	HRESULT hr = geometry_pancy->add_assimp_modelview_by_name(model_resource, model_view_data_name);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT player_basic::init_geometry_bounding_box() 
+{
+	HRESULT hr = geometry_pancy->add_buildin_modelview_by_name("geometry_cube", "bounding_box_player", Geometry_type::pancy_geometry_cube);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+void player_basic::display(XMFLOAT4X4 view_proj_matrix)
+{
+	//show_bounding_box(view_proj_matrix);
+	if (model_type == model_data_type::pancy_model_buildin) 
+	{
+		show_build_in_model(view_proj_matrix);
+		
+	}
+	else 
+	{
+		show_assimp_skinmesh_model(view_proj_matrix);
+	}
+	
+}
+HRESULT player_basic::init_physics()
+{
+	physx::PxCapsuleControllerDesc test_capsule_desc;
+	test_capsule_desc.position = physx::PxExtendedVec3(0, 250.0f, 0);
+	test_capsule_desc.contactOffset = 0.05f;
+	test_capsule_desc.stepOffset = 0.51;
+	test_capsule_desc.slopeLimit = 0.25f;
+	test_capsule_desc.radius = 3.5;
+	test_capsule_desc.height = 7;
+	test_capsule_desc.upDirection = physx::PxVec3(0, 1, 0);
+	mat_force = physic_pancy->create_material(0.1, 0.1, 0.0);
+	test_capsule_desc.material = mat_force;
+	test_capsule_desc.maxJumpHeight = 5.0f;
+	bool rec_check = test_capsule_desc.isValid();
+	HRESULT hr = physic_pancy->create_charactor(test_capsule_desc, &player);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+void player_basic::update(float delta_time)
+{
+	if (player != NULL)
+	{
+		physx::PxVec3 disp = physx::PxVec3(x_speed, -9.8f, z_speed);
+		physx::PxF32 minDist = 0.01;
+		physx::PxF32 elapsedTime = static_cast<physx::PxF32>(delta_time);
+		physx::PxControllerFilters filters;
+		player->move(disp, minDist, elapsedTime, filters);
+		physx::PxExtendedVec3 rec = player->getPosition();
+		rec.x -= rec_offset_x; 
+		rec.z -= rec_offset_z; 
+		//更新包围盒信息
+
+		XMMATRIX rec_world_trans = XMMatrixTranslation(rec.x, rec.y, rec.z);
+		XMMATRIX rec_world_scal = XMMatrixScaling(7.0f, 7.0f + 2.0f * 3.5f, 7.0f);
+		XMFLOAT4X4 world_mat_final;
+		/*
+		auto* floor_need = geometry_pancy->get_buildin_GeometryResourceView_by_name("bounding_box_player");
+		
+		XMStoreFloat4x4(&world_mat_final, rec_world_scal * rec_world_trans);
+		floor_need->update(world_mat_final, delta_time);
+		*/
+		//更新几何体信息
+		if (model_type == model_data_type::pancy_model_buildin) 
+		{
+			XMMATRIX model_world_trans = XMMatrixTranslation(rec.x, rec.y, rec.z);
+			XMMATRIX model_world_scal = XMMatrixScaling(1.0f, 1.0f, 1.0f);
+			XMStoreFloat4x4(&world_mat_final, model_world_scal * model_world_trans);
+			auto* floor_need = geometry_pancy->get_buildin_GeometryResourceView_by_name(model_view_data_name);
+			floor_need->update(world_mat_final, delta_time);
+		}
+		else 
+		{
+			XMMATRIX model_world_trans = XMMatrixTranslation(rec.x, rec.y-7.7, rec.z);
+			XMMATRIX model_world_scal = XMMatrixScaling(16.0f, 16.0f, 16.0f);
+			XMMATRIX model_world_rotation = XMMatrixRotationY(rotation_angle);
+			XMStoreFloat4x4(&world_mat_final, model_world_scal * model_world_rotation * model_world_trans);
+			auto* floor_need = geometry_pancy->get_assimp_ModelResourceView_by_name(model_view_data_name);
+			floor_need->update(world_mat_final, delta_time);
+		}
+	}
+}
+void player_basic::get_now_position(float &x, float &y, float &z) 
+{
+	physx::PxExtendedVec3 rec = player->getPosition();
+	rec.x -= rec_offset_x;
+	rec.z -= rec_offset_z;
+
+	x = rec.x;
+	y = rec.y;
+	z = rec.z;
+}
+void player_basic::set_speed(float x, float z) 
+{
+	x_speed = x;
+	z_speed = z;
+}
+void player_basic::release()
+{
+	player->release();
+}
+void player_basic::show_bounding_box(XMFLOAT4X4 view_proj_matrix)
+{
+	auto* shader_test = shader_lib->get_shader_light_deffered_draw();
+	auto* floor_need = geometry_pancy->get_buildin_GeometryResourceView_by_name("bounding_box_player");
+	auto* tex_floor = geometry_pancy->get_texture_byname("floor_diffuse")->data->get_data();
+	//选定绘制路径
+	ID3DX11EffectTechnique *teque_need;
+	shader_test->get_technique(&teque_need, "LightTech");
+	//地面的材质
+	pancy_material test_Mt;
+	XMFLOAT4 rec_ambient2(0.3f, 0.3f, 0.3f, 1.0f);
+	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_specular2(1.0f, 1.0f, 1.0f, 12.0f);
+	test_Mt.ambient = rec_ambient2;
+	test_Mt.diffuse = rec_diffuse2;
+	test_Mt.specular = rec_specular2;
+	shader_test->set_material(test_Mt);
+	//纹理设定
+	shader_test->set_diffusetex(tex_floor);
+	//设定世界变换
+	shader_test->set_trans_world(&floor_need->get_world_matrix());
+	//设定总变换
+	XMMATRIX view_proj = XMLoadFloat4x4(&view_proj_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&floor_need->get_world_matrix());
+	XMMATRIX worldViewProj = world_matrix_rec*view_proj;
+	XMFLOAT4X4 world_viewrec;
+	XMStoreFloat4x4(&world_viewrec, worldViewProj);
+	shader_test->set_trans_all(&world_viewrec);
+	floor_need->draw_full_geometry(teque_need);
+}
+void player_basic::show_build_in_model(XMFLOAT4X4 view_proj_matrix)
+{
+	auto* shader_test = shader_lib->get_shader_light_deffered_draw();
+	auto* floor_need = geometry_pancy->get_buildin_GeometryResourceView_by_name(model_view_data_name);
+	auto* tex_floor = geometry_pancy->get_texture_byname("floor_diffuse")->data->get_data();
+	//选定绘制路径
+	ID3DX11EffectTechnique *teque_need;
+	shader_test->get_technique(&teque_need, "LightTech");
+	//地面的材质
+	pancy_material test_Mt;
+	XMFLOAT4 rec_ambient2(0.3f, 0.3f, 0.3f, 1.0f);
+	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_specular2(1.0f, 1.0f, 1.0f, 12.0f);
+	test_Mt.ambient = rec_ambient2;
+	test_Mt.diffuse = rec_diffuse2;
+	test_Mt.specular = rec_specular2;
+	shader_test->set_material(test_Mt);
+	//纹理设定
+	shader_test->set_diffusetex(tex_floor);
+	//设定世界变换
+	shader_test->set_trans_world(&floor_need->get_world_matrix());
+	//设定总变换
+	XMMATRIX view_proj = XMLoadFloat4x4(&view_proj_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&floor_need->get_world_matrix());
+	XMMATRIX worldViewProj = world_matrix_rec*view_proj;
+	XMFLOAT4X4 world_viewrec;
+	XMStoreFloat4x4(&world_viewrec, worldViewProj);
+	shader_test->set_trans_all(&world_viewrec);
+	floor_need->draw_full_geometry(teque_need);
+}
+void player_basic::show_assimp_skinmesh_model(XMFLOAT4X4 view_proj_matrix)
+{
+	auto* shader_test = shader_lib->get_shader_light_deffered_draw();
+	//几何体的属性
+	auto* model_yuri_pack = geometry_pancy->get_assimp_ModelResourceView_by_name(model_view_data_name);
+	//选定绘制路径
+	ID3DX11EffectTechnique *teque_need;
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec_point[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION"    ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"      ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT"     ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "BONEINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "WEIGHTS"     ,0  ,DXGI_FORMAT_R32G32B32A32_FLOAT ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXINDICES"  ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,68 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,84 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	shader_test->get_technique(rec_point, num_member, &teque_need, "LightWithBone");
+	//地面的材质
+	pancy_material test_Mt;
+	XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_diffuse2(0.4f, 0.4f, 0.4f, 1.0f);
+	XMFLOAT4 rec_specular2(0.0f, 0.0f, 0.0f, 1.0f);
+	test_Mt.ambient = rec_ambient2;
+	test_Mt.diffuse = rec_diffuse2;
+	test_Mt.specular = rec_specular2;
+	test_Mt.reflect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	shader_test->set_material(test_Mt);
+	//设定世界变换
+	XMMATRIX rec_world;
+	XMFLOAT4X4 world_matrix;
+	world_matrix = model_yuri_pack->get_world_matrix();
+	rec_world = XMLoadFloat4x4(&world_matrix);
+	XMStoreFloat4x4(&world_matrix, rec_world);
+	shader_test->set_trans_world(&world_matrix);
+	//设定总变换
+	XMMATRIX viewproj = XMLoadFloat4x4(&view_proj_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+
+	XMMATRIX worldViewProj = world_matrix_rec*viewproj;
+	XMFLOAT4X4 world_viewrec;
+	XMStoreFloat4x4(&world_viewrec, worldViewProj);
+	shader_test->set_trans_all(&world_viewrec);
+	//获取渲染路径并渲染
+	int yuri_render_order[11] = { 4,5,6,7,8,9,10,3,0,2,1 };
+	XMFLOAT4X4 *rec_bonematrix = model_yuri_pack->get_bone_matrix();
+	shader_test->set_bone_matrix(rec_bonematrix, model_yuri_pack->get_bone_num());
+	for (int i = 0; i < 7; ++i)
+	{
+		material_list rec_need;
+		model_yuri_pack->get_texture(&rec_need, yuri_render_order[i]);
+		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
+		model_yuri_pack->draw_mesh_part(teque_need, yuri_render_order[i]);
+	}
+	//alpha混合设定
+	/*
+	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	ID3D11BlendState *rec = renderstate_lib->get_blend_common();
+	contex_pancy->OMSetBlendState(rec, blendFactor, 0xffffffff);
+	*/
+	for (int i = 8; i < model_yuri_pack->get_geometry_num(); ++i)
+	{
+		material_list rec_need;
+		model_yuri_pack->get_texture(&rec_need, yuri_render_order[i]);
+		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
+		model_yuri_pack->draw_mesh_part(teque_need, yuri_render_order[i]);
+	}
+	show_transparent_part(view_proj_matrix,3);
+	//contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
+	//shader_test->set_diffuse_light_tex(NULL);
+	//shader_test->set_specular_light_tex(NULL);
+	//D3DX11_TECHNIQUE_DESC techDesc;
+	//teque_need->GetDesc(&techDesc);
+	//for (UINT p = 0; p < techDesc.Passes; ++p)
+	//{
+	//	teque_need->GetPassByIndex(p)->Apply(0, contex_pancy);
+	//}
+}
+void player_basic::show_transparent_part(XMFLOAT4X4 view_proj_matrix, int part)
+{
+	auto* shader_test = shader_lib->get_shader_prelight();
+	//几何体属性
+	auto* model_yuri_pack = geometry_pancy->get_assimp_ModelResourceView_by_name(model_view_data_name);
+	//选定绘制路径
+	ID3DX11EffectTechnique *teque_hair;
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec_point[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION"    ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"      ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT"     ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "BONEINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "WEIGHTS"     ,0  ,DXGI_FORMAT_R32G32B32A32_FLOAT ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXINDICES"  ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,68 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,84 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+
+	shader_test->get_technique(rec_point, num_member, &teque_hair, "drawskin_hair");
+	//地面的材质
+	pancy_material test_Mt;
+	XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_specular2(0.0f, 0.0f, 0.0f, 1.0f);
+	test_Mt.ambient = rec_ambient2;
+	test_Mt.diffuse = rec_diffuse2;
+	test_Mt.specular = rec_specular2;
+	shader_test->set_material(test_Mt);
+	//设定世界变换
+	XMMATRIX rec_world;
+	XMFLOAT4X4 world_matrix;
+	world_matrix = model_yuri_pack->get_world_matrix();
+	rec_world = XMLoadFloat4x4(&world_matrix);
+	XMStoreFloat4x4(&world_matrix, rec_world);
+	shader_test->set_trans_world(&world_matrix);
+	//设定总变换
+	XMMATRIX viewproj = XMLoadFloat4x4(&view_proj_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+
+	XMMATRIX worldViewProj = world_matrix_rec*viewproj;
+	XMFLOAT4X4 world_viewrec;
+	XMStoreFloat4x4(&world_viewrec, worldViewProj);
+	shader_test->set_trans_all(&world_viewrec);
+	//获取渲染路径并渲染
+	XMFLOAT4X4 *rec_bonematrix = model_yuri_pack->get_bone_matrix();
+	shader_test->set_bone_matrix(rec_bonematrix, model_yuri_pack->get_bone_num());
+	//alpha混合设定
+	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	//绘制头发
+	material_list rec_need;
+	model_yuri_pack->get_texture(&rec_need, part);
+	shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
+	shader_test->set_normaltex(rec_need.texture_normal_resource);
+	model_yuri_pack->draw_mesh_part(teque_hair, part);
+	
+}
+void player_basic::get_look_position(float &x, float &y, float &z) 
+{
+	XMVECTOR look_pos = XMLoadFloat3(&XMFLOAT3(0.0f, 0.0f, -1.0f));
+	XMMATRIX rotation_mat = XMMatrixRotationY(rotation_angle);
+	XMVECTOR look_now = XMVector3TransformCoord(look_pos, rotation_mat);
+	XMFLOAT3 rec_ans;
+	XMStoreFloat3(&rec_ans, look_now);
+	x = rec_ans.x;
+	y = rec_ans.y;
+	z = rec_ans.z;
+}
+void player_basic::change_rotation_angle(float delta_angle)
+{
+	rotation_angle += delta_angle;
+}
+
+
+
+
+
+
 scene_engine_physicx::scene_engine_physicx(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_physx *physx_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height, near_plane, far_plane, angle_view)
 {
-	physics_pancy = physx_need;
-	//physics_test = new pancy_physx(device_need, contex_need);
+	physics_pancy = physx_need;	
+	camera_height = 0.0f;
 }
 HRESULT scene_engine_physicx::scene_create()
 {
@@ -1749,7 +2150,7 @@ HRESULT scene_engine_physicx::scene_create()
 	}
 	light_list->add_light_witn_shadow_map(rec_shadow);
 	*/
-	light_list->set_sunlight(XMFLOAT3(0.0f, -1.0f, 0.0f),0.75,4,1024,1024);
+	light_list->set_sunlight(XMFLOAT3(3.0f, -1.0f, 0.0f), 0.75, 4, 1024, 1024);
 	//物理引擎
 	std::vector<LPCWSTR> height_map;
 	std::vector<LPCWSTR> diffuse_map;
@@ -1761,8 +2162,12 @@ HRESULT scene_engine_physicx::scene_create()
 	{
 		return hr_need;
 	}
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
 	*/
-	terrain_test = new pancy_terrain_build(physics_pancy, device_pancy, contex_pancy, shader_lib, 1, 5, 300, height_map, diffuse_map);
+	terrain_test = new pancy_terrain_build(physics_pancy, device_pancy, contex_pancy, shader_lib, 1, 5, 3000, height_map, diffuse_map);
 	hr_need = terrain_test->create();
 	if (FAILED(hr_need))
 	{
@@ -1802,7 +2207,23 @@ HRESULT scene_engine_physicx::scene_create()
 	{
 		return hr_need;
 	}
-
+	//外部模型导入
+	int index_model_rec;
+	int alpha_yuri[] = { 0,1,2,3 };
+	hr_need = geometry_lib->load_modelresource_from_file("yurimodel_skin\\yuri.FBX", "yurimodel_skin\\", true, false, false, 4, alpha_yuri, "yuri_model_resource", index_model_rec);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model error", L"tip", MB_OK);
+		return hr_need;
+	}
+	//创建角色
+	player_main = new player_basic("yuri_model_resource", "test_player_one", geometry_lib, physics_pancy, shader_lib, model_data_type::pancy_model_assimp);
+	//physics_test = new pancy_physx(device_need, contex_need);
+	hr_need = player_main->create();
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
 	//hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_project_aabb", pancy_geometry_cube);
 	//if (FAILED(hr_need))
 	//{
@@ -1880,7 +2301,8 @@ void scene_engine_physicx::show_floor()
 }
 void scene_engine_physicx::show_box()
 {
-	auto* shader_test = shader_lib->get_shader_prelight();
+	//auto* shader_test = shader_lib->get_shader_prelight();
+	auto* shader_test = shader_lib->get_shader_light_deffered_draw();
 	auto* floor_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_boxtest");
 	//auto* tex_floor = geometry_lib->get_basic_floor_tex();
 	//auto* tex_normal = geometry_lib->get_floor_normal_tex();
@@ -1888,7 +2310,7 @@ void scene_engine_physicx::show_box()
 	auto* tex_normal = geometry_lib->get_texture_byname("floor_normal")->data->get_data();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
-	shader_test->get_technique(&teque_need, "draw_withshadownormal");
+	shader_test->get_technique(&teque_need, "LightTech");
 
 	//地面的材质
 	pancy_material test_Mt;
@@ -1901,7 +2323,7 @@ void scene_engine_physicx::show_box()
 	shader_test->set_material(test_Mt);
 	//纹理设定
 	shader_test->set_diffusetex(tex_floor);
-	shader_test->set_normaltex(tex_normal);
+	//shader_test->set_normaltex(tex_normal);
 
 	//设定世界变换
 	shader_test->set_trans_world(&floor_need->get_world_matrix());
@@ -1929,10 +2351,13 @@ HRESULT scene_engine_physicx::display()
 	auto shader_deffered = shader_lib->get_shader_light_deffered_draw();
 	shader_deffered->set_diffuse_light_tex(lbuffer_diffuse);
 	shader_deffered->set_specular_light_tex(lbuffer_specular);
+
 	terrain_test->show_terrain(view_proj);
 	show_ball();
 	//show_floor();
 	show_box();
+	player_main->display(view_proj);
+	contex_pancy->OMSetDepthStencilState(NULL, 0);
 	return S_OK;
 }
 HRESULT scene_engine_physicx::display_enviroment()
@@ -1948,17 +2373,45 @@ HRESULT scene_engine_physicx::release()
 {
 	//physics_test->release();
 	terrain_test->release();
+	player_main->release();
 	return S_OK;
 }
 HRESULT scene_engine_physicx::update(float delta_time)
 {
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~更新场景摄像机~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	set_camera_player();
+	/*
+	if (user_input->check_keyboard(DIK_U))
+	{
+		player_main->set_speed(0.03f, 0.00);
+		//player_main->add_offset(0.03f,0.00);
+	}
+	else if (user_input->check_keyboard(DIK_J))
+	{
+		player_main->set_speed(-0.03f, 0.00);
+		//player_main->add_offset(-0.03f, 0.00);
+	}
+	else if (user_input->check_keyboard(DIK_H))
+	{
+		player_main->set_speed(0.00f, 0.03);
+		//player_main->add_offset(0.00f, 0.03);
+	}
+	else if (user_input->check_keyboard(DIK_K))
+	{
+		player_main->set_speed(0.00f, -0.03);
+		//player_main->add_offset(0.00f, -0.03);
+	}
+	else
+	{
+		player_main->set_speed(0.0, 0.0);
+	}
 	HRESULT hr = camera_move();
 	if (hr != S_OK)
 	{
 		MessageBox(0, L"camera system has an error", L"tip", MB_OK);
 		return hr;
 	}
+	*/
 	XMFLOAT3 eyePos_rec;
 	scene_camera->get_view_position(&eyePos_rec);
 	auto* shader_ref = shader_lib->get_shader_reflect();
@@ -1980,9 +2433,12 @@ HRESULT scene_engine_physicx::update(float delta_time)
 	//设定世界变换
 	auto* box_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_boxtest");
 	box_need->update_physx_worldmatrix(delta_time);
+
+
+	player_main->update(delta_time);
 	//更新天空球世界变换
 	trans_world = XMMatrixTranslation(0.0, 0.0, 0.0);
-	scal_world = XMMatrixScaling(200.0f, 200.0f, 200.0f);
+	scal_world = XMMatrixScaling(1000.0f, 1000.0f, 1000.0f);
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
 	geometry_lib->update_buildin_GRV_byname("geometry_sky", world_matrix, delta_time);
@@ -1992,4 +2448,91 @@ HRESULT scene_engine_physicx::update(float delta_time)
 	XMStoreFloat4x4(&view_proj, XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
 	time_game += delta_time*0.3;
 	return S_OK;
+}
+void scene_engine_physicx::set_camera_player()
+{
+	user_input->get_input();
+	player_main->change_rotation_angle(user_input->MouseMove_X() * 0.001f);
+	camera_height += user_input->MouseMove_Y() * 0.001f;
+	if (camera_height > XM_PI / 4.0f) 
+	{
+		camera_height = XM_PI / 4.0f;
+	}
+	if (camera_height < -XM_PI / 4.0f)
+	{
+		camera_height = -XM_PI / 4.0f;
+	}
+	//scene_camera->rotation_up(user_input->MouseMove_X() * 0.001f);
+	//scene_camera->rotation_right(user_input->MouseMove_Y() * 0.001f);
+	XMFLOAT3 rec_pos;
+	player_main->get_now_position(rec_pos.x, rec_pos.y, rec_pos.z);
+	XMFLOAT3 look_dir;
+	player_main->get_look_position(look_dir.x, look_dir.y, look_dir.z);
+	XMFLOAT3 up_dir = XMFLOAT3(0.0f,1.0f,0.0f);
+	rec_pos.x -= 40 * look_dir.x;
+	rec_pos.z -= 40 * look_dir.z;
+	rec_pos.y += 20;
+	XMFLOAT3 right_direction;
+	scene_camera->get_right_direct(&right_direction);
+	XMMATRIX matrix_rotation = XMMatrixRotationAxis(XMLoadFloat3(&right_direction), camera_height);
+	XMVECTOR mid_ans_look = XMLoadFloat3(&look_dir);
+	mid_ans_look = XMVector3TransformCoord(mid_ans_look, matrix_rotation);
+	XMStoreFloat3(&look_dir, mid_ans_look);
+
+	scene_camera->set_camera(look_dir, up_dir, rec_pos);
+	scene_camera->count_view_matrix(&view_matrix);
+	
+	if (user_input->check_keyboard(DIK_W))
+	{
+		player_main->set_speed(0.03f * look_dir.x, 0.03f* look_dir.z);
+	}
+	else 
+	{
+		player_main->set_speed(0.0, 0.0);
+	}
+	/*
+	float move_speed = 0.05f;
+	XMMATRIX view;
+	user_input->get_input();
+	if (user_input->check_keyboard(DIK_A))
+	{
+		scene_camera->walk_right(-move_speed);
+	}
+	if (user_input->check_keyboard(DIK_W))
+	{
+		scene_camera->walk_front(move_speed);
+	}
+	if (user_input->check_keyboard(DIK_R))
+	{
+		scene_camera->walk_up(move_speed);
+	}
+	if (user_input->check_keyboard(DIK_D))
+	{
+		scene_camera->walk_right(move_speed);
+	}
+	if (user_input->check_keyboard(DIK_S))
+	{
+		scene_camera->walk_front(-move_speed);
+	}
+	if (user_input->check_keyboard(DIK_F))
+	{
+		scene_camera->walk_up(-move_speed);
+	}
+	if (user_input->check_keyboard(DIK_Q))
+	{
+		scene_camera->rotation_look(0.001f);
+	}
+	if (user_input->check_keyboard(DIK_E))
+	{
+		scene_camera->rotation_look(-0.001f);
+	}
+	if (user_input->check_mouseDown(1))
+	{
+		scene_camera->rotation_up(user_input->MouseMove_X() * 0.001f);
+		scene_camera->rotation_right(user_input->MouseMove_Y() * 0.001f);
+	}
+	scene_camera->count_view_matrix(&view_matrix);
+	//XMStoreFloat4x4(&view_matrix, view);
+	return S_OK;
+	*/
 }

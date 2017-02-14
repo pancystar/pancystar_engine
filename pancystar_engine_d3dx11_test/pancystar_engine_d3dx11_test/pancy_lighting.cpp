@@ -609,6 +609,7 @@ void light_control::set_sunlight(XMFLOAT3 light_dir, float lamda_log, int devide
 	sunlight_lamda_log = lamda_log;
 	sunlight_divide_num = devide_num - 1;
 	sun_pssmshadow_light->create(width_need, height_need, devide_num - 1);
+	sun_pssmshadow_light->set_light_diffuse(0.5f,0.5f,0.5f,1.0f);
 	XMVECTOR rec_dir = XMLoadFloat3(&light_dir);
 	rec_dir = XMVector3Normalize(rec_dir);
 	XMStoreFloat3(&sunlight_dir, rec_dir);
@@ -642,6 +643,7 @@ XMFLOAT4X4 light_control::build_matrix_sunlight(float near_plane, float far_plan
 	//视截体的中心点
 	XMFLOAT3 center_pos;
 	/*
+	//直接计算中心点坐标的方法
 	XMFLOAT3 view_dir, view_pos;
 	scene_camera->get_view_direct(&view_dir);
 	XMVECTOR dir_view_vec = XMLoadFloat3(&view_dir);
@@ -656,7 +658,7 @@ XMFLOAT4X4 light_control::build_matrix_sunlight(float near_plane, float far_plan
 	XMFLOAT4X4 invview_float4x4;
 	scene_camera->count_invview_matrix(&invview_float4x4);
 	XMMATRIX invview_mat = XMLoadFloat4x4(&invview_float4x4);
-	//检验中心点的计算
+	//将(0,0,(near+far) / 2)进行逆取景变换得到中心点的世界坐标
 	XMVECTOR center_view = XMLoadFloat4(&XMFLOAT4(0.0f, 0.0f, (near_plane + far_plane) / 2.0f, 1.0f));
 	XMVECTOR center_check = XMVector4Transform(center_view, invview_mat);
 	XMStoreFloat3(&center_pos, center_check);
@@ -696,32 +698,25 @@ XMFLOAT4X4 light_control::build_matrix_sunlight(float near_plane, float far_plan
 	XMVECTOR lightDir = XMLoadFloat3(&light_dir);
 	XMVECTOR lightPos = center_check;
 	XMFLOAT3 up_dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	XMVECTOR upDir = XMLoadFloat3(&up_dir);
+	XMFLOAT3 check_dir;
+	XMStoreFloat3(&check_dir,XMVector3Cross(lightDir, upDir));
+	if (abs(check_dir.x) < 0.001f && abs(check_dir.y) < 0.001f && abs(check_dir.z) < 0.001f)
+	{
+		up_dir = XMFLOAT3(0.0f, 1.0f, 0.0f);
+	}
 	XMFLOAT4X4 view_mat_pre;
 	scene_camera->count_view_matrix(light_dir, up_dir, center_pos, &view_mat_pre);
 	XMMATRIX light_view_mat = XMLoadFloat4x4(&view_mat_pre);
 	XMVECTOR rec_check_center = XMVector4Transform(center_check, light_view_mat);
 	XMFLOAT4 float_check_center;
 	XMStoreFloat4(&float_check_center, rec_check_center);
-	if (abs(float_check_center.x) < 0.001f && abs(float_check_center.y) < 0.001f && abs(float_check_center.z) < 0.001f)
-	{
-	}
-	else
-	{
-		//方向重合，换个方向求叉积
-		XMFLOAT3 up_change = XMFLOAT3(0.0f, 1.0f, 0.0f);
-		scene_camera->count_view_matrix(light_dir, up_dir, center_pos, &view_mat_pre);
-		light_view_mat = XMLoadFloat4x4(&view_mat_pre);
-		rec_check_center = XMVector4Transform(center_check, light_view_mat);
-		XMStoreFloat4(&float_check_center, rec_check_center);
-	}
-	XMFLOAT4 FrustumnearCorner2[4];
-	XMFLOAT4 FrustumFarCorner2[4];
+
 	for (int i = 0; i < 4; ++i)
 	{
 		//变换到光源视角
 		XMVECTOR rec_now = XMLoadFloat4(&FrustumnearCorner[i]);
 		XMVECTOR rec_ans = XMVector4Transform(rec_now, light_view_mat);
-		FrustumnearCorner2[i] = FrustumnearCorner[i];
 		XMStoreFloat4(&FrustumnearCorner[i], rec_ans);
 	}
 	for (int i = 0; i < 4; ++i)
@@ -729,92 +724,29 @@ XMFLOAT4X4 light_control::build_matrix_sunlight(float near_plane, float far_plan
 		//变换到光源视角
 		XMVECTOR rec_now = XMLoadFloat4(&FrustumFarCorner[i]);
 		XMVECTOR rec_ans = XMVector4Transform(rec_now, light_view_mat);
-		FrustumFarCorner2[i] = FrustumFarCorner[i];
 		XMStoreFloat4(&FrustumFarCorner[i], rec_ans);
 	}
 	XMFLOAT3 min_pos;
 	XMFLOAT3 max_pos;
 	build_AABB_box(FrustumnearCorner, FrustumFarCorner, min_pos, max_pos);
-
-
-
-
-
-
+	//将投影中心拉到合适的位置
 	XMFLOAT3 new_center_pos = XMFLOAT3((min_pos.x + max_pos.x) / 2.0f, (min_pos.y + max_pos.y) / 2.0f, min_pos.z);
 	new_center_pos.z -= 1.0f;
-	//寻找新的投影点
+	//乘以取景变换的逆矩阵得到新的投影中心点在世界坐标系的位置
 	XMFLOAT4X4 inv_view_light;
 	scene_camera->count_invview_matrix(light_dir, up_dir, center_pos, &inv_view_light);
 	XMMATRIX light_invview_mat = XMLoadFloat4x4(&inv_view_light);
 	XMVECTOR new_center_vector = XMLoadFloat4(&XMFLOAT4(new_center_pos.x, new_center_pos.y, new_center_pos.z, 1.0f));
 	XMVECTOR rec_trans_center = XMVector4Transform(new_center_vector, light_invview_mat);
-	XMFLOAT3 rec_trans_need;
-	XMStoreFloat3(&rec_trans_need, rec_trans_center);
-	XMVECTOR rec_trans_check = XMVector4Transform(rec_trans_center, light_view_mat);
 	XMStoreFloat3(&new_center_pos, rec_trans_center);
 	//重新计算取景变换矩阵
 	scene_camera->count_view_matrix(light_dir, up_dir, new_center_pos, &view_mat_pre);
-	light_view_mat = XMLoadFloat4x4(&view_mat_pre);
-	rec_check_center = XMVector4Transform(rec_trans_center, light_view_mat);
-	XMStoreFloat4(&float_check_center, rec_check_center);
-
-
-
-
-	//检验结果是否正确
-	/*
-	XMFLOAT3 min_pos2, max_pos2;
-	for (int i = 0; i < 4; ++i)
-	{
-		//变换到光源视角
-		XMVECTOR rec_now = XMLoadFloat4(&FrustumnearCorner2[i]);
-		XMVECTOR rec_ans = XMVector4Transform(rec_now, light_view_mat);
-		XMStoreFloat4(&FrustumnearCorner[i], rec_ans);
-	}
-	for (int i = 0; i < 4; ++i)
-	{
-		//变换到光源视角
-		XMVECTOR rec_now = XMLoadFloat4(&FrustumFarCorner2[i]);
-		XMVECTOR rec_ans = XMVector4Transform(rec_now, light_view_mat);
-		XMStoreFloat4(&FrustumFarCorner[i], rec_ans);
-	}
-	build_AABB_box(FrustumnearCorner, FrustumFarCorner, min_pos2, max_pos2);
-	*/
-	if (abs(float_check_center.x) < 0.0001f && abs(float_check_center.y) < 0.001f && abs(float_check_center.z) < 0.001f)
-	{
-		//结果检验正确
-	}
-	else
-	{
-		//方向重合，换个方向求叉积
-		XMFLOAT3 up_change = XMFLOAT3(0.0f, 1.0f, 0.0f);
-		scene_camera->count_view_matrix(light_dir, up_dir, new_center_pos, &view_mat_pre);
-		light_view_mat = XMLoadFloat4x4(&view_mat_pre);
-		rec_check_center = XMVector4Transform(rec_trans_center, light_view_mat);
-		XMStoreFloat4(&float_check_center, rec_check_center);
-	}
+	//根据AABB包围盒的长宽高计算投影变换矩阵
 	float view_width_need = max_pos.x - min_pos.x;
 	float view_height_need = max_pos.y - min_pos.y;
 	XMMATRIX mat_orth_view = XMMatrixOrthographicLH(view_width_need, view_height_need, 0.5f, (max_pos.z - min_pos.z) + 1.0f);
-
-	/*
-	auto* box_need = geometry_pancy->get_buildin_GeometryResourceView_by_name("geometry_project_aabb");
-	if (box_need != NULL)
-	{
-		XMMATRIX mat_need_translate = XMMatrixTranslation(center_pos.x, center_pos.y, center_pos.z);
-		XMFLOAT3 rec_check_dir;
-		rec_check_dir.x = rec_trans_need.x - center_pos.x;
-		rec_check_dir.y = rec_trans_need.y - center_pos.y;
-		rec_check_dir.z = rec_trans_need.z - center_pos.z;
-		//XMMATRIX mat_scal_need = XMMatrixScaling(view_width_need, view_height_need, (max_pos.z - min_pos.z) + 1.0f);
-		XMFLOAT4X4 mat_float_need;
-		XMStoreFloat4x4(&mat_float_need, mat_need_translate);//mat_scal_need * mat_need_translate);
-		box_need->update(mat_float_need, 0.0f);
-	}
-	*/
-
-	//正投影矩阵
+	//计算取景*投影矩阵
+	light_view_mat = XMLoadFloat4x4(&view_mat_pre);
 	XMMATRIX final_matrix = light_view_mat * mat_orth_view;
 	XMFLOAT4X4 mat_view_project;
 	XMStoreFloat4x4(&mat_view_project, final_matrix);

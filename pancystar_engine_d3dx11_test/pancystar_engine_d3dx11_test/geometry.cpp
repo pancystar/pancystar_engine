@@ -47,6 +47,22 @@ void Geometry_basic::show_mesh_adj()
 		contex_pancy->DrawIndexed(all_index * 2, 0, 0);
 	}
 }
+void Geometry_basic::show_mesh_instance(int copy_num)
+{
+	UINT offset_need = 0;                       //顶点结构的首地址偏移
+												//顶点缓存，索引缓存，绘图格式
+	contex_pancy->IASetVertexBuffers(0, 1, &vertex_need, &stride_vertex, &offset_need);
+	contex_pancy->IASetIndexBuffer(index_need, DXGI_FORMAT_R32_UINT, 0);
+	contex_pancy->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	//选定绘制路径
+	D3DX11_TECHNIQUE_DESC techDesc;
+	teque_pancy->GetDesc(&techDesc);
+	for (UINT i = 0; i < techDesc.Passes; ++i)
+	{
+		teque_pancy->GetPassByIndex(i)->Apply(0, contex_pancy);
+		contex_pancy->DrawIndexedInstanced(all_index, copy_num, 0, 0, 0);
+	}
+}
 void Geometry_basic::release()
 {
 	if (vertex_need != NULL)

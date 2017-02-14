@@ -81,8 +81,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>F:\vs2015_lib\dx11\include;F:\vs2015_lib\assimp\include;$(IncludePath)</IncludePath>
-    <LibraryPath>F:\vs2015_lib\dx11\lib;F:\vs2015_lib\assimp\lib32;$(LibraryPath)</LibraryPath>
+    <IncludePath>F:\vs2015_lib\dx11\include;F:\vs2015_lib\assimp\include;F:\physX sdk\PhysX-3.3-master\PhysXSDK\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>F:\vs2015_lib\dx11\lib;F:\vs2015_lib\assimp\lib32;F:\physX sdk\PhysX-3.3-master\PhysXSDK\Lib\vc14win32;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -99,7 +99,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>DirectXTK.lib;Effects11.lib;assimp.lib;DirectXMeshd.lib;PhysXVisualDebuggerSDKDEBUG.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DirectXTK.lib;Effects11.lib;assimp.lib;DirectXMeshd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <StackReserveSize>20000000</StackReserveSize>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -140,6 +140,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -242,6 +243,7 @@
     <None Include="ClassDiagram.cd" />
     <None Include="ClassDiagram1.cd" />
     <None Include="ClassDiagram2.cd" />
+    <None Include="terrain.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -107,6 +107,7 @@ public:
 	void get_teque(ID3DX11EffectTechnique *teque_need);
 	virtual void show_mesh();
 	virtual void show_mesh_adj();
+	virtual void show_mesh_instance(int copy_num);
 	void release();
 };
 template<typename T>

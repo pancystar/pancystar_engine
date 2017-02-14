@@ -5,7 +5,9 @@ pancy_physx::pancy_physx(ID3D11Device *device_need, ID3D11DeviceContext *contex_
 	device_pancy = device_need;
 	contex_pancy = contex_need;
 	now_scene = NULL;
+	controller_manager = NULL;
 	foundation_need = NULL;
+	//player = NULL;
 }
 HRESULT pancy_physx::create()
 {
@@ -41,6 +43,27 @@ HRESULT pancy_physx::create()
 	scene_desc.simulationEventCallback = callback_scene;
 
 	now_scene = physic_device->createScene(scene_desc);
+
+	controller_manager = PxCreateControllerManager(*now_scene);
+	if (controller_manager == NULL) 
+	{
+		return E_FAIL;
+	}
+	/*
+	physx::PxCapsuleControllerDesc test_capsule_desc;
+	test_capsule_desc.position = physx::PxExtendedVec3(0.0f,200.0f,0.0f);
+	test_capsule_desc.contactOffset = 0.05f;
+	test_capsule_desc.stepOffset = 0.01;
+	test_capsule_desc.slopeLimit = 0.5f;
+	test_capsule_desc.radius = 0.5f;
+	test_capsule_desc.height = 2;
+	test_capsule_desc.upDirection = physx::PxVec3(0,1,0);
+	physx::PxMaterial *mat_force = physic_device->createMaterial(0.5, 0.5, 0.5);
+	test_capsule_desc.material = mat_force;
+	test_capsule_desc.maxJumpHeight = 5.0f;
+	bool rec_check = test_capsule_desc.isValid();
+	player = controller_manager->createController(test_capsule_desc);
+	*/
 	/*
 	plane = physic_device->createRigidStatic(*plan_pos);
 	plane->createShape(physx::PxPlaneGeometry(), *mat_force);
@@ -98,6 +121,15 @@ HRESULT pancy_physx::create_dynamic_box(physx::PxTransform position_st, physx::P
 	*physic_out = box_need;
 	return S_OK;
 }
+HRESULT pancy_physx::create_charactor(physx::PxCapsuleControllerDesc charactor_desc, physx::PxController **charactor_out)
+{
+	*charactor_out = controller_manager->createController(charactor_desc);
+	if (*charactor_out == NULL) 
+	{
+		return E_FAIL;
+	}
+	return S_OK;
+}
 HRESULT pancy_physx::add_actor(physx::PxRigidDynamic *box)
 {
 	now_scene->addActor(*box);
@@ -120,6 +152,7 @@ void pancy_physx::update(float delta_time)
 	//box->addForce(dir_force, physx::PxForceMode::eIMPULSE);
 	now_scene->simulate(static_cast<physx::PxReal>(delta_time));
 	now_scene->fetchResults(true);
+	
 }
 void pancy_physx::release()
 {

@@ -92,7 +92,7 @@ void d3d_pancy_1::release()
 d3d_pancy_1::d3d_pancy_1(HWND hwnd_need, UINT width_need, UINT hight_need, HINSTANCE hInstance_need) :d3d_pancy_basic(hwnd_need, width_need, hight_need)
 {
 	perspective_near_plane = 0.1f;
-	perspective_far_plane = 300.0f;
+	perspective_far_plane = 1200.0f;
 	perspective_angle = XM_PI * 0.25f;
 	time_need.reset();
 	time_game = 0.0f;
@@ -177,6 +177,7 @@ HRESULT d3d_pancy_1::init_create()
 		return hr;
 	}
 	render_static_enviroment_map(XMFLOAT3(0.0f, 5.0f, 0.0f));
+	int a = 0;
 	return S_OK;
 }
 void d3d_pancy_1::render_static_enviroment_map(XMFLOAT3 camera_location)

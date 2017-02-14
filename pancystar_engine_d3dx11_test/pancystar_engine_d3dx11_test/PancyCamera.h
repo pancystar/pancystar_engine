@@ -40,6 +40,7 @@ public:
 	
 	void get_view_position(XMFLOAT3 *view_pos);
 	void get_view_direct(XMFLOAT3 *view_direct);
+	void get_right_direct(XMFLOAT3 *right_direct);
 	void set_camera(XMFLOAT3 rec_look, XMFLOAT3 rec_up, XMFLOAT3 rec_pos);
 	void reset_camera();
 private:

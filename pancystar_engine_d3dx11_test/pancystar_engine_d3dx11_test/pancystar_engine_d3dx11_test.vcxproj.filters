@@ -198,5 +198,8 @@
     <None Include="ClassDiagram.cd" />
     <None Include="ClassDiagram1.cd" />
     <None Include="ClassDiagram2.cd" />
+    <None Include="terrain.hlsli">
+      <Filter>源文件</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -285,6 +285,11 @@ void modelview_basic_assimp::draw_mesh_adj()
 	mesh_scene_view->get_teque(teque_pancy);
 	mesh_scene_view->show_mesh_adj();
 }
+void modelview_basic_assimp::draw_mesh_instance(int copy_num)
+{
+	mesh_scene_view->get_teque(teque_pancy);
+	mesh_scene_view->show_mesh_instance(copy_num);
+}
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~骨骼动画~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 skin_mesh::skin_mesh(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, char* filename, char* texture_path) : model_reader_assimp(device_need, contex_need, filename, texture_path)
@@ -978,7 +983,7 @@ HRESULT buildin_geometry_resource_view::create_physics()
 	mat_force = physic_pancy->create_material(0.5,0.5,0.5);
 	if (mesh_type == pancy_geometry_cube)
 	{
-		physx::PxTransform box_pos = physx::PxTransform(physx::PxVec3(0.0f, 50.0f, 0.0f));
+		physx::PxTransform box_pos = physx::PxTransform(physx::PxVec3(0.0f, 200.0f, 0.0f));
 		physx::PxBoxGeometry box_geo = physx::PxBoxGeometry(physx::PxVec3(0.5f, 0.5f, 0.5f));
 		HRESULT hr = physic_pancy->create_dynamic_box(box_pos, box_geo, mat_force, &physic_body);
 		if (FAILED(hr)) 
@@ -997,7 +1002,7 @@ HRESULT buildin_geometry_resource_view::update_physx_worldmatrix(float delta_tim
 	//设定世界变换
 	XMMATRIX trans_world, scal_world, rotation_world, rec_world;
 	trans_world = XMMatrixTranslation(physic_pancy->get_position(physic_body).x, physic_pancy->get_position(physic_body).y, physic_pancy->get_position(physic_body).z);
-	scal_world = XMMatrixScaling(0.5f, 0.5f, 0.5f);
+	scal_world = XMMatrixScaling(1.0f, 1.0f, 1.0f);
 	float angle_rot;
 	XMFLOAT3 rotation_data;
 	physic_pancy->get_rotation_data(physic_body,angle_rot, rotation_data);
@@ -1017,6 +1022,140 @@ void buildin_geometry_resource_view::release()
 {
 	delete texture_need;
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~植被几何体~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+plant_resource_view::plant_resource_view(assimp_basic *model_input, std::string name_need)
+{
+	model_data = model_input;
+	geometry_name = name_need;
+}
+HRESULT plant_resource_view::add_a_instance(int map_position, XMFLOAT4X4 world_matrix)
+{
+	std::pair<int, plant_instance_data> data_need;
+	data_need.second.instance_index = map_position;
+	data_need.second.world_matrix = world_matrix;
+	data_need.first = map_position;
+	auto check_iferror = view_data.insert(data_need);
+	if (!check_iferror.second)
+	{
+		MessageBox(0, L"add instance failed,a repeat one already in", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	return S_OK;
+}
+void plant_resource_view::draw_full_geometry(ID3DX11EffectTechnique *tech_common)
+{
+	model_data->get_technique(tech_common);
+	model_data->draw_mesh_instance(view_data.size());
+}
+void plant_resource_view::get_world_matrix_array(int &mat_num, XMFLOAT4X4 *mat)
+{
+	for (auto data = view_data.begin(); data != view_data.end(); data++)
+	{
+		mat[mat_num] = data->second.world_matrix;
+		mat_num += 1;
+	}
+}
+void plant_resource_view::update(float delta_time)
+{
+}
+void plant_resource_view::release()
+{}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~模型管理表~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~·
+void assimp_ResourceView_list::update_geometry_byname(std::string name_input, XMFLOAT4X4 world_matrix_need, float delta_time)
+{
+	for (auto data_GRV = ModelResourceView_list.begin(); data_GRV != ModelResourceView_list.end(); data_GRV++)
+	{
+		std::string name = data_GRV._Ptr->get_geometry_name();
+		if (name == name_input)
+		{
+			data_GRV._Ptr->update(world_matrix_need, delta_time);
+			break;
+		}
+	}
+}
+void assimp_ResourceView_list::update_geometry_byindex(int index_input, XMFLOAT4X4 world_matrix_need, float delta_time)
+{
+	if (index_input > ModelResourceView_list.size())
+	{
+		return;
+	}
+	auto data_GRV = ModelResourceView_list.begin() + index_input;
+	data_GRV._Ptr->update(world_matrix_need, delta_time);
+}
+void buildin_ResourceView_list::update_geometry_byname(std::string name_input, XMFLOAT4X4 world_matrix_need, float delta_time)
+{
+	for (auto data_GRV = ModelResourceView_list.begin(); data_GRV != ModelResourceView_list.end(); data_GRV++)
+	{
+		std::string name = data_GRV._Ptr->get_geometry_name();
+		if (name == name_input)
+		{
+			data_GRV._Ptr->update(world_matrix_need, delta_time);
+			break;
+		}
+	}
+}
+void buildin_ResourceView_list::update_geometry_byindex(int index_input, XMFLOAT4X4 world_matrix_need, float delta_time)
+{
+	if (index_input > ModelResourceView_list.size())
+	{
+		return;
+	}
+	auto data_GRV = ModelResourceView_list.begin() + index_input;
+	data_GRV._Ptr->update(world_matrix_need, delta_time);
+}
+void plant_ResourceView_list::update_geometry_byname(std::string name_input, float delta_time)
+{
+	for (auto data_GRV = ModelResourceView_list.begin(); data_GRV != ModelResourceView_list.end(); data_GRV++)
+	{
+		std::string name = data_GRV._Ptr->get_geometry_name();
+		if (name == name_input)
+		{
+			data_GRV._Ptr->update(delta_time);
+			break;
+		}
+	}
+}
+void plant_ResourceView_list::update_geometry_byindex(int index_input, float delta_time)
+{
+	if (index_input > ModelResourceView_list.size())
+	{
+		return;
+	}
+	auto data_GRV = ModelResourceView_list.begin() + index_input;
+	data_GRV._Ptr->update(delta_time);
+}
+HRESULT plant_ResourceView_list::add_instance_by_name(std::string name_resource_view, int map_location, XMFLOAT4X4 mat_translation)
+{
+	for (auto data_GRV = ModelResourceView_list.begin(); data_GRV != ModelResourceView_list.end(); data_GRV++)
+	{
+		std::string name = data_GRV._Ptr->get_geometry_name();
+		if (name == name_resource_view)
+		{
+			HRESULT hr = data_GRV._Ptr->add_a_instance(map_location, mat_translation);
+			if (FAILED(hr))
+			{
+				return E_FAIL;
+			}
+			return S_OK;
+		}
+	}
+	return E_FAIL;
+}
+HRESULT plant_ResourceView_list::add_instance_by_idnex(int index_resource_view, int map_location, XMFLOAT4X4 mat_translation)
+{
+	if (index_resource_view > ModelResourceView_list.size())
+	{
+		return E_FAIL;
+	}
+	auto data_GRV = ModelResourceView_list.begin() + index_resource_view;
+	HRESULT hr = data_GRV._Ptr->add_a_instance(map_location, mat_translation);
+	if (FAILED(hr))
+	{
+		return E_FAIL;
+	}
+	return S_OK;
+}
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~几何体管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 geometry_control::geometry_control(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_physx *physic_need)
 {
@@ -1024,9 +1163,12 @@ geometry_control::geometry_control(ID3D11Device *device_need, ID3D11DeviceContex
 	contex_pancy = contex_need;
 	physic_pancy = physic_need;
 	list_model_resource = new pancy_resource_list<model_resource_data>();
-	list_model_assimp = new geometry_ResourceView_list<assimpmodel_resource_view>();
+	list_model_assimp = new assimp_ResourceView_list();
 	list_buildin_geometry_resource = new pancy_resource_list<BuiltIngeometry_resource_data>();
-	list_buildin_model_view = new geometry_ResourceView_list<buildin_geometry_resource_view>();
+	list_buildin_model_view = new buildin_ResourceView_list();
+
+	list_plant_model_view = new plant_ResourceView_list();
+
 	grass_billboard = new mesh_billboard(device_need, contex_need);
 	list_texture_use = new pancy_resource_list<texture_pack>();
 	terrain_tesselation = NULL;
@@ -1172,6 +1314,53 @@ buildin_geometry_resource_view* geometry_control::get_buildin_GeometryResourceVi
 buildin_geometry_resource_view* geometry_control::get_buildin_GeometryResourceView_by_index(int model_view_idnex) 
 {
 	return list_buildin_model_view->get_geometry_byindex(model_view_idnex);
+}
+
+HRESULT geometry_control::add_plant_modelview_by_name(std::string model_name, std::string model_view_name) 
+{
+	model_resource_data *data_need = list_model_resource->get_resource_by_name(model_name);
+	if (data_need == NULL)
+	{
+		MessageBox(0, L"could not find the Specified assimp model in resource list", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	plant_resource_view *rec_mesh_check = list_plant_model_view->get_geometry_byname(model_view_name);
+	if (rec_mesh_check != NULL)
+	{
+		MessageBox(0, L"find another plant model view which have a same name as Specified plant model view", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	plant_resource_view *rec_mesh_castel = new plant_resource_view(data_need->data, model_view_name);
+	list_plant_model_view->add_new_geometry(*rec_mesh_castel);
+	delete rec_mesh_castel;
+	return S_OK;
+}
+HRESULT geometry_control::add_plant_modelview_by_index(int model_ID, std::string model_view_name) 
+{
+	model_resource_data *data_need = list_model_resource->get_resource_by_index(model_ID);
+	if (data_need == NULL)
+	{
+		MessageBox(0, L"could not find the Specified assimp model in resource list", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	plant_resource_view *rec_mesh_check = list_plant_model_view->get_geometry_byname(model_view_name);
+	if (rec_mesh_check != NULL)
+	{
+		MessageBox(0, L"find another plant model view which have a same name as Specified plant model view", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	plant_resource_view *rec_mesh_castel = new plant_resource_view(data_need->data, model_view_name);
+	list_plant_model_view->add_new_geometry(*rec_mesh_castel);
+	delete rec_mesh_castel;
+	return S_OK;
+}
+plant_resource_view *geometry_control::get_plant_ResourceView_by_name(std::string model_view_name) 
+{
+	return list_plant_model_view->get_geometry_byname(model_view_name);
+}
+plant_resource_view *geometry_control::get_plant_ResourceView_by_index(int model_view_idnex) 
+{
+	return list_plant_model_view->get_geometry_byindex(model_view_idnex);
 }
 
 HRESULT geometry_control::load_texture_from_file(wchar_t *file_name, bool if_use_mipmap, std::string resource_name, int &index_output)

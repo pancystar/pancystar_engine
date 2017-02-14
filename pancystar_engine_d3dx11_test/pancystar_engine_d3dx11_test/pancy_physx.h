@@ -3,6 +3,19 @@
 #include<vehicle/PxVehicleSDK.h>
 #include<DDSTextureLoader.h>
 #include"pancy_d3d11_basic.h"
+#ifdef _DEBUG
+#pragma comment(lib,"PhysX3DEBUG_x86.lib")
+#pragma comment(lib,"PhysX3CommonDEBUG_x86.lib")
+#pragma comment(lib,"PhysX3ExtensionsDEBUG.lib")
+#pragma comment(lib,"PhysXVisualDebuggerSDKDEBUG.lib")
+#pragma comment(lib,"PhysX3CharacterKinematicDEBUG_x86.lib")
+#else
+#pragma comment(lib,"PhysX3_x86.lib")
+#pragma comment(lib,"PhysX3Common_x86.lib")
+#pragma comment(lib,"PhysX3Extensions.lib")
+#pragma comment(lib,"PhysXVisualDebuggerSDK.lib")
+#pragma comment(lib,"PhysX3CharacterKinematic_x86.lib")
+#endif
 class pancy_collision_callback : public physx::PxSimulationEventCallback
 {
 public:
@@ -25,6 +38,9 @@ class pancy_physx
 	physx::PxFoundation *foundation_need;
 	physx::PxDefaultAllocator allocator_defaule;
 	physx::PxTolerancesScale scale;
+
+	physx::PxControllerManager *controller_manager;
+	//physx::PxController *player;
 	//physx::PxMaterial *mat_force;
 	ID3D11Device                *device_pancy;
 	ID3D11DeviceContext         *contex_pancy;
@@ -32,6 +48,7 @@ public:
 	pancy_physx(ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT create_terrain(physx::PxHeightFieldDesc height_data, physx::PxVec3 scal_data, physx::PxTransform terrain_trans, physx::PxMaterial *mat_force);
 	HRESULT create_dynamic_box(physx::PxTransform position_st, physx::PxBoxGeometry geometry_need, physx::PxMaterial *mat_need, physx::PxRigidDynamic **physic_out);
+	HRESULT create_charactor(physx::PxCapsuleControllerDesc charactor_desc, physx::PxController **charactor_out);
 	HRESULT create();
 	HRESULT add_actor(physx::PxRigidDynamic *box);
 	HRESULT remove_actor(physx::PxRigidDynamic *box) {};

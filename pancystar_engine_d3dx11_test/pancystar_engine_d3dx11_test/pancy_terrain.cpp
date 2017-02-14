@@ -293,6 +293,14 @@ HRESULT pancy_terrain_build::build_texture()
 }
 HRESULT pancy_terrain_build::build_physics() 
 {
+	float width_map_real, height_map_real, height_terrain_scal;
+	width_map_real = 3000.0f;
+	height_map_real = 3000.0f;
+	height_terrain_scal = 300.0f;
+	int depth_map_scal = 1;   //高度图的平平滑等级
+	int sample_distance = 4; //高度图的采样距离
+	int high_add = 0;       //适量抬高高度图防止物体陷入不精确区域
+	int offset_x = 0, offset_z = 0;
 	ID3D11Texture2D *tex_height;
 	//创建高度图
 	HRESULT hr = CreateDDSTextureFromFileEx(device_pancy, height_map_file_name[0], 0, D3D11_USAGE_STAGING, 0, D3D11_CPU_ACCESS_WRITE | D3D11_CPU_ACCESS_READ, 0, false, (ID3D11Resource**)&tex_height, 0, 0);
@@ -306,15 +314,32 @@ HRESULT pancy_terrain_build::build_physics()
 		hr = contex_pancy->Map(tex_height, mipLevel, D3D11_MAP_READ, 0, &mappedTex2D);
 		D3D11_TEXTURE2D_DESC rec_desc;
 		tex_height->GetDesc(&rec_desc);
-		numRows = rec_desc.Height;
-		numCols = rec_desc.Width;
+		numRows = (rec_desc.Height / sample_distance) * depth_map_scal;
+		numCols = (rec_desc.Width / sample_distance) * depth_map_scal;
 		samples = (physx::PxHeightFieldSample*)malloc(sizeof(physx::PxHeightFieldSample)*(numRows*numCols));
 		for (UINT i = 0; i < numRows; ++i)
 		{
-			unsigned char* rec = static_cast<unsigned char*>(mappedTex2D.pData) + (mappedTex2D.RowPitch) * i;
+			float sample_00, sample_01, sample_10, sample_11;
+			int now_row_0 = (i / depth_map_scal) * sample_distance + offset_x;
+			int now_row_1 = (i / depth_map_scal + 1) * sample_distance + offset_x;
+			float row_sample_pos = static_cast<float>(i) / depth_map_scal - static_cast<float>(i / depth_map_scal);
+			//unsigned char* rec = static_cast<unsigned char*>(mappedTex2D.pData) + (mappedTex2D.RowPitch) * i;
+			unsigned char* rec_row_0 = static_cast<unsigned char*>(mappedTex2D.pData) + (mappedTex2D.RowPitch) * now_row_0;
+			unsigned char* rec_row_1 = static_cast<unsigned char*>(mappedTex2D.pData) + (mappedTex2D.RowPitch) * now_row_1;
 			for (UINT j = 0; j < numCols; ++j)
 			{
-				samples[j * numRows + i].height = 2 * rec[j * 4 + 3] - 255;
+				int now_col_0 = (j / depth_map_scal) * sample_distance + offset_z;
+				int now_col_1 = (j / depth_map_scal + 1) * sample_distance + offset_z;
+				float col_sample_pos = static_cast<float>(j) / depth_map_scal - static_cast<float>(j / depth_map_scal);
+				sample_00 = 2 * rec_row_0[now_col_0 * 4 + 3] - 255;
+				sample_01 = 2 * rec_row_0[now_col_1 * 4 + 3] - 255;
+
+				sample_10 = 2 * rec_row_1[now_col_0 * 4 + 3] - 255;
+				sample_11 = 2 * rec_row_1[now_col_1 * 4 + 3] - 255;
+				float first_height_col = sample_00 + (sample_01 - sample_00) * col_sample_pos;
+				float second_height_col = sample_10 + (sample_11 - sample_10) * col_sample_pos;
+				samples[j * numRows + i].height = first_height_col + (second_height_col - first_height_col) * row_sample_pos + high_add;
+				//samples[j * numRows + i].height = 2 * rec[j * 4 + 3] - 255;
 			}
 		}
 		contex_pancy->Unmap(tex_height, mipLevel);
@@ -326,9 +351,9 @@ HRESULT pancy_terrain_build::build_physics()
 	hfDesc.nbRows = numRows;
 	hfDesc.samples.data = samples;
 	hfDesc.samples.stride = sizeof(physx::PxHeightFieldSample);
-	physx::PxVec3 rec_scal(30.0 / 255.0, (1.0 / numRows) * 300.0, (1.0 / numCols) * 300.0);
+	physx::PxVec3 rec_scal(height_terrain_scal / 255.0, (1.0 / numRows) * width_map_real, (1.0 / numCols) * height_map_real);
 	terrain_mat_force = physic_pancy->create_material(0.5,0.5,0.5);
-	return physic_pancy->create_terrain(hfDesc, rec_scal, physx::PxTransform(physx::PxVec3(-150.0f, 0.0f, -150.0f)), terrain_mat_force);
+	return physic_pancy->create_terrain(hfDesc, rec_scal, physx::PxTransform(physx::PxVec3(-1500.0f, 0.0f, -1500.0f)), terrain_mat_force);
 }
 void pancy_terrain_build::release()
 {

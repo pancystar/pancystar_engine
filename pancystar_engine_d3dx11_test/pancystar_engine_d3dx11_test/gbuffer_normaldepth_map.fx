@@ -1,3 +1,4 @@
+#include"terrain.hlsli"
 cbuffer PerFrame
 {
 	float4x4 world_matrix;      //世界变换
@@ -46,8 +47,15 @@ struct Vertex_IN_bone//含法线贴图顶点
 	uint4   texid       : TEXINDICES;   //纹理索引
 	float2  tex1        : TEXCOORD;     //顶点纹理坐标
 };
-
-
+struct Vertex_IN_instance
+{
+	float3	pos 	: POSITION;     //顶点位置
+	float3	normal 	: NORMAL;       //顶点法向量
+	float3	tangent : TANGENT;      //顶点切向量
+	uint4   texid   : TEXINDICES;   //纹理索引
+	float2  tex1    : TEXCOORD;     //顶点纹理坐标
+	uint InstanceId : SV_InstanceID;//instace索引号
+};
 
 struct Vertex_IN_terrain
 {
@@ -136,7 +144,9 @@ domin_out_terrain DS(
 	float2 tex1_need = lerp(v1_tex1, v2_tex1, uv.y);
 	float4 sample_normal = texture_terrain_bump.SampleLevel(samTex_liner, float3(tex1_need, quard[0].texid[0]), 0);
 	float3 normal = sample_normal.xyz;
-	float height = (2.0f*sample_normal.w - 1.0f) * 30.0f;
+
+	//float height = (2.0f*sample_normal.w - 1.0f) * 30.0f;
+	float height = count_terrain_height(sample_normal.w);
 	//求解图片所在自空间->模型所在统一世界空间的变换矩阵
 	float3 N = normal_before;
 	float3 T = normalize(tangent_before - N * tangent_before * N);
@@ -144,7 +154,10 @@ domin_out_terrain DS(
 	float3x3 T2W = float3x3(T, B, N);
 	normal = 2 * normal - 1;               //将向量从图片坐标[0,1]转换至真实坐标[-1,1]
 	normal = normalize(mul(normal, T2W));  //切线空间至世界空间
+	//todo：获得的法线贴图z坐标是反的，待处理
+	normal.z = -normal.z;
 	normal = normalize(mul(normal, normal_matrix));
+	
 	position_before.y = height;
 	//地形纹理坐标插值
 	float2 v1_tex2 = lerp(quard[0].tex2, quard[1].tex2, uv.x);
@@ -169,6 +182,16 @@ VertexOut VS(VertexIn vin)
 	VertexOut vout;
 	vout.PosV = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
 	vout.NormalV = mul(float4(vin.normal,0.0f), normal_matrix).xyz;
+	vout.tangent = mul(float4(vin.tangent, 0.0f), normal_matrix).xyz;
+	vout.PosH = mul(float4(vin.pos, 1.0f), final_matrix);
+	vout.tex = vin.tex1;
+	return vout;
+}
+VertexOut VS_instance(VertexIn vin)
+{
+	VertexOut vout;
+	vout.PosV = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
+	vout.NormalV = mul(float4(vin.normal, 0.0f), normal_matrix).xyz;
 	vout.tangent = mul(float4(vin.tangent, 0.0f), normal_matrix).xyz;
 	vout.PosH = mul(float4(vin.pos, 1.0f), final_matrix);
 	vout.tex = vin.tex1;
@@ -251,6 +274,24 @@ technique11 NormalDepth_withalpha
 		SetVertexShader(CompileShader(vs_5_0, VS()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS_withalpha()));
+	}
+}
+technique11 NormalDepth_withinstance
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_5_0, VS_instance()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_5_0, PS_withalpha()));
+	}
+}
+technique11 NormalDepth_withinstance_normal
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_5_0, VS_instance()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_5_0, PS_withnormal()));
 	}
 }
 technique11 NormalDepth_skin

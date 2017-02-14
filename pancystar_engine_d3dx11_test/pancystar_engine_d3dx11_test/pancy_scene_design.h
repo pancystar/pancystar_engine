@@ -13,15 +13,7 @@
 #include"particle_system.h"
 #include"pancy_terrain.h"
 #include"pancy_physx.h"
-#ifdef _DEBUG
-#pragma comment(lib,"PhysX3DEBUG_x86.lib")
-#pragma comment(lib,"PhysX3CommonDEBUG_x86.lib")
-#pragma comment(lib,"PhysX3ExtensionsDEBUG.lib")
-#else
-#pragma comment(lib,"PhysX3_x86.lib")
-#pragma comment(lib,"PhysX3Common_x86.lib")
-#pragma comment(lib,"PhysX3Extensions.lib")
-#endif
+
 
 class scene_root
 {
@@ -199,10 +191,51 @@ private:
 	void show_ball();
 	void show_snake_animation_deffered();
 };
+
+class player_basic
+{
+	float rec_offset_x, rec_offset_z;
+	model_data_type model_type;
+	//渲染包
+	shader_control *shader_lib;
+	//几何属性
+	geometry_control *geometry_pancy;
+	std::string model_resource;
+	std::string model_view_data_name;
+	int model_view_data_index;
+	//物理属性
+	pancy_physx  *physic_pancy;
+	physx::PxController *player;
+	physx::PxMaterial *mat_force;
+	float x_speed, z_speed;
+	float rotation_angle;
+public:
+	player_basic(string model_resource_name, string player_name, geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, model_data_type model_type_need);
+	HRESULT create();
+	virtual void update(float delta_time);
+	virtual void display(XMFLOAT4X4 view_proj_matrix);
+	void get_now_position(float &x,float &y,float &z);
+	void set_speed(float x,float z);
+	void get_look_position(float &x,float &y,float &z);
+	void change_rotation_angle(float delta_angle);
+	void add_offset(float offset_x, float offset_z) { rec_offset_x += offset_x; rec_offset_z += offset_z; };
+	void release();
+private:
+	HRESULT init_physics();
+	HRESULT init_geometry_buildin();
+	HRESULT init_geometry_assimp();
+	HRESULT init_geometry_bounding_box();
+	void show_bounding_box(XMFLOAT4X4 view_proj_matrix);
+	void show_build_in_model(XMFLOAT4X4 view_proj_matrix);
+	void show_assimp_skinmesh_model(XMFLOAT4X4 view_proj_matrix);
+	void show_transparent_part(XMFLOAT4X4 view_proj_matrix,int part);
+};
 class scene_engine_physicx : public scene_root
 {
+	player_basic *player_main;
 	pancy_physx *physics_pancy;
 	pancy_terrain_build *terrain_test;
+	float camera_height;
 public:
 	scene_engine_physicx(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_physx *physx_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view);
 	HRESULT scene_create();
@@ -215,4 +248,5 @@ private:
 	void show_floor();
 	void show_ball();
 	void show_box();
+	void set_camera_player();
 };

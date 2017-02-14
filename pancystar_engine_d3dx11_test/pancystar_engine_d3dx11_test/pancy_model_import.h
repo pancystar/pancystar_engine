@@ -9,7 +9,13 @@
 #include <assimp/matrix4x4.h>
 #include <assimp/matrix3x3.h>
 #include<assimp/Exporter.hpp>
+#include <map>
 #include<string>
+enum model_data_type 
+{
+	pancy_model_buildin = 0,
+	pancy_model_assimp = 1,
+};
 struct material_list
 {
 	char                       texture_diffuse[128];     //漫反射纹理地址
@@ -78,6 +84,7 @@ public:
 	virtual void draw_normal_part(int i) = 0;
 	virtual void draw_mesh() = 0;
 	virtual void draw_mesh_adj() = 0;
+	virtual void draw_mesh_instance(int copy_num) = 0;
 	HRESULT get_technique(ID3DX11EffectTechnique *teque_need);
 	bool check_alpha(int part) { return if_alpha_array[part]; };
 	bool check_normal(int part) { return if_normal_array[part]; };
@@ -104,6 +111,7 @@ public:
 	void draw_part(int i);
 	void draw_mesh();
 	void draw_mesh_adj();
+	void draw_mesh_instance(int copy_num);
 	void draw_normal_part(int i);
 };
 template<typename T>
@@ -827,6 +835,30 @@ public:
 private:
 	void reset_world_matrix(XMFLOAT4X4 world_matrix_need) { world_matrix = world_matrix_need; };
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~植被模型~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+struct plant_instance_data 
+{
+	int instance_index;
+	XMFLOAT4X4 world_matrix;
+};
+class plant_resource_view
+{
+	std::string geometry_name;           //几何体名称
+	int indexnum_geometry;               //几何体索引
+	assimp_basic *model_data;             //几何体数据
+	std::map<int,plant_instance_data> view_data;  //几何体访问数据
+	material_list *texture_need;          //几何体光学材质
+public:  
+	plant_resource_view(assimp_basic *model_input, std::string name_need);
+	HRESULT add_a_instance(int map_position,XMFLOAT4X4 world_matrix);
+	void draw_full_geometry(ID3DX11EffectTechnique *tech_common);
+	void get_world_matrix_array(int &mat_num, XMFLOAT4X4 *mat);
+	void update(float delta_time);
+	std::string get_geometry_name() { return geometry_name; };
+	int get_geometry_index() { return indexnum_geometry; };
+	void set_geometry_index(int index_num) { indexnum_geometry = index_num; };
+	void release();
+};
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~纹理数据~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class texture_data 
 {
@@ -903,6 +935,7 @@ void pancy_resource_list<T>::release()
 template<typename T>
 class geometry_ResourceView_list
 {
+protected:
 	std::vector<T> ModelResourceView_list;
 public:
 	geometry_ResourceView_list();
@@ -912,8 +945,6 @@ public:
 	void delete_geometry_byindex(int index_input);
 	T *get_geometry_byindex(int index_input);
 	int get_geometry_num() { return ModelResourceView_list.size(); };
-	void update_geometry_byname(std::string name_input, XMFLOAT4X4 world_matrix_need, float delta_time);
-	void update_geometry_byindex(int index_input, XMFLOAT4X4 world_matrix_need, float delta_time);
 	void release();
 };
 template<typename T>
@@ -1051,42 +1082,6 @@ T* geometry_ResourceView_list<T>::get_geometry_byindex(int index_input)
 	return data_GRV._Ptr;
 }
 template<typename T>
-void geometry_ResourceView_list<T>::update_geometry_byname(std::string name_input, XMFLOAT4X4 world_matrix_need, float delta_time)
-{
-	for (auto data_GRV = ModelResourceView_list.begin(); data_GRV != ModelResourceView_list.end(); data_GRV++)
-	{
-		std::string name = data_GRV._Ptr->get_geometry_name();
-		if (name == name_input)
-		{
-			data_GRV._Ptr->update(world_matrix_need, delta_time);
-			break;
-		}
-	}
-	/*
-	assimpmodel_resource_view *find_ptr = head;
-	for (int i = 0; i < number_list; ++i)
-	{
-	std::string name = find_ptr->get_geometry_name();
-	if (name == name_input)
-	{
-	find_ptr->update(world_matrix_need, delta_time);
-	break;
-	}
-	find_ptr = find_ptr->get_next_member();
-	}
-	*/
-}
-template<typename T>
-void geometry_ResourceView_list<T>::update_geometry_byindex(int index_input, XMFLOAT4X4 world_matrix_need, float delta_time)
-{
-	if (index_input > ModelResourceView_list.size())
-	{
-		return;
-	}
-	auto data_GRV = ModelResourceView_list.begin() + index_input;
-	data_GRV._Ptr->update(world_matrix_need, delta_time);
-}
-template<typename T>
 void geometry_ResourceView_list<T>::release()
 {
 	for (auto data_need = ModelResourceView_list.begin(); data_need != ModelResourceView_list.end(); ++data_need)
@@ -1110,6 +1105,26 @@ void geometry_ResourceView_list<T>::release()
 	*/
 }
 
+class assimp_ResourceView_list : public geometry_ResourceView_list<assimpmodel_resource_view>
+{
+public:
+	void update_geometry_byname(std::string name_input, XMFLOAT4X4 world_matrix_need, float delta_time);
+	void update_geometry_byindex(int index_input, XMFLOAT4X4 world_matrix_need, float delta_time);
+};
+class buildin_ResourceView_list : public geometry_ResourceView_list<buildin_geometry_resource_view>
+{
+public:
+	void update_geometry_byname(std::string name_input, XMFLOAT4X4 world_matrix_need, float delta_time);
+	void update_geometry_byindex(int index_input, XMFLOAT4X4 world_matrix_need, float delta_time);
+};
+class plant_ResourceView_list : public geometry_ResourceView_list<plant_resource_view> 
+{
+public:
+	void update_geometry_byname(std::string name_input, float delta_time);
+	void update_geometry_byindex(int index_input, float delta_time);
+	HRESULT add_instance_by_name(std::string name_resource_view,int map_location,XMFLOAT4X4 mat_translation);
+	HRESULT add_instance_by_idnex(int index_resource_view, int map_location, XMFLOAT4X4 mat_translation);
+};
 /*
 template<typename T>
 class special_assimpmodel_resource_view
@@ -1127,11 +1142,12 @@ class geometry_control
 	pancy_physx         *physic_pancy;     //物理引擎
 	//assimp访问表及资源表
 	pancy_resource_list<model_resource_data> *list_model_resource;                     //assimp模型资源
-    geometry_ResourceView_list<assimpmodel_resource_view> *list_model_assimp;             //assimp模型访问表
-
+	assimp_ResourceView_list *list_model_assimp;             //assimp模型访问表
+	//内置几何体
 	pancy_resource_list<BuiltIngeometry_resource_data> *list_buildin_geometry_resource;//内置几何体资源表
-	geometry_ResourceView_list<buildin_geometry_resource_view> *list_buildin_model_view;   //内置几何体访问表
-	
+	buildin_ResourceView_list *list_buildin_model_view;   //内置几何体访问表
+	//植被几何体
+	plant_ResourceView_list *list_plant_model_view;
 	bool if_have_terrain;
 	pancy_terrain_build *terrain_tesselation;
 	pancy_resource_list<texture_pack> *list_texture_use;
@@ -1160,6 +1176,19 @@ public:
 	buildin_geometry_resource_view *get_buildin_GeometryResourceView_by_index(int model_view_idnex);
 	void update_buildin_GRV_byname(std::string name_input, XMFLOAT4X4 world_matrix_need, float delta_time) { list_buildin_model_view->update_geometry_byname(name_input, world_matrix_need, delta_time); };
 	void update_buildin_GRV_byindex(int index_input, XMFLOAT4X4 world_matrix_need, float delta_time) { list_buildin_model_view->update_geometry_byindex(index_input, world_matrix_need, delta_time); };
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~植被几何体的导入器，访问器及存储器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	int get_plant_model_view_num() { return list_plant_model_view->get_geometry_num(); };
+
+	HRESULT add_plant_modelview_by_name(std::string model_name, std::string model_view_name);
+	HRESULT add_plant_modelview_by_index(int model_ID, std::string model_view_name);
+
+	HRESULT add_plant_instance_by_name(std::string model_view_name, int map_location, XMFLOAT4X4 mat_translation) { list_plant_model_view->add_instance_by_name(model_view_name, map_location, mat_translation); }
+	HRESULT add_plant_instance_by_index(int model_ID, int map_location, XMFLOAT4X4 mat_translation) { list_plant_model_view->add_instance_by_idnex(model_ID, map_location, mat_translation); }
+	plant_resource_view *get_plant_ResourceView_by_name(std::string model_view_name);
+	plant_resource_view *get_plant_ResourceView_by_index(int model_view_idnex);
+	void update_plant_GRV_byname(std::string name_input, float delta_time) { list_plant_model_view->update_geometry_byname(name_input, delta_time); };
+	void update_plant_GRV_byindex(int index_input, float delta_time) { list_plant_model_view->update_geometry_byindex(index_input, delta_time); };
+
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~特殊几何体的导入器，访问器及存储器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	int get_special_model_view_num() { return 0; };
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~地形几何体创建~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

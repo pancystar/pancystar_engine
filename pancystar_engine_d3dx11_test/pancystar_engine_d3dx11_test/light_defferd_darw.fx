@@ -1,5 +1,6 @@
 /*延迟光照效果*/
 #include"light_define.fx"
+#include"terrain.hlsli"
 cbuffer perobject
 {
 	pancy_material   material_need;    //材质
@@ -21,7 +22,6 @@ struct patch_tess
 	float edge_tess[4]: SV_TessFactor;
 	float inside_tess[2] : SV_InsideTessFactor;
 };
-
 SamplerState samTex
 {
 	Filter = ANISOTROPIC;
@@ -43,6 +43,15 @@ struct Vertex_IN//含法线贴图顶点
 	uint4   texid   : TEXINDICES;   //纹理索引
 	float2  tex1    : TEXCOORD;     //顶点纹理坐标
 };
+struct Vertex_IN_instance 
+{
+	float3	pos 	: POSITION;     //顶点位置
+	float3	normal 	: NORMAL;       //顶点法向量
+	float3	tangent : TANGENT;      //顶点切向量
+	uint4   texid   : TEXINDICES;   //纹理索引
+	float2  tex1    : TEXCOORD;     //顶点纹理坐标
+	uint InstanceId : SV_InstanceID;//instace索引号
+};
 struct Vertex_IN_bone//含法线贴图顶点
 {
 	float3	pos 	    : POSITION;     //顶点位置
@@ -53,6 +62,7 @@ struct Vertex_IN_bone//含法线贴图顶点
 	uint4   texid       : TEXINDICES;   //纹理索引
 	float2  tex1        : TEXCOORD;     //顶点纹理坐标
 };
+
 struct VertexOut
 {
 	float3 position_before : POSITION;
@@ -155,7 +165,8 @@ domin_out_terrain DS(
 	float2 tex1_need = lerp(v1_tex1, v2_tex1, uv.y);
 	float4 sample_normal = texture_terrain_bump.SampleLevel(samTex_liner, float3(tex1_need, quard[0].texid[0]),0);
 	float3 normal = sample_normal.xyz;
-	float height = (2.0f*sample_normal.w - 1.0f) * 30.0f;
+	//float height = (2.0f*sample_normal.w - 1.0f) * 30.0f;
+	float height = count_terrain_height(sample_normal.w);
 	/*
 	//求解图片所在自空间->模型所在统一世界空间的变换矩阵
 	float3 N = normal_before;
@@ -185,7 +196,7 @@ PixelOut PS_terrain(domin_out_terrain pin) :SV_TARGET
 	pin.pos_ssao /= pin.pos_ssao.w;
 	float4 tex_color = texture_terrain_diffuse.Sample(samTex, float3(pin.tex, pin.texid[1]));
 	//clip(tex_color.a - 0.6f);
-	float4 ambient = 0.2f*float4(1.0f, 1.0f, 1.0f, 0.0f) * texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
+	float4 ambient = 0.4f*float4(1.0f, 1.0f, 1.0f, 0.0f) * texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
 	float4 diffuse = material_need.diffuse * texture_light_diffuse.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f);      //漫反射光
 	float4 spec = material_need.specular * texture_light_specular.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f);       //镜面反射光
 	float4 final_color = tex_color *(ambient + diffuse) + spec;
@@ -197,6 +208,25 @@ PixelOut PS_terrain(domin_out_terrain pin) :SV_TARGET
 	return ans_pix;
 }
 
+
+VertexOut VS(Vertex_IN vin)
+{
+	VertexOut vout;
+	vout.position_before = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
+	vout.position = mul(float4(vin.pos, 1.0f), final_matrix);
+	vout.tex = vin.tex1;
+	vout.pos_ssao = mul(float4(vout.position_before, 1.0f), ssao_matrix);
+	return vout;
+}
+VertexOut VS_instance(Vertex_IN_instance vin)
+{
+	VertexOut vout;
+	vout.position_before = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
+	vout.position = mul(float4(vin.pos, 1.0f), final_matrix);
+	vout.tex = vin.tex1;
+	vout.pos_ssao = mul(float4(vout.position_before, 1.0f), ssao_matrix);
+	return vout;
+}
 VertexOut VS_bone(Vertex_IN_bone vin)
 {
 	VertexOut vout;
@@ -220,15 +250,6 @@ VertexOut VS_bone(Vertex_IN_bone vin)
 	vout.position = mul(float4(posL, 1.0f), final_matrix);
 	vout.tex = vin.tex1;
 	vout.pos_ssao = mul(float4(vout.position_before,1.0f), ssao_matrix);
-	return vout;
-}
-VertexOut VS(Vertex_IN vin)
-{
-	VertexOut vout;
-	vout.position_before = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
-	vout.position = mul(float4(vin.pos, 1.0f), final_matrix);
-	vout.tex = vin.tex1;
-	vout.pos_ssao = mul(float4(vout.position_before, 1.0f), ssao_matrix);
 	return vout;
 }
 PixelOut PS(VertexOut pin) :SV_TARGET
@@ -269,6 +290,15 @@ technique11 LightTech
 	pass P0
 	{
 		SetVertexShader(CompileShader(vs_5_0, VS()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_5_0, PS()));
+	}
+}
+technique11 LightTech_instance
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_5_0, VS_instance()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS()));
 	}

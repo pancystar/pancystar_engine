@@ -325,6 +325,10 @@ void pancy_camera::get_view_direct(XMFLOAT3 *view_direct)
 {
 	*view_direct = camera_look;
 }
+void pancy_camera::get_right_direct(XMFLOAT3 *right_direct) 
+{
+	*right_direct = camera_right;
+}
 void pancy_camera::set_camera(XMFLOAT3 rec_look, XMFLOAT3 rec_up, XMFLOAT3 rec_pos) 
 {
 	camera_look = rec_look;
