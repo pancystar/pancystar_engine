@@ -72,6 +72,8 @@ private:
 	ID3DX11EffectTechnique* get_technique_skin_transparent();
 	ID3DX11EffectTechnique* get_technique_skin_normal();
 	ID3DX11EffectTechnique* get_techniqueterrain();
+	ID3DX11EffectTechnique* get_technique_plant();
+	ID3DX11EffectTechnique* get_technique_plant_normal();
 	void resolve_depth_render(ID3DX11EffectTechnique* tech);
 	void light_buffer_render(ID3DX11EffectTechnique* tech);
 	template<class T>

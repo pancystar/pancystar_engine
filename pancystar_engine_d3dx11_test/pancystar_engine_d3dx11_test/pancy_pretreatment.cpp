@@ -494,6 +494,32 @@ ID3DX11EffectTechnique* Pretreatment_gbuffer::get_techniqueterrain()
 	}
 	return tech;
 }
+ID3DX11EffectTechnique* Pretreatment_gbuffer::get_technique_plant()
+{
+	HRESULT hr;
+	//选定绘制路径
+	ID3DX11EffectTechnique   *teque_need;          //通用渲染路径
+	hr = shader_list->get_shader_gbufferdepthnormal()->get_technique(&teque_need, "NormalDepth_withinstance");
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"get technique error when create ssao resource", L"tip", MB_OK);
+		return NULL;
+	}
+	return teque_need;
+}
+ID3DX11EffectTechnique* Pretreatment_gbuffer::get_technique_plant_normal() 
+{
+	HRESULT hr;
+	//选定绘制路径
+	ID3DX11EffectTechnique   *teque_need;          //通用渲染路径
+	hr = shader_list->get_shader_gbufferdepthnormal()->get_technique(&teque_need, "NormalDepth_withinstance_normal");
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"get technique error when create ssao resource", L"tip", MB_OK);
+		return NULL;
+	}
+	return teque_need;
+}
 void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix)
 {
 	//关闭alpha混合
@@ -588,6 +614,33 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 		g_shader->set_trans_world(&now_rec->get_world_matrix(), &view_matrix);
 		g_shader->set_trans_all(&final_matrix);
 		now_rec->draw_full_geometry(get_technique());
+	}
+	for (int i = 0; i < geometry_lib->get_plant_model_view_num(); ++i) 
+	{
+		auto *now_rec = geometry_lib->get_plant_ResourceView_by_index(i);
+		XMFLOAT4X4 rec_mat[100];
+		int mat_num;
+		now_rec->get_world_matrix_array(mat_num, rec_mat);
+		XMFLOAT4X4 view_proj_matrix;
+		XMStoreFloat4x4(&view_proj_matrix, XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
+		g_shader->set_world_matrix_array(rec_mat, mat_num);
+		g_shader->set_trans_viewproj(&view_proj_matrix);
+		material_list rec_texture;
+		for (int j = 0; j < now_rec->get_geometry_num(); ++j)
+		{
+			now_rec->get_texture(&rec_texture, j);
+			g_shader->set_texture(rec_texture.tex_diffuse_resource);
+			if (rec_texture.texture_normal_resource == NULL) 
+			{
+				now_rec->draw_mesh_part(get_technique_plant(),j);
+			}
+			else 
+			{
+				g_shader->set_texture_normal(rec_texture.texture_normal_resource);
+				now_rec->draw_mesh_part(get_technique_plant_normal(), j);
+			}
+		}
+		
 	}
 	if (geometry_lib->check_if_have_terrain())
 	{

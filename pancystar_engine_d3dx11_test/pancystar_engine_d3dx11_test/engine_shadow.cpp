@@ -257,6 +257,18 @@ ID3DX11EffectTechnique* shadow_basic::get_technique_transparent()
 	}
 	return teque_need;
 }
+ID3DX11EffectTechnique* shadow_basic::get_technique_plant()
+{
+	ID3DX11EffectTechnique   *teque_need;       //渲染路径
+	auto* shader_test = shader_list->get_shader_shadowmap();
+	HRESULT hr = shader_test->get_technique(&teque_need, "ShadowTech_plant");
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"get technique error when create shadowmap resource", L"tip", MB_OK);
+		return NULL;
+	}
+	return teque_need;
+}
 ID3DX11EffectTechnique* shadow_basic::get_technique_skin()
 {
 	//设置顶点声明
@@ -319,6 +331,22 @@ HRESULT shadow_basic::set_shaderresource(XMFLOAT4X4 word_matrix)
 	rec_final = rec_world*rec_final;
 	XMStoreFloat4x4(&rec_mat, rec_final);
 	HRESULT hr = shader_test->set_trans_all(&rec_mat);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set shader matrix error when create shadowmap resource", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shadow_basic::set_shaderresource(XMFLOAT4X4 *word_matrix_array, int mat_num)
+{
+	auto* shader_test = shader_list->get_shader_shadowmap();
+	shader_test->set_world_matrix_array(word_matrix_array, mat_num);
+	XMMATRIX rec_final;
+	XMFLOAT4X4 rec_mat;
+	rec_final = XMLoadFloat4x4(&shadow_build);
+	XMStoreFloat4x4(&rec_mat, rec_final);
+	HRESULT hr = shader_test->set_trans_viewproj(&rec_mat);
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"set shader matrix error when create shadowmap resource", L"tip", MB_OK);

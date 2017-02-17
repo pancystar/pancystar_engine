@@ -9,6 +9,8 @@ cbuffer perobject
 	float4x4         final_matrix;     //总变换
 	float4x4         ssao_matrix;      //ssao变换
 	float4x4         gBoneTransforms[100];//骨骼变换矩阵
+	float4x4         world_matrix_array[100];
+	float4x4         view_proj_matrix;
 };
 Texture2D        texture_light_diffuse;      //漫反射光照贴图
 Texture2D        texture_light_specular;     //镜面反射光照贴图
@@ -221,8 +223,10 @@ VertexOut VS(Vertex_IN vin)
 VertexOut VS_instance(Vertex_IN_instance vin)
 {
 	VertexOut vout;
-	vout.position_before = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
-	vout.position = mul(float4(vin.pos, 1.0f), final_matrix);
+	//vout.position_before = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
+	vout.position_before = mul(float4(vin.pos, 1.0f), world_matrix_array[vin.InstanceId]).xyz;
+	
+	vout.position = mul(float4(vout.position_before,1.0f),view_proj_matrix);
 	vout.tex = vin.tex1;
 	vout.pos_ssao = mul(float4(vout.position_before, 1.0f), ssao_matrix);
 	return vout;
@@ -257,7 +261,7 @@ PixelOut PS(VertexOut pin) :SV_TARGET
 	pin.pos_ssao /= pin.pos_ssao.w;
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
 	clip(tex_color.a - 0.6f);
-	float4 ambient = 0.6f*float4(1.0f, 1.0f, 1.0f, 0.0f) * texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
+	float4 ambient = 0.4f*float4(1.0f, 1.0f, 1.0f, 0.0f) * texture_ssao.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f).r;
 	float4 diffuse = material_need.diffuse * texture_light_diffuse.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f);      //漫反射光
 	float4 spec = material_need.specular * texture_light_specular.Sample(samTex_liner, pin.pos_ssao.xy, 0.0f);       //镜面反射光
 	float4 final_color = tex_color *(ambient + diffuse) + spec;

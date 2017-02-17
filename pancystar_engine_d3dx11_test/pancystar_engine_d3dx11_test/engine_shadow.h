@@ -37,11 +37,13 @@ public:
 	HRESULT set_renderstate(XMFLOAT3 light_position, XMFLOAT3 light_dir, BoundingSphere shadow_range, light_type check);
 	HRESULT set_renderstate(XMFLOAT4X4 shadow_matrix);
 	HRESULT set_shaderresource(XMFLOAT4X4 word_matrix);
+	HRESULT set_shaderresource(XMFLOAT4X4 *word_matrix_array,int mat_num);
 	HRESULT set_bone_matrix(XMFLOAT4X4 *bone_matrix, int cnt_need);
 	virtual HRESULT create(int width_need, int height_need);
 	ID3D11ShaderResourceView* get_mapresource();
 	ID3DX11EffectTechnique* get_technique();
 	ID3DX11EffectTechnique* get_technique_transparent();
+	ID3DX11EffectTechnique* get_technique_plant();
 	ID3DX11EffectTechnique* get_technique_skin();
 	ID3DX11EffectTechnique* get_technique_skin_transparent();
 	HRESULT set_transparent_tex(ID3D11ShaderResourceView *tex_in);

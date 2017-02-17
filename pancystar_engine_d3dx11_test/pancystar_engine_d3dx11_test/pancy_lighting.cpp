@@ -185,6 +185,21 @@ void light_with_shadowmap::draw_shadow()
 		shadowmap_deal->set_shaderresource(now_rec->get_world_matrix());
 		now_rec->draw_full_geometry(shadowmap_deal->get_technique());
 	}
+	for (int i = 0; i < geometry_lib->get_plant_model_view_num(); ++i) 
+	{
+		auto *now_rec = geometry_lib->get_plant_ResourceView_by_index(i);
+		XMFLOAT4X4 mat_world[100];
+		int num;
+		now_rec->get_world_matrix_array(num,mat_world);
+		shadowmap_deal->set_shaderresource(mat_world, num);
+		material_list rec_texture;
+		for (int j = 0; j < now_rec->get_geometry_num(); ++j) 
+		{
+			now_rec->get_texture(&rec_texture, j);
+			shadowmap_deal->set_transparent_tex(rec_texture.tex_diffuse_resource);
+			now_rec->draw_mesh_part(shadowmap_deal->get_technique_plant(), j);
+		}
+	}
 	//»¹Ô­äÖÈ¾×´Ì¬
 	contex_pancy->RSSetState(0);
 	renderstate_lib->set_posttreatment_rendertarget();
@@ -275,6 +290,21 @@ void sunlight_with_shadowmap::draw_shadow_basic(int count)
 		buildin_geometry_resource_view *now_rec = geometry_lib->get_buildin_GeometryResourceView_by_index(i);
 		shadowmap_array[count]->set_shaderresource(now_rec->get_world_matrix());
 		now_rec->draw_full_geometry(shadowmap_array[count]->get_technique());
+	}
+	for (int i = 0; i < geometry_lib->get_plant_model_view_num(); ++i)
+	{
+		auto *now_rec = geometry_lib->get_plant_ResourceView_by_index(i);
+		XMFLOAT4X4 mat_world[100];
+		int num;
+		now_rec->get_world_matrix_array(num, mat_world);
+		shadowmap_array[count]->set_shaderresource(mat_world, num);
+		material_list rec_texture;
+		for (int j = 0; j < now_rec->get_geometry_num(); ++j)
+		{
+			now_rec->get_texture(&rec_texture, j);
+			shadowmap_array[count]->set_transparent_tex(rec_texture.tex_diffuse_resource);
+			now_rec->draw_mesh_part(shadowmap_array[count]->get_technique_plant(), j);
+		}
 	}
 	//»¹Ô­äÖÈ¾×´Ì¬
 	contex_pancy->RSSetState(0);

@@ -249,4 +249,5 @@ private:
 	void show_ball();
 	void show_box();
 	void set_camera_player();
+	void show_grass();
 };

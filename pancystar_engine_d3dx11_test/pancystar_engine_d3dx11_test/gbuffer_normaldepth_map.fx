@@ -5,6 +5,8 @@ cbuffer PerFrame
 	float4x4 normal_matrix;     //法线变换
 	float4x4 final_matrix;      //总变换
 	float4x4 gBoneTransforms[100];//骨骼变换矩阵
+	float4x4 world_matrix_array[100];
+	float4x4 view_proj_matrix;
 };
 Texture2D        texture_diffuse;  //漫反射贴图
 Texture2D        texture_normal;   //法线贴图
@@ -157,7 +159,7 @@ domin_out_terrain DS(
 	//todo：获得的法线贴图z坐标是反的，待处理
 	normal.z = -normal.z;
 	normal = normalize(mul(normal, normal_matrix));
-	
+
 	position_before.y = height;
 	//地形纹理坐标插值
 	float2 v1_tex2 = lerp(quard[0].tex2, quard[1].tex2, uv.x);
@@ -173,7 +175,7 @@ domin_out_terrain DS(
 float4 PS_terrain(domin_out_terrain pin) :SV_TARGET
 {
 	pin.NormalV = normalize(pin.NormalV);
-    return float4(pin.NormalV,10.0);
+	return float4(pin.NormalV,10.0);
 }
 
 
@@ -181,19 +183,20 @@ VertexOut VS(VertexIn vin)
 {
 	VertexOut vout;
 	vout.PosV = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
-	vout.NormalV = mul(float4(vin.normal,0.0f), normal_matrix).xyz;
+	vout.NormalV = mul(float4(vin.normal, 0.0f), normal_matrix).xyz;
 	vout.tangent = mul(float4(vin.tangent, 0.0f), normal_matrix).xyz;
 	vout.PosH = mul(float4(vin.pos, 1.0f), final_matrix);
 	vout.tex = vin.tex1;
 	return vout;
 }
-VertexOut VS_instance(VertexIn vin)
+VertexOut VS_instance(Vertex_IN_instance vin)
 {
 	VertexOut vout;
-	vout.PosV = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
-	vout.NormalV = mul(float4(vin.normal, 0.0f), normal_matrix).xyz;
-	vout.tangent = mul(float4(vin.tangent, 0.0f), normal_matrix).xyz;
-	vout.PosH = mul(float4(vin.pos, 1.0f), final_matrix);
+	//vout.PosV = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
+	vout.PosV = mul(float4(vin.pos, 1.0f), world_matrix_array[vin.InstanceId]).xyz;
+	vout.NormalV = mul(float4(vin.normal, 0.0f), world_matrix_array[vin.InstanceId]).xyz;
+	vout.tangent = mul(float4(vin.tangent, 0.0f), world_matrix_array[vin.InstanceId]).xyz;
+	vout.PosH = mul(float4(vout.PosV, 1.0f), view_proj_matrix);
 	vout.tex = vin.tex1;
 	return vout;
 }
@@ -258,6 +261,23 @@ float4 PS_withnormal(VertexOut pin) : SV_Target
 	//return float4(pin.NormalV,10.0);
 	return float4(normal_map, 10.0);
 }
+float4 PS_plant_normal(VertexOut pin) : SV_Target
+{
+	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
+	clip(tex_color.a - 0.9f);
+	pin.NormalV = normalize(pin.NormalV);
+	pin.tangent = normalize(pin.tangent);
+	//求解图片所在自空间->模型所在统一世界空间的变换矩阵
+	float3 N = pin.NormalV;
+	float3 T = normalize(pin.tangent - N * pin.tangent * N);
+	float3 B = cross(N, T);
+	float3x3 T2W = float3x3(T, B, N);
+	float3 normal_map = texture_normal.Sample(samTex_liner, pin.tex).rgb;//从法线贴图中获得法线采样
+	normal_map = 2 * normal_map - 1;                               //将向量从图片坐标[0,1]转换至真实坐标[-1,1]  
+	normal_map = normalize(mul(normal_map, T2W));                  //切线空间至世界空间
+	pin.NormalV = normal_map;
+	return float4(normal_map, 10.0);
+}
 technique11 NormalDepth
 {
 	pass P0
@@ -291,7 +311,7 @@ technique11 NormalDepth_withinstance_normal
 	{
 		SetVertexShader(CompileShader(vs_5_0, VS_instance()));
 		SetGeometryShader(NULL);
-		SetPixelShader(CompileShader(ps_5_0, PS_withnormal()));
+		SetPixelShader(CompileShader(ps_5_0, PS_plant_normal()));
 	}
 }
 technique11 NormalDepth_skin

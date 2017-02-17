@@ -81,7 +81,9 @@ public:
 	virtual void get_normaltexture(material_list *texture_need, int i) = 0;
 	virtual void release() = 0;
 	virtual void draw_part(int i) = 0;
+	virtual void draw_part_instance(int i, int copy_num) = 0;
 	virtual void draw_normal_part(int i) = 0;
+	virtual void draw_normal_part_instance(int i, int copy_num) = 0;
 	virtual void draw_mesh() = 0;
 	virtual void draw_mesh_adj() = 0;
 	virtual void draw_mesh_instance(int copy_num) = 0;
@@ -109,10 +111,12 @@ public:
 	modelview_basic_assimp(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, char* filename, char* texture_path);
 	void release();
 	void draw_part(int i);
+	void draw_part_instance(int i, int copy_num);
 	void draw_mesh();
 	void draw_mesh_adj();
 	void draw_mesh_instance(int copy_num);
 	void draw_normal_part(int i);
+	void draw_normal_part_instance(int i, int copy_num);
 };
 template<typename T>
 class model_reader_assimp : public modelview_basic_assimp
@@ -852,6 +856,12 @@ public:
 	plant_resource_view(assimp_basic *model_input, std::string name_need);
 	HRESULT add_a_instance(int map_position,XMFLOAT4X4 world_matrix);
 	void draw_full_geometry(ID3DX11EffectTechnique *tech_common);
+	void draw_mesh_part(ID3DX11EffectTechnique *tech_transparent, int transparent_part);
+	void draw_normal_part(ID3DX11EffectTechnique *tech_transparent, int normal_part);
+	void get_texture(material_list *texture_need, int i) { model_data->get_texture(texture_need, i); };
+	void get_normaltexture(material_list *texture_need, int i) { model_data->get_normaltexture(texture_need, i); };
+	int get_geometry_num() { return model_data->get_meshnum(); };
+	int get_geometry_normal_num() { return model_data->get_meshnormalnum(); };
 	void get_world_matrix_array(int &mat_num, XMFLOAT4X4 *mat);
 	void update(float delta_time);
 	std::string get_geometry_name() { return geometry_name; };

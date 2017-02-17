@@ -2216,6 +2216,31 @@ HRESULT scene_engine_physicx::scene_create()
 		MessageBox(0, L"load model error", L"tip", MB_OK);
 		return hr_need;
 	}
+	/**/
+	hr_need = geometry_lib->load_modelresource_from_file("BroomSnakeweed_Cluster_Low\\BroomSnakeweed_Cluster_Low.obj", "BroomSnakeweed_Cluster_Low\\", false, false, false, 0, NULL, "grass_model_resource", index_model_rec);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model error", L"tip", MB_OK);
+		return hr_need;
+	}
+	hr_need = geometry_lib->add_plant_modelview_by_name("grass_model_resource", "grass_test_instance");
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	auto* floor_need = geometry_lib->get_plant_ResourceView_by_name("grass_test_instance");
+	XMFLOAT4X4 rec_trans_mat;
+	float scal_range = 7.0f;
+	XMStoreFloat4x4(&rec_trans_mat, XMMatrixScaling(scal_range, scal_range, scal_range)*XMMatrixRotationX(0.5f*XM_PI)*XMMatrixTranslation(0 - 40, 121, 0));
+	floor_need->add_a_instance(0, rec_trans_mat);
+	XMStoreFloat4x4(&rec_trans_mat, XMMatrixScaling(scal_range, scal_range, scal_range)*XMMatrixRotationX(0.5f*XM_PI)*XMMatrixTranslation(-14 - 40, 121, 0));
+	floor_need->add_a_instance(1, rec_trans_mat);
+	XMStoreFloat4x4(&rec_trans_mat, XMMatrixScaling(scal_range, scal_range, scal_range)*XMMatrixRotationX(0.5f*XM_PI)*XMMatrixTranslation(-28 - 40, 121, 0));
+	floor_need->add_a_instance(2, rec_trans_mat);
+	XMStoreFloat4x4(&rec_trans_mat, XMMatrixScaling(scal_range, scal_range, scal_range)*XMMatrixRotationX(0.5f*XM_PI)*XMMatrixTranslation(-32 - 40, 121, 0));
+	floor_need->add_a_instance(3, rec_trans_mat);
+	XMStoreFloat4x4(&rec_trans_mat, XMMatrixScaling(scal_range, scal_range, scal_range)*XMMatrixRotationX(0.5f*XM_PI)*XMMatrixTranslation(-46 - 40, 121, 0));
+	floor_need->add_a_instance(4, rec_trans_mat);
 	//创建角色
 	player_main = new player_basic("yuri_model_resource", "test_player_one", geometry_lib, physics_pancy, shader_lib, model_data_type::pancy_model_assimp);
 	//physics_test = new pancy_physx(device_need, contex_need);
@@ -2230,6 +2255,42 @@ HRESULT scene_engine_physicx::scene_create()
 	//	return hr_need;
 	//}
 	return S_OK;
+}
+void scene_engine_physicx::show_grass() 
+{
+	auto* shader_test = shader_lib->get_shader_light_deffered_draw();
+	auto* floor_need = geometry_lib->get_plant_ResourceView_by_name("grass_test_instance");
+	ID3DX11EffectTechnique *teque_need;
+	shader_test->get_technique(&teque_need, "LightTech_instance");
+	//设定世界变换
+	XMFLOAT4X4 rec_mat[10];
+	int mat_num;
+	floor_need->get_world_matrix_array(mat_num, rec_mat);
+	shader_test->set_world_matrix_array(rec_mat, mat_num);
+	//设定总变换
+	XMFLOAT4X4 world_viewrec;
+	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
+	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
+	XMMATRIX ViewProj = view*proj;
+	XMStoreFloat4x4(&world_viewrec, ViewProj);
+	shader_test->set_trans_viewproj(&world_viewrec);
+	/*
+	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
+	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
+	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
+	XMFLOAT4X4 world_viewrec;
+	XMStoreFloat4x4(&world_viewrec, worldViewProj);
+	shader_test->set_trans_all(&world_viewrec);
+	*/
+	material_list rec_texture;
+	for (int i = 0; i < floor_need->get_geometry_num(); ++i)
+	{
+		floor_need->get_texture(&rec_texture,i);
+		shader_test->set_diffusetex(rec_texture.tex_diffuse_resource);
+		floor_need->draw_mesh_part(teque_need,i);
+	}
+	
+	int a = 0;
 }
 void scene_engine_physicx::show_ball()
 {
@@ -2356,6 +2417,7 @@ HRESULT scene_engine_physicx::display()
 	show_ball();
 	//show_floor();
 	show_box();
+	show_grass();
 	player_main->display(view_proj);
 	contex_pancy->OMSetDepthStencilState(NULL, 0);
 	return S_OK;
@@ -2451,6 +2513,7 @@ HRESULT scene_engine_physicx::update(float delta_time)
 }
 void scene_engine_physicx::set_camera_player()
 {
+	
 	user_input->get_input();
 	player_main->change_rotation_angle(user_input->MouseMove_X() * 0.001f);
 	camera_height += user_input->MouseMove_Y() * 0.001f;
@@ -2490,6 +2553,7 @@ void scene_engine_physicx::set_camera_player()
 	{
 		player_main->set_speed(0.0, 0.0);
 	}
+	
 	/*
 	float move_speed = 0.05f;
 	XMMATRIX view;
@@ -2533,6 +2597,6 @@ void scene_engine_physicx::set_camera_player()
 	}
 	scene_camera->count_view_matrix(&view_matrix);
 	//XMStoreFloat4x4(&view_matrix, view);
-	return S_OK;
+	//return S_OK;
 	*/
 }

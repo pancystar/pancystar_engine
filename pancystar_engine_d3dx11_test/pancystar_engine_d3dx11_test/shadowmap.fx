@@ -1,5 +1,7 @@
 float4x4         final_matrix;     //总变换
-float4x4 gBoneTransforms[100];//骨骼变换矩阵
+float4x4 gBoneTransforms[100];     //骨骼变换矩阵
+float4x4 world_matrix_array[100];
+float4x4 view_proj_matrix;
 Texture2D        texture_diffuse;  //漫反射贴图
 SamplerState samTex_liner
 {
@@ -17,6 +19,10 @@ RasterizerState DisableCulling
 {
 	CullMode = FRONT;
 };
+RasterizerState BackCulling
+{
+	CullMode = BACK;
+};
 struct Vertex_IN//含法线贴图顶点
 {
 	float3	pos 	: POSITION;     //顶点位置
@@ -24,6 +30,15 @@ struct Vertex_IN//含法线贴图顶点
 	float3	tangent : TANGENT;      //顶点切向量
 	uint4   texid   : TEXINDICES;   //纹理索引
 	float2  tex1    : TEXCOORD;     //顶点纹理坐标
+};
+struct Vertex_IN_instance
+{
+	float3	pos 	: POSITION;     //顶点位置
+	float3	normal 	: NORMAL;       //顶点法向量
+	float3	tangent : TANGENT;      //顶点切向量
+	uint4   texid   : TEXINDICES;   //纹理索引
+	float2  tex1    : TEXCOORD;     //顶点纹理坐标
+	uint InstanceId : SV_InstanceID;//instace索引号
 };
 struct Vertex_IN_bone//含法线贴图顶点
 {
@@ -44,6 +59,14 @@ VertexOut VS(Vertex_IN vin)
 {
 	VertexOut vout;
 	vout.position = mul(float4(vin.pos, 1.f), final_matrix);
+	vout.tex = vin.tex1;
+	return vout;
+}
+VertexOut VS_instance(Vertex_IN_instance vin)
+{
+	VertexOut vout;
+	float4 pos_world = mul(float4(vin.pos, 1.0f), world_matrix_array[vin.InstanceId]);
+	vout.position = mul(pos_world, view_proj_matrix);
 	vout.tex = vin.tex1;
 	return vout;
 }
@@ -99,6 +122,17 @@ technique11 ShadowTech_transparent
 	pass P0
 	{
 		SetVertexShader(CompileShader(vs_5_0, VS()));
+		SetGeometryShader(NULL);
+		SetPixelShader(CompileShader(ps_5_0, PS_withalpha()));
+		//SetRasterizerState(Depth);
+		SetRasterizerState(DisableCulling);
+	}
+}
+technique11 ShadowTech_plant
+{
+	pass P0
+	{
+		SetVertexShader(CompileShader(vs_5_0, VS_instance()));
 		SetGeometryShader(NULL);
 		SetPixelShader(CompileShader(ps_5_0, PS_withalpha()));
 		//SetRasterizerState(Depth);

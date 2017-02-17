@@ -270,10 +270,20 @@ void modelview_basic_assimp::draw_part(int i)
 	mesh_need_view[i].point_buffer->get_teque(teque_pancy);
 	mesh_need_view[i].point_buffer->show_mesh();
 }
+void modelview_basic_assimp::draw_part_instance(int i, int copy_num)
+{
+	mesh_need_view[i].point_buffer->get_teque(teque_pancy);
+	mesh_need_view[i].point_buffer->show_mesh_instance(copy_num);
+}
 void modelview_basic_assimp::draw_normal_part(int i)
 {
 	mesh_need_normal_view[i].point_buffer->get_teque(teque_pancy);
 	mesh_need_normal_view[i].point_buffer->show_mesh();
+}
+void modelview_basic_assimp::draw_normal_part_instance(int i, int copy_num)
+{
+	mesh_need_normal_view[i].point_buffer->get_teque(teque_pancy);
+	mesh_need_normal_view[i].point_buffer->show_mesh_instance(copy_num);
 }
 void modelview_basic_assimp::draw_mesh()
 {
@@ -1047,8 +1057,19 @@ void plant_resource_view::draw_full_geometry(ID3DX11EffectTechnique *tech_common
 	model_data->get_technique(tech_common);
 	model_data->draw_mesh_instance(view_data.size());
 }
+void plant_resource_view::draw_mesh_part(ID3DX11EffectTechnique *tech_transparent, int transparent_part)
+{
+	model_data->get_technique(tech_transparent);
+	model_data->draw_part_instance(transparent_part,view_data.size());
+}
+void plant_resource_view::draw_normal_part(ID3DX11EffectTechnique *tech_transparent, int normal_part)
+{
+	model_data->get_technique(tech_transparent);
+	model_data->draw_normal_part_instance(normal_part,view_data.size());
+}
 void plant_resource_view::get_world_matrix_array(int &mat_num, XMFLOAT4X4 *mat)
 {
+	mat_num = 0;
 	for (auto data = view_data.begin(); data != view_data.end(); data++)
 	{
 		mat[mat_num] = data->second.world_matrix;

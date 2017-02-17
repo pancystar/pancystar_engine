@@ -316,9 +316,28 @@ HRESULT light_shadow::set_trans_all(XMFLOAT4X4 *mat_need)
 	}
 	return S_OK;
 }
+HRESULT light_shadow::set_trans_viewproj(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(viewproj_matrix_handle, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting project matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 HRESULT light_shadow::set_bone_matrix(const XMFLOAT4X4* M, int cnt)
 {
 	HRESULT hr = BoneTransforms->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_shadow::set_world_matrix_array(const XMFLOAT4X4* M, int cnt)
+{
+	HRESULT hr = world_matrix_array_handle->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
 	if (FAILED(hr))
 	{
 		return hr;
@@ -341,6 +360,8 @@ void light_shadow::init_handle()
 	project_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();         //全套几何变换句柄
 	texture_need = fx_need->GetVariableByName("texture_diffuse")->AsShaderResource();
 	BoneTransforms = fx_need->GetVariableByName("gBoneTransforms")->AsMatrix();
+	world_matrix_array_handle = fx_need->GetVariableByName("world_matrix_array")->AsMatrix();//世界变换组矩阵
+	viewproj_matrix_handle = fx_need->GetVariableByName("view_proj_matrix")->AsMatrix();   //取景*投影变换矩阵
 }
 void light_shadow::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
 {
@@ -378,6 +399,8 @@ void shader_gbufferdepthnormal_map::init_handle()
 	texture_normal = fx_need->GetVariableByName("texture_normal")->AsShaderResource();
 	texture_terainbump_handle = fx_need->GetVariableByName("texture_terrain_bump")->AsShaderResource();
 	texture_terain_handle = fx_need->GetVariableByName("texture_terrain_diffuse")->AsShaderResource();
+	world_matrix_array_handle = fx_need->GetVariableByName("world_matrix_array")->AsMatrix();//世界变换组矩阵
+	viewproj_matrix_handle = fx_need->GetVariableByName("view_proj_matrix")->AsMatrix();   //取景*投影变换矩阵
 }
 HRESULT shader_gbufferdepthnormal_map::set_terainbumptex(ID3D11ShaderResourceView *tex_in)
 {
@@ -435,6 +458,16 @@ HRESULT shader_gbufferdepthnormal_map::set_trans_all(XMFLOAT4X4 *mat_final)
 	}
 	return S_OK;
 }
+HRESULT shader_gbufferdepthnormal_map::set_trans_viewproj(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(viewproj_matrix_handle, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting project matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 HRESULT shader_gbufferdepthnormal_map::set_texture(ID3D11ShaderResourceView *tex_in) 
 {
 	HRESULT hr;
@@ -460,6 +493,15 @@ HRESULT shader_gbufferdepthnormal_map::set_texture_normal(ID3D11ShaderResourceVi
 HRESULT shader_gbufferdepthnormal_map::set_bone_matrix(const XMFLOAT4X4* M, int cnt)
 {
 	HRESULT hr = BoneTransforms->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_gbufferdepthnormal_map::set_world_matrix_array(const XMFLOAT4X4* M, int cnt)
+{
+	HRESULT hr = world_matrix_array_handle->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
 	if (FAILED(hr))
 	{
 		return hr;
@@ -1702,9 +1744,28 @@ HRESULT light_defered_draw::set_trans_all(XMFLOAT4X4 *mat_need)
 	}
 	return S_OK;
 }
+HRESULT light_defered_draw::set_trans_viewproj(XMFLOAT4X4 *mat_need)
+{
+	HRESULT hr = set_matrix(viewproj_matrix_handle, mat_need);;
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting project matrix", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 HRESULT light_defered_draw::set_bone_matrix(const XMFLOAT4X4* M, int cnt)
 {
 	HRESULT hr = BoneTransforms->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT light_defered_draw::set_world_matrix_array(const XMFLOAT4X4* M, int cnt)
+{
+	HRESULT hr = world_matrix_array_handle->SetMatrixArray(reinterpret_cast<const float*>(M), 0, cnt);
 	if (FAILED(hr))
 	{
 		return hr;
@@ -1829,6 +1890,8 @@ void light_defered_draw::init_handle()
 	final_matrix_handle = fx_need->GetVariableByName("final_matrix")->AsMatrix();         //全套几何变换句柄
 	ssao_matrix_handle = fx_need->GetVariableByName("ssao_matrix")->AsMatrix();             //ssao矩阵变换句柄
 	BoneTransforms = fx_need->GetVariableByName("gBoneTransforms")->AsMatrix();
+	world_matrix_array_handle = fx_need->GetVariableByName("world_matrix_array")->AsMatrix();//世界变换组矩阵
+	viewproj_matrix_handle = fx_need->GetVariableByName("view_proj_matrix")->AsMatrix();   //取景*投影变换矩阵
 	material_need = fx_need->GetVariableByName("material_need");
 }
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~屏幕空间局部反射~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

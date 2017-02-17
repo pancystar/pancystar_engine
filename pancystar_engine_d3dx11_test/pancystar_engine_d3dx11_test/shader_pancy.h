@@ -128,24 +128,30 @@ class light_shadow : public shader_basic
 	ID3DX11EffectMatrixVariable *project_matrix_handle; //全套几何变换句柄
 	ID3DX11EffectShaderResourceVariable   *texture_need;
 	ID3DX11EffectMatrixVariable           *BoneTransforms;             //骨骼变换矩阵
+	ID3DX11EffectMatrixVariable           *world_matrix_array_handle;//世界变换组矩阵
+	ID3DX11EffectMatrixVariable           *viewproj_matrix_handle;   //取景*投影变换矩阵
 public:
 	light_shadow(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);        //设置总变换
 	HRESULT set_texture(ID3D11ShaderResourceView *tex_in);
 	HRESULT set_bone_matrix(const XMFLOAT4X4* M, int cnt);		     //设置骨骼变换矩阵
+	HRESULT set_world_matrix_array(const XMFLOAT4X4* M, int cnt);	 //设置世界变换组矩阵
+	HRESULT set_trans_viewproj(XMFLOAT4X4 *mat_need);               //设置取景*投影变换
 	void release();
 private:
 	void init_handle();                 //注册全局变量句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ssao_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~gbuffer_shader~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_gbufferdepthnormal_map : public shader_basic
 {
 	ID3DX11EffectMatrixVariable           *project_matrix_handle;      //全套几何变换句柄
 	ID3DX11EffectMatrixVariable           *world_matrix_handle;        //世界变换句柄
 	ID3DX11EffectMatrixVariable           *normal_matrix_handle;       //法线变换句柄
 	ID3DX11EffectMatrixVariable           *BoneTransforms;             //骨骼变换矩阵
+	ID3DX11EffectMatrixVariable           *world_matrix_array_handle;  //世界变换组矩阵
+	ID3DX11EffectMatrixVariable           *viewproj_matrix_handle;     //取景*投影变换矩阵
 	ID3DX11EffectShaderResourceVariable   *texture_need;
 	ID3DX11EffectShaderResourceVariable   *texture_normal;
 	ID3DX11EffectShaderResourceVariable   *texture_terainbump_handle;
@@ -154,11 +160,13 @@ public:
 	shader_gbufferdepthnormal_map(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
 	HRESULT set_trans_world(XMFLOAT4X4 *mat_world, XMFLOAT4X4 *mat_view);
 	HRESULT set_trans_all(XMFLOAT4X4 *mat_final);
+	HRESULT set_trans_viewproj(XMFLOAT4X4 *mat_need);               //设置取景*投影变换
 	HRESULT set_texture(ID3D11ShaderResourceView *tex_in);
 	HRESULT set_texture_normal(ID3D11ShaderResourceView *tex_in);
 	HRESULT set_terainbumptex(ID3D11ShaderResourceView *tex_in);	 //设置地形高度纹理
 	HRESULT set_teraintex(ID3D11ShaderResourceView *tex_in);	     //设置地形纹理
 	HRESULT set_bone_matrix(const XMFLOAT4X4* M, int cnt);		     //设置骨骼变换矩阵
+	HRESULT set_world_matrix_array(const XMFLOAT4X4* M, int cnt);	 //设置世界变换组矩阵
 	void release();
 private:
 	void init_handle();//注册shader中所有全局变量的句柄
@@ -451,6 +459,8 @@ class light_defered_draw : public shader_basic
 	ID3DX11EffectMatrixVariable           *final_matrix_handle;      //全套几何变换句柄
 	ID3DX11EffectMatrixVariable           *ssao_matrix_handle;       //ssao矩阵变换句柄
 	ID3DX11EffectMatrixVariable           *BoneTransforms;           //骨骼变换矩阵
+	ID3DX11EffectMatrixVariable           *world_matrix_array_handle;//世界变换组矩阵
+	ID3DX11EffectMatrixVariable           *viewproj_matrix_handle;   //取景*投影变换矩阵
 	ID3DX11EffectShaderResourceVariable   *tex_light_diffuse_handle; //漫反射光纹理资源句柄
 	ID3DX11EffectShaderResourceVariable   *tex_light_specular_handle;//镜面光纹理资源句柄
 	ID3DX11EffectShaderResourceVariable   *texture_ssao_handle;      //环境光纹理资源句柄
@@ -465,6 +475,7 @@ public:
 	HRESULT set_trans_ssao(XMFLOAT4X4 *mat_need);                   //设置环境光变换
 	HRESULT set_trans_world(XMFLOAT4X4 *mat_need);                  //设置世界变换
 	HRESULT set_trans_all(XMFLOAT4X4 *mat_need);                    //设置总变换
+	HRESULT set_trans_viewproj(XMFLOAT4X4 *mat_need);               //设置取景*投影变换
 	HRESULT set_material(pancy_material material_in);				//设置材质
 	HRESULT set_ssaotex(ID3D11ShaderResourceView *tex_in);			//设置ssaomap
 	HRESULT set_diffusetex(ID3D11ShaderResourceView *tex_in);		//设置漫反射纹理
@@ -474,6 +485,7 @@ public:
 	HRESULT set_teraintex(ID3D11ShaderResourceView *tex_in);	     //设置地形纹理
 	HRESULT set_enviroment_tex(ID3D11ShaderResourceView* srv);
 	virtual HRESULT set_bone_matrix(const XMFLOAT4X4* M, int cnt);	 //设置骨骼变换矩阵
+	HRESULT set_world_matrix_array(const XMFLOAT4X4* M, int cnt);	 //设置世界变换组矩阵
 	void release();
 private:
 	void init_handle();                 //注册全局变量句柄
