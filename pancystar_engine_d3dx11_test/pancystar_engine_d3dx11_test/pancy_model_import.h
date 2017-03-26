@@ -11,6 +11,7 @@
 #include<assimp/Exporter.hpp>
 #include <map>
 #include<string>
+#define MAX_PLANT 300
 enum model_data_type 
 {
 	pancy_model_buildin = 0,
@@ -509,14 +510,16 @@ HRESULT model_reader_assimp<T>::optimization_normalmesh(bool if_adj)
 			rec_meshtex_save[i] = mesh_need[i].material_use;
 		}
 	}
+	/*
 	for (int i = 0; i < mesh_optimization; i++)
 	{
 		if (rec_meshtex_save[i] == 0 && if_alpha_array[i] == false)
 		{
-			matlist_save[mesh_normal_optimization++] = 0;
+			//matlist_save[mesh_normal_optimization++] = 0;
 			break;
 		}
 	}
+	*/
 	//开启临时存储空间
 	T *vertex_rec;
 	UINT *index_rec;
@@ -743,8 +746,10 @@ public:
 	void update_mesh_offset(int i);
 	void update_mesh_offset();
 	void update_animation(float delta_time);
+	void specify_animation_time(float animation_time);
 	XMFLOAT4X4* get_bone_matrix(int i, int &num_bone);
 	XMFLOAT4X4* get_bone_matrix();
+	float get_animation_length() { return first_animation->animation_length; };
 	int get_bone_num() { return bone_num; };
 	void release_all();
 private:
@@ -763,6 +768,7 @@ private:
 	void Interpolate(quaternion_animation& pOut, quaternion_animation pStart, quaternion_animation pEnd, float pFactor);
 	void Interpolate(vector_animation& pOut, vector_animation pStart, vector_animation pEnd, float pFactor);
 	void Get_quatMatrix(XMFLOAT4X4 &resMatrix, quaternion_animation& pOut);
+	int find_min(float x1, float x2, float x3, float x4);
 };
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~外部导入模型~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 struct model_resource_data 
@@ -774,6 +780,10 @@ struct model_resource_data
 };
 class assimpmodel_resource_view
 {
+	float start_time;
+	float end_time;
+	float now_time;
+	float animation_speed;
 	std::string geometry_name;
 	int indexnum_geometry;
 	assimp_basic *model_data;
@@ -788,7 +798,9 @@ public:
 	void draw_mesh_part(ID3DX11EffectTechnique *tech_transparent, int transparent_part);
 	void draw_normal_part(ID3DX11EffectTechnique *tech_transparent, int normal_part);
 	bool check_if_skin() { return if_skinmesh; };
-
+	//todo：使用睡眠机制来代替动画时间续接
+	void reset_animation_time(float time);
+	float get_animation_time() { return now_time; };
 	XMFLOAT4X4 get_world_matrix() { return world_matrix; };
 	XMFLOAT4X4* get_bone_matrix() { return if_skinmesh ? bone_matrix : NULL; };
 	int get_bone_num() { return bone_num; };
@@ -802,6 +814,7 @@ public:
 	void get_texture(material_list *texture_need, int i) { model_data->get_texture(texture_need, i); };
 	void get_normaltexture(material_list *texture_need, int i) { model_data->get_normaltexture(texture_need, i); };
 	bool check_alpha(int part) { return model_data->check_alpha(part); };
+	void reset_animation_data(float animation_start_need, float animation_end_need, float animation_speed_need);
 	//assimp_basic *get_geometry_data() { return model_data; };
 private:
 	void reset_world_matrix(XMFLOAT4X4 world_matrix_need) { world_matrix = world_matrix_need; };
@@ -855,12 +868,14 @@ class plant_resource_view
 public:  
 	plant_resource_view(assimp_basic *model_input, std::string name_need);
 	HRESULT add_a_instance(int map_position,XMFLOAT4X4 world_matrix);
+	void clear_instance();
 	void draw_full_geometry(ID3DX11EffectTechnique *tech_common);
 	void draw_mesh_part(ID3DX11EffectTechnique *tech_transparent, int transparent_part);
 	void draw_normal_part(ID3DX11EffectTechnique *tech_transparent, int normal_part);
 	void get_texture(material_list *texture_need, int i) { model_data->get_texture(texture_need, i); };
 	void get_normaltexture(material_list *texture_need, int i) { model_data->get_normaltexture(texture_need, i); };
 	int get_geometry_num() { return model_data->get_meshnum(); };
+	int get_instance_num() { return view_data.size(); };
 	int get_geometry_normal_num() { return model_data->get_meshnormalnum(); };
 	void get_world_matrix_array(int &mat_num, XMFLOAT4X4 *mat);
 	void update(float delta_time);
@@ -1169,7 +1184,8 @@ public:
 	HRESULT load_modelresource_from_file(char* filename,char* texture_path,bool if_animation, bool if_optimized, bool if_create_adj, int alpha_part_num,int*alpha_part_index,std::string resource_name,int &index_output);
 	int get_assimp_model_view_num() { return list_model_assimp->get_geometry_num(); };
 	int get_assimp_model_resource_num() { return list_model_resource->get_geometry_num(); };
-	HRESULT add_assimp_modelview_by_name(std::string model_name, std::string model_view_name);
+	HRESULT add_assimp_modelview_by_name(std::string model_name, std::string model_view_name,float time_now_need = 0.0f);
+	void delete_assimp_modelview_by_name(std::string model_view_name);
 	HRESULT add_assimp_modelview_by_index(int model_ID, std::string model_view_name);
 	assimpmodel_resource_view *get_assimp_ModelResourceView_by_name(std::string model_view_name);
 	assimpmodel_resource_view *get_assimp_ModelResourceView_by_index(int model_view_idnex);
@@ -1179,7 +1195,7 @@ public:
 	HRESULT init_buildin_geometry(Geometry_basic *data_in, std::string geometry_name,int &geometry_index);
 	int get_BuiltIn_model_view_num() { return list_buildin_model_view->get_geometry_num(); };
 	int get_BuiltIn_model_resource_num() { return list_buildin_geometry_resource->get_geometry_num(); };
-
+	void delete_BuiltIn_modelview_by_name(std::string model_view_name);
 	HRESULT add_buildin_modelview_by_name(std::string model_name, std::string model_view_name, Geometry_type type_need);
 	HRESULT add_buildin_modelview_by_index(int model_ID, std::string model_view_name, Geometry_type type_need);
 	buildin_geometry_resource_view *get_buildin_GeometryResourceView_by_name(std::string model_view_name);

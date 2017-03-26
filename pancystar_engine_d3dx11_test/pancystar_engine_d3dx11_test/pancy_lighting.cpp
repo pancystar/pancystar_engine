@@ -188,7 +188,11 @@ void light_with_shadowmap::draw_shadow()
 	for (int i = 0; i < geometry_lib->get_plant_model_view_num(); ++i) 
 	{
 		auto *now_rec = geometry_lib->get_plant_ResourceView_by_index(i);
-		XMFLOAT4X4 mat_world[100];
+		if (now_rec->get_instance_num() == 0)
+		{
+			continue;
+		}
+		XMFLOAT4X4 mat_world[MAX_PLANT];
 		int num;
 		now_rec->get_world_matrix_array(num,mat_world);
 		shadowmap_deal->set_shaderresource(mat_world, num);
@@ -291,10 +295,15 @@ void sunlight_with_shadowmap::draw_shadow_basic(int count)
 		shadowmap_array[count]->set_shaderresource(now_rec->get_world_matrix());
 		now_rec->draw_full_geometry(shadowmap_array[count]->get_technique());
 	}
+	
 	for (int i = 0; i < geometry_lib->get_plant_model_view_num(); ++i)
 	{
 		auto *now_rec = geometry_lib->get_plant_ResourceView_by_index(i);
-		XMFLOAT4X4 mat_world[100];
+		if (now_rec->get_instance_num() == 0)
+		{
+			continue;
+		}
+		XMFLOAT4X4 mat_world[MAX_PLANT];
 		int num;
 		now_rec->get_world_matrix_array(num, mat_world);
 		shadowmap_array[count]->set_shaderresource(mat_world, num);
@@ -306,6 +315,7 @@ void sunlight_with_shadowmap::draw_shadow_basic(int count)
 			now_rec->draw_mesh_part(shadowmap_array[count]->get_technique_plant(), j);
 		}
 	}
+	
 	//»¹Ô­äÖÈ¾×´Ì¬
 	contex_pancy->RSSetState(0);
 	renderstate_lib->set_posttreatment_rendertarget();

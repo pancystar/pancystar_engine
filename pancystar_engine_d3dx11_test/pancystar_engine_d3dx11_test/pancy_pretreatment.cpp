@@ -565,6 +565,25 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 			}
 
 		}
+		if (now_rec->get_geometry_normal_num() == 0) 
+		{
+			material_list rec_mat;
+			now_rec->get_texture(&rec_mat, 0);
+			g_shader->set_texture(rec_mat.tex_diffuse_resource);
+			XMFLOAT4X4 final_matrix;
+			XMStoreFloat4x4(&final_matrix, XMLoadFloat4x4(&now_rec->get_world_matrix()) * XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
+			g_shader->set_trans_world(&now_rec->get_world_matrix(), &view_matrix);
+			g_shader->set_trans_all(&final_matrix);
+			if (now_rec->check_if_skin() == true)
+			{
+				g_shader->set_bone_matrix(now_rec->get_bone_matrix(), now_rec->get_bone_num());
+				now_rec->draw_full_geometry(get_technique_skin());
+			}
+			else
+			{
+				now_rec->draw_full_geometry(get_technique());
+			}
+		}
 		for (int i = 0; i < now_rec->get_geometry_normal_num(); ++i)
 		{
 			//设置世界变换矩阵
@@ -618,7 +637,11 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 	for (int i = 0; i < geometry_lib->get_plant_model_view_num(); ++i) 
 	{
 		auto *now_rec = geometry_lib->get_plant_ResourceView_by_index(i);
-		XMFLOAT4X4 rec_mat[100];
+		if (now_rec->get_instance_num() == 0) 
+		{
+			continue;
+		}
+		XMFLOAT4X4 rec_mat[MAX_PLANT];
 		int mat_num;
 		now_rec->get_world_matrix_array(mat_num, rec_mat);
 		XMFLOAT4X4 view_proj_matrix;
@@ -642,6 +665,7 @@ void Pretreatment_gbuffer::render_gbuffer(XMFLOAT4X4 view_matrix, XMFLOAT4X4 pro
 		}
 		
 	}
+	
 	if (geometry_lib->check_if_have_terrain())
 	{
 		pancy_terrain_build *terrain_data = geometry_lib->get_terrain_data();

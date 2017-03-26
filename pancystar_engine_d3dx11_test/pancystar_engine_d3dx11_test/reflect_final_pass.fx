@@ -32,6 +32,7 @@ VertexOut VS(VertexIn vin)
 float4 PS(VertexOut pin) : SV_Target
 {
 	float4 reflect_color = gInputReflect.SampleLevel(samInputImage,pin.Tex,0);
+	//return gInputImage.SampleLevel(samInputImage, pin.Tex, 0);
 	float reflectance = 0.6f*reflect_color.a;
 	//float4 final_color = (1.0f - reflectance) * gInputImage.SampleLevel(samInputImage,pin.Tex,0) + reflectance * reflect_color;
 	float accept_range = 0.2f, final_count = 0.0f;

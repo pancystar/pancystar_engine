@@ -15,6 +15,7 @@ class pancy_renderstate
 	ID3D11RasterizerState  *CULL_front;       //消隐正面
 	ID3D11RasterizerState  *CULL_none;       //消隐正面
 	ID3D11BlendState       *blend_common;     //标准alpha混合
+	ID3D11BlendState       *AlphaToCoverageBS;
 	//渲染目标
 	ID3D11RenderTargetView  *m_renderTargetView; //视图变量
 	D3D11_VIEWPORT          viewPort;            //视口信息
@@ -29,6 +30,7 @@ public:
 	ID3D11RasterizerState  *get_CULL_front_rs() { return CULL_front; };
 	ID3D11RasterizerState  *get_CULL_none_rs() { return CULL_none; };
 	ID3D11BlendState        *get_blend_common() { return blend_common; };
+	ID3D11BlendState        *get_blend_tocoverage() { return AlphaToCoverageBS; };
 	ID3D11RenderTargetView  *get_postrendertarget() { return posttreatment_RTV; };
 	ID3D11RenderTargetView  *get_reflectrendertarget() { return reflectmask_RTV; };
 	ID3D11RenderTargetView  *get_basicrendertarget() { return m_renderTargetView; };
@@ -45,4 +47,5 @@ private:
 	HRESULT init_CULL_front();
 	HRESULT init_CULL_none();
 	HRESULT init_common_blend();
+	HRESULT init_alpha_to_coverage();
 };

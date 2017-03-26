@@ -1730,7 +1730,7 @@ HRESULT scene_engine_snake::update(float delta_time)
 
 
 
-player_basic::player_basic(string model_resource_name, string player_name, geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, model_data_type model_type_need)
+player_basic::player_basic(string model_resource_name, string player_name, geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, model_data_type model_type_need, XMFLOAT3 st_position, bool bound_box_need)
 {
 	model_resource = model_resource_name;
 	model_view_data_name = player_name;
@@ -1743,20 +1743,29 @@ player_basic::player_basic(string model_resource_name, string player_name, geome
 	mat_force = NULL;
 	x_speed = 0.0f;
 	z_speed = 0.0f;
-
+	model_scaling = 1.0f;
 	rec_offset_x = 0;
 	rec_offset_z = 0;
+	if_show_bound_box = bound_box_need;
+	init_position = st_position;
+	init_position.y = st_position.y + 50.0f;
+	time_animation = 0.0f;
 }
-HRESULT player_basic::create()
+HRESULT player_basic::create(float raidus, float height, float foward, float slide, player_shape_physic player_shape_choose)
 {
 	HRESULT hr;
-	/*
-	hr = init_geometry_bounding_box();
-	if (FAILED(hr))
+	model_head_radius = raidus;
+	model_height = height;
+	model_length_forward = foward;
+	model_length_slide = slide;
+	if (if_show_bound_box)
 	{
-		return hr;
+		hr = init_geometry_bounding_box();
+		if (FAILED(hr))
+		{
+			return hr;
+		}
 	}
-	*/
 	if (model_type == model_data_type::pancy_model_buildin)
 	{
 		hr = init_geometry_buildin();
@@ -1773,16 +1782,17 @@ HRESULT player_basic::create()
 			return hr;
 		}
 	}
-	else 
+	else
 	{
 		return E_FAIL;
 	}
 
-	hr = init_physics();
+	hr = init_physics(player_shape_choose);
 	if (FAILED(hr))
 	{
 		return hr;
 	}
+
 	return S_OK;
 }
 HRESULT player_basic::init_geometry_buildin()
@@ -1803,9 +1813,9 @@ HRESULT player_basic::init_geometry_assimp()
 	}
 	return S_OK;
 }
-HRESULT player_basic::init_geometry_bounding_box() 
+HRESULT player_basic::init_geometry_bounding_box()
 {
-	HRESULT hr = geometry_pancy->add_buildin_modelview_by_name("geometry_cube", "bounding_box_player", Geometry_type::pancy_geometry_cube);
+	HRESULT hr = geometry_pancy->add_buildin_modelview_by_name("geometry_cube", model_view_data_name + "bounding_box_player", Geometry_type::pancy_geometry_cube);
 	if (FAILED(hr))
 	{
 		return hr;
@@ -1814,64 +1824,117 @@ HRESULT player_basic::init_geometry_bounding_box()
 }
 void player_basic::display(XMFLOAT4X4 view_proj_matrix)
 {
-	//show_bounding_box(view_proj_matrix);
-	if (model_type == model_data_type::pancy_model_buildin) 
+	if (if_show_bound_box)
+	{
+		show_bounding_box(view_proj_matrix);
+	}
+	if (model_type == model_data_type::pancy_model_buildin)
 	{
 		show_build_in_model(view_proj_matrix);
-		
+
 	}
-	else 
+	else
 	{
 		show_assimp_skinmesh_model(view_proj_matrix);
 	}
-	
+
 }
-HRESULT player_basic::init_physics()
+
+HRESULT player_basic::init_physics(player_shape_physic player_shape_choose)
 {
-	physx::PxCapsuleControllerDesc test_capsule_desc;
-	test_capsule_desc.position = physx::PxExtendedVec3(0, 250.0f, 0);
-	test_capsule_desc.contactOffset = 0.05f;
-	test_capsule_desc.stepOffset = 0.51;
-	test_capsule_desc.slopeLimit = 0.25f;
-	test_capsule_desc.radius = 3.5;
-	test_capsule_desc.height = 7;
-	test_capsule_desc.upDirection = physx::PxVec3(0, 1, 0);
+	player_shape_use = player_shape_choose;
 	mat_force = physic_pancy->create_material(0.1, 0.1, 0.0);
-	test_capsule_desc.material = mat_force;
-	test_capsule_desc.maxJumpHeight = 5.0f;
-	bool rec_check = test_capsule_desc.isValid();
-	HRESULT hr = physic_pancy->create_charactor(test_capsule_desc, &player);
-	if (FAILED(hr))
+	if (player_shape_choose == player_shape_physic::player_shape_box)
 	{
-		return hr;
+		physx::PxBoxControllerDesc test_box_desc;
+		test_box_desc.position = physx::PxExtendedVec3(init_position.x, init_position.y, init_position.z);
+		test_box_desc.contactOffset = 0.05f;
+		test_box_desc.stepOffset = 1.51;
+		//test_capsule_desc.radius = 3.5;
+		//test_capsule_desc.height = 7;
+		//test_box_desc.radius = model_head_radius;
+		//test_box_desc.height = model_height;
+		test_box_desc.halfHeight = model_height / 2.0f;
+		test_box_desc.halfForwardExtent = model_length_forward;
+		test_box_desc.halfSideExtent = model_length_slide / 2.0f;
+
+		test_box_desc.upDirection = physx::PxVec3(0, 1, 0);
+		test_box_desc.material = mat_force;
+		test_box_desc.maxJumpHeight = 5.0f;
+		test_box_desc.slopeLimit = 0.2f;
+		bool rec_check = test_box_desc.isValid();
+		HRESULT hr = physic_pancy->create_charactor(test_box_desc, &player);
+		if (FAILED(hr))
+		{
+			return hr;
+		}
+		return S_OK;
 	}
-	return S_OK;
+	else
+	{
+		physx::PxCapsuleControllerDesc test_capsule_desc;
+		test_capsule_desc.position = physx::PxExtendedVec3(init_position.x, init_position.y, init_position.z);
+		test_capsule_desc.contactOffset = 0.05f;
+		test_capsule_desc.stepOffset = 0.51;
+		test_capsule_desc.slopeLimit = 0.25f;
+		//test_capsule_desc.radius = 3.5;
+		//test_capsule_desc.height = 7;
+		test_capsule_desc.radius = model_head_radius;
+		test_capsule_desc.height = model_height;
+		test_capsule_desc.upDirection = physx::PxVec3(0, 1, 0);
+		test_capsule_desc.material = mat_force;
+		test_capsule_desc.maxJumpHeight = 5.0f;
+		bool rec_check = test_capsule_desc.isValid();
+		HRESULT hr = physic_pancy->create_charactor(test_capsule_desc, &player);
+		if (FAILED(hr))
+		{
+			return hr;
+		}
+		return S_OK;
+	}
 }
 void player_basic::update(float delta_time)
 {
+	physx::PxVec3 data_need = player->getUpDirection();
 	if (player != NULL)
 	{
+		time_animation += delta_time;
 		physx::PxVec3 disp = physx::PxVec3(x_speed, -9.8f, z_speed);
 		physx::PxF32 minDist = 0.01;
-		physx::PxF32 elapsedTime = static_cast<physx::PxF32>(delta_time);
+
+		//physx::PxF32 elapsedTime = static_cast<physx::PxF32>(0.005f);
+		physx::PxF32 elapsedTime = static_cast<physx::PxF32>(0.033);
 		physx::PxControllerFilters filters;
-		player->move(disp, minDist, elapsedTime, filters);
+		while (time_animation > 0.033f)
+		{
+			player->move(disp, minDist, elapsedTime, filters);
+			time_animation -= 0.033f;
+		}
 		physx::PxExtendedVec3 rec = player->getPosition();
-		rec.x -= rec_offset_x; 
-		rec.z -= rec_offset_z; 
-		//更新包围盒信息
+		rec.x -= rec_offset_x;
+		rec.z -= rec_offset_z;
+
 
 		XMMATRIX rec_world_trans = XMMatrixTranslation(rec.x, rec.y, rec.z);
-		XMMATRIX rec_world_scal = XMMatrixScaling(7.0f, 7.0f + 2.0f * 3.5f, 7.0f);
+		XMMATRIX rec_world_scal;
+		if (player_shape_use == player_shape_physic::player_shape_box)
+		{
+			rec_world_scal = XMMatrixScaling(model_length_slide, model_height, model_length_forward);
+		}
+		else
+		{
+			rec_world_scal = XMMatrixScaling(2.0f * model_head_radius, model_height + 2.0f * model_head_radius, 2.0f * model_head_radius);
+		}
 		XMFLOAT4X4 world_mat_final;
-		/*
-		auto* floor_need = geometry_pancy->get_buildin_GeometryResourceView_by_name("bounding_box_player");
-		
-		XMStoreFloat4x4(&world_mat_final, rec_world_scal * rec_world_trans);
-		floor_need->update(world_mat_final, delta_time);
-		*/
+		//更新包围盒信息
+		if (if_show_bound_box)
+		{
+			auto* floor_need = geometry_pancy->get_buildin_GeometryResourceView_by_name(model_view_data_name + "bounding_box_player");
+			XMStoreFloat4x4(&world_mat_final, rec_world_scal * rec_world_trans);
+			floor_need->update(world_mat_final, delta_time);
+		}
 		//更新几何体信息
-		if (model_type == model_data_type::pancy_model_buildin) 
+		if (model_type == model_data_type::pancy_model_buildin)
 		{
 			XMMATRIX model_world_trans = XMMatrixTranslation(rec.x, rec.y, rec.z);
 			XMMATRIX model_world_scal = XMMatrixScaling(1.0f, 1.0f, 1.0f);
@@ -1879,10 +1942,10 @@ void player_basic::update(float delta_time)
 			auto* floor_need = geometry_pancy->get_buildin_GeometryResourceView_by_name(model_view_data_name);
 			floor_need->update(world_mat_final, delta_time);
 		}
-		else 
+		else
 		{
-			XMMATRIX model_world_trans = XMMatrixTranslation(rec.x, rec.y-7.7, rec.z);
-			XMMATRIX model_world_scal = XMMatrixScaling(16.0f, 16.0f, 16.0f);
+			XMMATRIX model_world_trans = XMMatrixTranslation(rec.x, rec.y - 7.7, rec.z);
+			XMMATRIX model_world_scal = XMMatrixScaling(model_scaling, model_scaling, model_scaling);
 			XMMATRIX model_world_rotation = XMMatrixRotationY(rotation_angle);
 			XMStoreFloat4x4(&world_mat_final, model_world_scal * model_world_rotation * model_world_trans);
 			auto* floor_need = geometry_pancy->get_assimp_ModelResourceView_by_name(model_view_data_name);
@@ -1890,7 +1953,7 @@ void player_basic::update(float delta_time)
 		}
 	}
 }
-void player_basic::get_now_position(float &x, float &y, float &z) 
+void player_basic::get_now_position(float &x, float &y, float &z)
 {
 	physx::PxExtendedVec3 rec = player->getPosition();
 	rec.x -= rec_offset_x;
@@ -1900,7 +1963,7 @@ void player_basic::get_now_position(float &x, float &y, float &z)
 	y = rec.y;
 	z = rec.z;
 }
-void player_basic::set_speed(float x, float z) 
+void player_basic::set_speed(float x, float z)
 {
 	x_speed = x;
 	z_speed = z;
@@ -1912,7 +1975,7 @@ void player_basic::release()
 void player_basic::show_bounding_box(XMFLOAT4X4 view_proj_matrix)
 {
 	auto* shader_test = shader_lib->get_shader_light_deffered_draw();
-	auto* floor_need = geometry_pancy->get_buildin_GeometryResourceView_by_name("bounding_box_player");
+	auto* floor_need = geometry_pancy->get_buildin_GeometryResourceView_by_name(model_view_data_name + "bounding_box_player");
 	auto* tex_floor = geometry_pancy->get_texture_byname("floor_diffuse")->data->get_data();
 	//选定绘制路径
 	ID3DX11EffectTechnique *teque_need;
@@ -1993,7 +2056,7 @@ void player_basic::show_assimp_skinmesh_model(XMFLOAT4X4 view_proj_matrix)
 	//地面的材质
 	pancy_material test_Mt;
 	XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
-	XMFLOAT4 rec_diffuse2(0.4f, 0.4f, 0.4f, 1.0f);
+	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
 	XMFLOAT4 rec_specular2(0.0f, 0.0f, 0.0f, 1.0f);
 	test_Mt.ambient = rec_ambient2;
 	test_Mt.diffuse = rec_diffuse2;
@@ -2019,6 +2082,17 @@ void player_basic::show_assimp_skinmesh_model(XMFLOAT4X4 view_proj_matrix)
 	int yuri_render_order[11] = { 4,5,6,7,8,9,10,3,0,2,1 };
 	XMFLOAT4X4 *rec_bonematrix = model_yuri_pack->get_bone_matrix();
 	shader_test->set_bone_matrix(rec_bonematrix, model_yuri_pack->get_bone_num());
+
+	
+	for (int i = 0; i < model_yuri_pack->get_geometry_num(); ++i)
+	{
+		material_list rec_need;
+		model_yuri_pack->get_texture(&rec_need, i);
+		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
+		model_yuri_pack->draw_mesh_part(teque_need, i);
+	}
+	
+	/*
 	for (int i = 0; i < 7; ++i)
 	{
 		material_list rec_need;
@@ -2027,11 +2101,10 @@ void player_basic::show_assimp_skinmesh_model(XMFLOAT4X4 view_proj_matrix)
 		model_yuri_pack->draw_mesh_part(teque_need, yuri_render_order[i]);
 	}
 	//alpha混合设定
-	/*
-	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-	ID3D11BlendState *rec = renderstate_lib->get_blend_common();
-	contex_pancy->OMSetBlendState(rec, blendFactor, 0xffffffff);
-	*/
+
+	//float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	//ID3D11BlendState *rec = renderstate_lib->get_blend_common();
+	//contex_pancy->OMSetBlendState(rec, blendFactor, 0xffffffff);
 	for (int i = 8; i < model_yuri_pack->get_geometry_num(); ++i)
 	{
 		material_list rec_need;
@@ -2039,7 +2112,8 @@ void player_basic::show_assimp_skinmesh_model(XMFLOAT4X4 view_proj_matrix)
 		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
 		model_yuri_pack->draw_mesh_part(teque_need, yuri_render_order[i]);
 	}
-	show_transparent_part(view_proj_matrix,3);
+	show_transparent_part(view_proj_matrix, 3);
+*/
 	//contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
 	//shader_test->set_diffuse_light_tex(NULL);
 	//shader_test->set_specular_light_tex(NULL);
@@ -2107,9 +2181,9 @@ void player_basic::show_transparent_part(XMFLOAT4X4 view_proj_matrix, int part)
 	shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
 	shader_test->set_normaltex(rec_need.texture_normal_resource);
 	model_yuri_pack->draw_mesh_part(teque_hair, part);
-	
+
 }
-void player_basic::get_look_position(float &x, float &y, float &z) 
+void player_basic::get_look_position(float &x, float &y, float &z)
 {
 	XMVECTOR look_pos = XMLoadFloat3(&XMFLOAT3(0.0f, 0.0f, -1.0f));
 	XMMATRIX rotation_mat = XMMatrixRotationY(rotation_angle);
@@ -2120,20 +2194,1685 @@ void player_basic::get_look_position(float &x, float &y, float &z)
 	y = rec_ans.y;
 	z = rec_ans.z;
 }
+void player_basic::reset_rotation_angle(float delta_angle)
+{
+	rotation_angle = delta_angle;
+}
 void player_basic::change_rotation_angle(float delta_angle)
 {
 	rotation_angle += delta_angle;
 }
 
 
+AI_animal::AI_animal(string model_resource_name, string player_name, geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, model_data_type model_type_need, animal_attribute animal_data, XMFLOAT3 st_position, bool bound_box_need) :player_basic(model_resource_name, player_name, geometry_need, physic_need, shader_need, model_type_need, st_position, bound_box_need)
+{
+//	real_speed_direction = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	//real_speed_data.push(XMFLOAT3(0.0f, 1.0f, 0.0f));
+	speed_animal_dir = XMFLOAT3(0.0f,0.0f,0.0f);
+	animal_message = animal_data;
+	animal_animation_time = 0.0f;
+	animal_now_behavior = animal_behavior::animal_walk_around;
+	if_stop = true;
+	all_time = 0.0f;
+	speed_data_size = 60;
+}
+XMFLOAT3 AI_animal::normalize_float(XMFLOAT3 input)
+{
+	XMFLOAT3 output;
+	float normalize_need = sqrt(input.x * input.x + input.y * input.y + input.z * input.z);
+	if (normalize_need < 0.01f) 
+	{
+		return input;
+	}
+	output.x = input.x / normalize_need;
+	output.y = input.y / normalize_need;
+	output.z = input.z / normalize_need;
+	return output;
+}
+void AI_animal::update(float delta_time)
+{
+	all_time += delta_time;
+	update_target();
+	check_if_stop();
+	physx::PxVec3 data_need = player->getUpDirection();
+	if (player != NULL)
+	{
+		time_animation += delta_time;
+		physx::PxVec3 disp = physx::PxVec3(x_speed, -9.8f, z_speed);
+		physx::PxF32 minDist = 0.01;
+		//physx::PxF32 elapsedTime = static_cast<physx::PxF32>(0.005f);
+		physx::PxF32 elapsedTime = static_cast<physx::PxF32>(0.033);
+		physx::PxControllerFilters filters;
+		while (time_animation > 0.033f)
+		{
+			//get_now_position(last_position.x, last_position.y, last_position.z);
+			player->move(disp, minDist, elapsedTime, filters);
+			/*
+			XMFLOAT3 walk_dir_need;
+			get_walk_dir(walk_dir_need);
+			XMFLOAT3 delta_distance;
+			real_speed_data.push(walk_dir_need);
+			real_speed_direction.x += walk_dir_need.x / 30.0f;
+			real_speed_direction.y += walk_dir_need.y / 30.0f;
+			real_speed_direction.z += walk_dir_need.z / 30.0f;
+			if (real_speed_data.size() > 30)
+			{
+				real_speed_direction.x -= real_speed_data.front().x / 30.0f;
+				real_speed_direction.y -= real_speed_data.front().y / 30.0f;
+				real_speed_direction.z -= real_speed_data.front().z / 30.0f;
+				real_speed_data.pop();
+			}
+			*/
+			time_animation -= 0.033f;
+		}
+		physx::PxExtendedVec3 rec = player->getPosition();
+		rec.x -= rec_offset_x;
+		rec.z -= rec_offset_z;
 
 
+		XMMATRIX rec_world_trans = XMMatrixTranslation(rec.x, rec.y, rec.z);
+		XMMATRIX rec_world_scal;
+		if (player_shape_use == player_shape_physic::player_shape_box)
+		{
+			rec_world_scal = XMMatrixScaling(model_length_slide, model_height, model_length_forward);
+		}
+		else
+		{
+			rec_world_scal = XMMatrixScaling(2.0f * model_head_radius, model_height + 2.0f * model_head_radius, 2.0f * model_head_radius);
+		}
+		XMFLOAT4X4 world_mat_final;
+		//更新包围盒信息
+		if (if_show_bound_box)
+		{
+			auto* floor_need = geometry_pancy->get_buildin_GeometryResourceView_by_name(model_view_data_name + "bounding_box_player");
+			XMStoreFloat4x4(&world_mat_final, rec_world_scal * rec_world_trans);
+			floor_need->update(world_mat_final, delta_time);
+		}
+		//更新几何体信息
+		if (model_type == model_data_type::pancy_model_buildin)
+		{
+			XMMATRIX model_world_trans = XMMatrixTranslation(rec.x, rec.y, rec.z);
+			XMMATRIX model_world_scal = XMMatrixScaling(1.0f, 1.0f, 1.0f);
+			XMStoreFloat4x4(&world_mat_final, model_world_scal * model_world_trans);
+			auto* floor_need = geometry_pancy->get_buildin_GeometryResourceView_by_name(model_view_data_name);
+			floor_need->update(world_mat_final, delta_time);
+		}
+		else
+		{
+			XMMATRIX model_world_trans = XMMatrixTranslation(rec.x, rec.y - 7.7, rec.z);
+			XMMATRIX model_world_scal = XMMatrixScaling(model_scaling, model_scaling, model_scaling);
+			XMMATRIX model_world_rotation = XMMatrixRotationY(rotation_angle);
+
+			//获取物体的移动速度
+			physx::PxRigidDynamic *test_speed = player->getActor();
+			physx::PxVec3 speed_vector = test_speed->getLinearVelocity();
+			XMFLOAT3 vector_speed_rec;
+			vector_speed_rec.x = speed_vector.x;
+			vector_speed_rec.y = speed_vector.y;
+			vector_speed_rec.z = speed_vector.z;
+			//检验移动速度的方向
+			XMFLOAT3 look_dir;
+			get_look_position(look_dir.x, look_dir.y, look_dir.z);
+			HRESULT hr = check_walk_dir(vector_speed_rec, look_dir);
+			if (!FAILED(hr))
+			{
+				//变更速度
+				speed_animal_dir.x += vector_speed_rec.x / static_cast<float>(speed_data_size);
+				speed_animal_dir.y += vector_speed_rec.y / static_cast<float>(speed_data_size);
+				speed_animal_dir.z += vector_speed_rec.z / static_cast<float>(speed_data_size);
+				real_speed_data.push(vector_speed_rec);
+				if (real_speed_data.size() > speed_data_size)
+				{
+					speed_animal_dir.x -= real_speed_data.front().x / static_cast<float>(speed_data_size);
+					speed_animal_dir.y -= real_speed_data.front().y / static_cast<float>(speed_data_size);
+					speed_animal_dir.z -= real_speed_data.front().z / static_cast<float>(speed_data_size);
+					real_speed_data.pop();
+				}
+			}
+			//计算当前的动物头部朝向
+			XMMATRIX mat_rotation_angle;
+			XMFLOAT3 speed_direction_need = normalize_float(speed_animal_dir);
+			hr = check_walk_dir(speed_direction_need, look_dir);
+			/*
+			if (FAILED(hr))
+			{
+				mat_rotation_angle = XMMatrixIdentity();
+				
+				XMVECTOR look_vec = XMLoadFloat3(&look_dir);
+				XMVECTOR target_vec = XMLoadFloat3(&speed_animal_dir);
+				//XMVECTOR up_vec = XMLoadFloat3(&XMFLOAT3(0,1,0));
+				XMVECTOR right_need = XMVector3Cross(look_vec, target_vec);
+				XMFLOAT3 angle_need;
+				XMStoreFloat3(&angle_need, XMVector2AngleBetweenVectors(look_vec, target_vec));
+				mat_rotation_angle = XMMatrixRotationAxis(right_need, angle_need.x);
+				
+			}
+			else
+			{
+				XMVECTOR look_vec = XMLoadFloat3(&look_dir);
+				XMVECTOR target_vec = XMLoadFloat3(&speed_animal_dir);
+				//XMVECTOR up_vec = XMLoadFloat3(&XMFLOAT3(0,1,0));
+				XMVECTOR right_need = XMVector3Cross(look_vec, target_vec);
+				XMFLOAT3 angle_need;
+				XMStoreFloat3(&angle_need, XMVector2AngleBetweenVectors(look_vec, target_vec));
+				mat_rotation_angle = XMMatrixRotationAxis(right_need, angle_need.x);
+			}
+			*/
+			mat_rotation_angle = XMMatrixIdentity();
+			XMStoreFloat4x4(&world_mat_final, model_world_scal * model_world_rotation * mat_rotation_angle * model_world_trans);
+			auto* floor_need = geometry_pancy->get_assimp_ModelResourceView_by_name(model_view_data_name);
+			floor_need->update(world_mat_final, delta_time);
+		}
+	}
+}
+void AI_animal::update_target()
+{
+	if (animal_now_behavior == animal_behavior::animal_walk_around || animal_now_behavior == animal_behavior::animal_run_around)
+	{
+		if (if_stop)
+		{
+			animal_message.position_center;
+			//随机向量
+			float rec_x = static_cast<float>(rand() % 100000) / static_cast<float>(100000);
+			float rec_z = static_cast<float>(rand() % 100000) / static_cast<float>(100000);
+			float square_plus = sqrt(rec_x * rec_x + rec_z * rec_z);
+			rec_x /= square_plus;
+			rec_z /= square_plus;
+			//随机长度
+			float rec_length = animal_message.view_range / 2.0f + static_cast<float>(rand() % 100000) / static_cast<float>(100000) * animal_message.view_range / 2.0f;
+
+			//随机位置
+			target.x = animal_message.position_center.x + rec_x * rec_length;
+			target.y = 0;
+			target.z = animal_message.position_center.z + rec_z * rec_length;
+			if_stop = false;
+			//重设速度
+			XMFLOAT3 now_position_need;
+			get_now_position(now_position_need.x, now_position_need.y, now_position_need.z);
+			//change_rotation_angle();
+			float delta_x = target.x - now_position_need.x;
+			float delta_z = target.z - now_position_need.z;
+			if (abs(delta_x) < 3.0001f && abs(delta_z) < 3.0001f)
+			{
+				if_stop = true;
+				set_speed(0.0f, 0.0f);
+				return;
+			}
+			float square_plus_speed = sqrt(delta_x * delta_x + delta_z * delta_z);
+			delta_x /= square_plus_speed;
+			delta_z /= square_plus_speed;
+			//计算旋转角度
+			float dot_angle = delta_x  * 0.0f + delta_z*-1.0f;
+			float final_angle;
+			final_angle = acos(dot_angle);
+			//判断补角
+			float cross = delta_x  * -1.0f - 0.0f * delta_z;
+			if (cross < 0.0f)
+			{
+				final_angle = XM_2PI - final_angle;
+			}
+			reset_rotation_angle(final_angle);
+			if (animal_now_behavior == animal_behavior::animal_walk_around)
+			{
+				set_speed(delta_x * animal_message.velocity_walk, delta_z * animal_message.velocity_walk);
+			}
+			else if (animal_now_behavior == animal_behavior::animal_run_around || animal_now_behavior == animal_behavior::animal_run_target)
+			{
+				set_speed(delta_x * animal_message.velocity_run, delta_z * animal_message.velocity_run);
+			}
+
+		}
+	}
+}
+void AI_animal::show_assimp_skinmesh_model(XMFLOAT4X4 view_proj_matrix)
+{
+	auto* shader_test = shader_lib->get_shader_light_deffered_draw();
+	//几何体的属性
+	auto* model_yuri_pack = geometry_pancy->get_assimp_ModelResourceView_by_name(model_view_data_name);
+	//选定绘制路径
+	ID3DX11EffectTechnique *teque_need;
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec_point[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION"    ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "NORMAL"      ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TANGENT"     ,0  ,DXGI_FORMAT_R32G32B32_FLOAT    ,0    ,24 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "BONEINDICES" ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,36 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "WEIGHTS"     ,0  ,DXGI_FORMAT_R32G32B32A32_FLOAT ,0    ,52 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXINDICES"  ,0  ,DXGI_FORMAT_R32G32B32A32_UINT  ,0    ,68 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD"    ,0  ,DXGI_FORMAT_R32G32_FLOAT       ,0    ,84 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	int num_member = sizeof(rec_point) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	shader_test->get_technique(rec_point, num_member, &teque_need, "LightWithBone");
+	//地面的材质
+	pancy_material test_Mt;
+	XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 rec_specular2(0.0f, 0.0f, 0.0f, 1.0f);
+	test_Mt.ambient = rec_ambient2;
+	test_Mt.diffuse = rec_diffuse2;
+	test_Mt.specular = rec_specular2;
+	test_Mt.reflect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	shader_test->set_material(test_Mt);
+	//设定世界变换
+	XMMATRIX rec_world;
+	XMFLOAT4X4 world_matrix;
+	world_matrix = model_yuri_pack->get_world_matrix();
+	rec_world = XMLoadFloat4x4(&world_matrix);
+	XMStoreFloat4x4(&world_matrix, rec_world);
+	shader_test->set_trans_world(&world_matrix);
+	//设定总变换
+	XMMATRIX viewproj = XMLoadFloat4x4(&view_proj_matrix);
+	XMMATRIX world_matrix_rec = XMLoadFloat4x4(&world_matrix);
+
+	XMMATRIX worldViewProj = world_matrix_rec*viewproj;
+	XMFLOAT4X4 world_viewrec;
+	XMStoreFloat4x4(&world_viewrec, worldViewProj);
+	shader_test->set_trans_all(&world_viewrec);
+	//获取渲染路径并渲染
+	int yuri_render_order[11] = { 4,5,6,7,8,9,10,3,0,2,1 };
+	XMFLOAT4X4 *rec_bonematrix = model_yuri_pack->get_bone_matrix();
+	shader_test->set_bone_matrix(rec_bonematrix, model_yuri_pack->get_bone_num());
 
 
+	for (int i = 0; i < model_yuri_pack->get_geometry_num(); ++i)
+	{
+		material_list rec_need;
+		model_yuri_pack->get_texture(&rec_need, i);
+		shader_test->set_diffusetex(rec_need.tex_diffuse_resource);
+		model_yuri_pack->draw_mesh_part(teque_need, i);
+	}
+}
+void AI_animal::get_animation_data(float &animation_st, float &animation_ed, float &animation_speed)
+{
+	if (animal_now_behavior == animal_behavior::animal_walk_around)
+	{
+		animation_st = animal_message.animation_walk_start;
+		animation_ed = animal_message.animation_walk_end;
+		animation_speed = animal_message.animation_walk_speed;
+	}
+	else if (animal_now_behavior == animal_behavior::animal_run_around || animal_now_behavior == animal_behavior::animal_run_target)
+	{
+		animation_st = animal_message.animation_run_start;
+		animation_ed = animal_message.animation_run_end;
+		animation_speed = animal_message.animation_run_speed;
+	}
+}
+void AI_animal::set_animation_time(float time)
+{
+	animal_animation_time = time;
+}
+void AI_animal::check_if_stop()
+{
+	if (all_time > 10.0f)
+	{
+		all_time -= 10.0f;
+		if_stop = true;
+		set_speed(0.0f, 0.0f);
+		return;
+	}
+	/*
+	XMFLOAT3 now_position_need;
+	get_now_position(now_position_need.x, now_position_need.y, now_position_need.z);
+	//change_rotation_angle();
+	float delta_x = target.x - now_position_need.x;
+	float delta_z = target.z - now_position_need.z;
+	if (abs(delta_x) < 3.0001f && abs(delta_z) < 3.0001f)
+	{
+		if_stop = true;
+		set_speed(0.0f, 0.0f);
+		return;
+		//return XMFLOAT3(0.0f, 0.0f, 0.0f);
+	}*/
+	/*
+	float square_plus = sqrt(delta_x * delta_x + delta_z * delta_z);
+	delta_x /= square_plus;
+	delta_z /= square_plus;
+	//计算旋转角度
+	float delta_angle = delta_x * 0.0f + delta_z * 1.0f;
+	change_rotation_angle(acos(delta_angle));
+	if (animal_now_behavior == animal_behavior::animal_walk_around)
+	{
+		set_speed(delta_x * animal_message.velocity_walk,delta_z * animal_message.velocity_walk);
+		//return XMFLOAT3(delta_x * animal_message.velocity_walk,0.0f, delta_y * animal_message.velocity_walk);
+	}
+	else if (animal_now_behavior == animal_behavior::animal_run_around || animal_now_behavior == animal_behavior::animal_run_target)
+	{
+		set_speed(delta_x * animal_message.velocity_run,delta_z * animal_message.velocity_run);
+		//return XMFLOAT3(delta_x * animal_message.velocity_run, 0.0f, delta_y * animal_message.velocity_run);
+	}
+	*/
+}
+/*
+HRESULT AI_animal::get_walk_dir(XMFLOAT3 &walk_dir)
+{
+	XMFLOAT3 now_position;
+	get_now_position(now_position.x, now_position.y, now_position.z);
+	XMFLOAT3 delta_position;
+	delta_position.x = now_position.x - last_position.x;
+	delta_position.y = now_position.y - last_position.y;
+	delta_position.z = now_position.z - last_position.z;
+	float normalize_need = sqrt(delta_position.x * delta_position.x + delta_position.y * delta_position.y + delta_position.z * delta_position.z);
+	if (normalize_need < 0.01f)
+	{
+		walk_dir.x = 0.0f;
+		walk_dir.y = 0.0f;
+		walk_dir.z = 0.0f;
+		return E_FAIL;
+	}
+	walk_dir.x = delta_position.x;
+	walk_dir.y = delta_position.y;
+	walk_dir.z = delta_position.z;
+	return S_OK;
+}
+*/
+HRESULT AI_animal::check_walk_dir(XMFLOAT3 walk_dir, XMFLOAT3 now_dir)
+{
+	float dot_data = walk_dir.x * now_dir.x + walk_dir.y * now_dir.y + walk_dir.z * now_dir.z;
+	if (dot_data < 0.01f)
+	{
+		return E_FAIL;
+	}
+	return S_OK;
+}
+//地图资源实例类
+static_resource_basic::static_resource_basic(int map_ID, std::string model_resource_view_name, pancy_physx  *physic_need, geometry_control *geometry_need, XMFLOAT3 position_need, float scaling_need)
+{
+	resource_map_ID = map_ID;
+	resource_view_name = model_resource_view_name;
+	physic_pancy = physic_need;
+	geometry_pancy = geometry_need;
+	scaling = scaling_need;
+	position = position_need;
+	mat_force = NULL;
+}
+HRESULT static_resource_basic::create()
+{
+	HRESULT hr;
+	//检验该种资源访问表是否存在
+	auto rec_resource_type = geometry_pancy->get_plant_ResourceView_by_name(resource_view_name);
+	if (rec_resource_type == NULL)
+	{
+		MessageBox(0, L"can not find the plant resource", L"tip", MB_OK);
+		return E_FAIL;
+	}
+
+	//hr = init_geometry_bounding_box();
+	//if (FAILED(hr))
+	//{
+	//return hr;
+	//}
+	hr = init_physics();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+void static_resource_basic::release()
+{
+}
+HRESULT static_resource_basic::init_physics()
+{
+	return S_OK;
+}
+HRESULT static_resource_basic::init_geometry_bounding_box()
+{
+	return S_OK;
+}
+void static_resource_basic::show_bounding_box(XMFLOAT4X4 view_proj_matrix)
+{
+}
+HRESULT static_resource_basic::init_data2pipeline()
+{
+	auto geometry_resource_view_data = geometry_pancy->get_plant_ResourceView_by_name(resource_view_name);
+	if (geometry_resource_view_data == NULL)
+	{
+		MessageBox(0, L"can not find the plant resource", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	XMFLOAT4X4 mat_translation;
+	XMStoreFloat4x4(&mat_translation, XMMatrixScaling(scaling, scaling, scaling)*XMMatrixRotationX(0.5f*XM_PI)*XMMatrixTranslation(position.x, position.y, position.z));
+	int check_num = geometry_resource_view_data->get_instance_num();
+	if (check_num >= MAX_PLANT - 10)
+	{
+		return E_FAIL;
+	}
+	HRESULT hr = geometry_resource_view_data->add_a_instance(resource_map_ID, mat_translation);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+int static_resource_basic::get_num_geometry_view()
+{
+	auto geometry_resource_view_data = geometry_pancy->get_plant_ResourceView_by_name(resource_view_name);
+	if (geometry_resource_view_data == NULL)
+	{
+		MessageBox(0, L"can not find the plant resource", L"tip", MB_OK);
+		return 0;
+	}
+	return geometry_resource_view_data->get_instance_num();
+}
+//地图装饰品实例类
+static_decorate_basic::static_decorate_basic(int map_ID, std::string model_resource_view_name, pancy_physx  *physic_need, geometry_control *geometry_need, XMFLOAT3 position_need, float scaling_need)
+{
+	resource_map_ID = map_ID;
+	resource_view_name = model_resource_view_name;
+	physic_pancy = physic_need;
+	geometry_pancy = geometry_need;
+	scaling = scaling_need;
+	position = position_need;
+	mat_force = NULL;
+}
+HRESULT static_decorate_basic::create()
+{
+	HRESULT hr;
+	//检验该种资源访问表是否存在
+	auto rec_resource_type = geometry_pancy->get_plant_ResourceView_by_name(resource_view_name);
+	if (rec_resource_type == NULL)
+	{
+		MessageBox(0, L"can not find the plant resource", L"tip", MB_OK);
+		return E_FAIL;
+	}
+
+	//hr = init_geometry_bounding_box();
+	//if (FAILED(hr))
+	//{
+	//return hr;
+	//}
+	hr = init_physics();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+void static_decorate_basic::release()
+{
+}
+HRESULT static_decorate_basic::init_physics()
+{
+	return S_OK;
+}
+HRESULT static_decorate_basic::init_geometry_bounding_box()
+{
+	return S_OK;
+}
+void static_decorate_basic::show_bounding_box(XMFLOAT4X4 view_proj_matrix)
+{
+}
+HRESULT static_decorate_basic::init_data2pipeline()
+{
+	auto geometry_resource_view_data = geometry_pancy->get_plant_ResourceView_by_name(resource_view_name);
+	if (geometry_resource_view_data == NULL)
+	{
+		MessageBox(0, L"can not find the plant resource", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	XMFLOAT4X4 mat_translation;
+	XMStoreFloat4x4(&mat_translation, XMMatrixScaling(scaling, scaling, scaling)*XMMatrixRotationX(0.5f*XM_PI)*XMMatrixTranslation(position.x, position.y, position.z));
+	int check_num = geometry_resource_view_data->get_instance_num();
+	if (check_num >= MAX_PLANT - 10)
+	{
+		return E_FAIL;
+	}
+	HRESULT hr = geometry_resource_view_data->add_a_instance(resource_map_ID, mat_translation);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+int static_decorate_basic::get_num_geometry_view()
+{
+	auto geometry_resource_view_data = geometry_pancy->get_plant_ResourceView_by_name(resource_view_name);
+	if (geometry_resource_view_data == NULL)
+	{
+		MessageBox(0, L"can not find the plant resource", L"tip", MB_OK);
+		return 0;
+	}
+	return geometry_resource_view_data->get_instance_num();
+}
+//用户地图管理
+pancy_world_map::pancy_world_map(ID3D11DeviceContext *contex_need, pancy_renderstate *renderstate_need, geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, pancy_terrain_build *terrain_input, float resource_range_need, float decorate_range_need)
+{
+	contex_pancy = contex_need;
+	renderstate_lib = renderstate_need;
+	geometry_pancy = geometry_need;
+	physic_pancy = physic_need;
+	shader_pancy = shader_need;
+	terrain_data = terrain_input;
+	resource_range = resource_range_need;
+	decorate_range = decorate_range_need;
+}
+HRESULT pancy_world_map::create()
+{
+	return S_OK;
+}
+void pancy_world_map::display(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix)
+{
+	for (auto data = resourcedataview_namelist.begin(); data != resourcedataview_namelist.end(); ++data)
+	{
+		auto *floor_need = geometry_pancy->get_plant_ResourceView_by_name(*data._Ptr);
+		if (floor_need->get_instance_num() == 0)
+		{
+			continue;
+		}
+		//设置渲染模式
+		float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		ID3D11BlendState *rec = renderstate_lib->get_blend_tocoverage();
+		contex_pancy->OMSetBlendState(renderstate_lib->get_blend_tocoverage(), blendFactor, 0xffffffff);
+		//获取渲染路径
+		auto* shader_test = shader_pancy->get_shader_light_deffered_draw();
+		ID3DX11EffectTechnique *teque_need;
+		shader_test->get_technique(&teque_need, "LightTech_instance");
+		//设定世界变换
+		XMFLOAT4X4 rec_mat[MAX_PLANT];
+		int mat_num;
+		floor_need->get_world_matrix_array(mat_num, rec_mat);
+		shader_test->set_world_matrix_array(rec_mat, mat_num);
+		//设定总变换
+		XMFLOAT4X4 world_viewrec;
+		XMMATRIX view = XMLoadFloat4x4(&view_matrix);
+		XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
+		XMMATRIX ViewProj = view*proj;
+		XMStoreFloat4x4(&world_viewrec, ViewProj);
+		shader_test->set_trans_viewproj(&world_viewrec);
+		//材质
+		pancy_material test_Mt;
+		XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
+		XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
+		XMFLOAT4 rec_specular2(0.0f, 0.0f, 0.0f, 1.0f);
+		test_Mt.ambient = rec_ambient2;
+		test_Mt.diffuse = rec_diffuse2;
+		test_Mt.specular = rec_specular2;
+		test_Mt.reflect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		shader_test->set_material(test_Mt);
+		material_list rec_texture;
+		for (int i = 0; i < floor_need->get_geometry_num(); ++i)
+		{
+			floor_need->get_texture(&rec_texture, i);
+			shader_test->set_diffusetex(rec_texture.tex_diffuse_resource);
+			floor_need->draw_mesh_part(teque_need, i);
+		}
+		contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
+	}
+	for (auto data = decoratedataview_namelist.begin(); data != decoratedataview_namelist.end(); ++data)
+	{
+		auto *floor_need = geometry_pancy->get_plant_ResourceView_by_name(*data._Ptr);
+		if (floor_need->get_instance_num() == 0)
+		{
+			continue;
+		}
+		//设置渲染模式
+		float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		ID3D11BlendState *rec = renderstate_lib->get_blend_tocoverage();
+		contex_pancy->OMSetBlendState(renderstate_lib->get_blend_tocoverage(), blendFactor, 0xffffffff);
+		//获取渲染路径
+		auto* shader_test = shader_pancy->get_shader_light_deffered_draw();
+		ID3DX11EffectTechnique *teque_need;
+		shader_test->get_technique(&teque_need, "LightTech_instance");
+		//设定世界变换
+		XMFLOAT4X4 rec_mat[MAX_PLANT];
+		int mat_num;
+		floor_need->get_world_matrix_array(mat_num, rec_mat);
+		shader_test->set_world_matrix_array(rec_mat, mat_num);
+		//设定总变换
+		XMFLOAT4X4 world_viewrec;
+		XMMATRIX view = XMLoadFloat4x4(&view_matrix);
+		XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
+		XMMATRIX ViewProj = view*proj;
+		XMStoreFloat4x4(&world_viewrec, ViewProj);
+		shader_test->set_trans_viewproj(&world_viewrec);
+		//材质
+		pancy_material test_Mt;
+		XMFLOAT4 rec_ambient2(1.0f, 1.0f, 1.0f, 1.0f);
+		XMFLOAT4 rec_diffuse2(1.0f, 1.0f, 1.0f, 1.0f);
+		XMFLOAT4 rec_specular2(0.0f, 0.0f, 0.0f, 1.0f);
+		test_Mt.ambient = rec_ambient2;
+		test_Mt.diffuse = rec_diffuse2;
+		test_Mt.specular = rec_specular2;
+		test_Mt.reflect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		shader_test->set_material(test_Mt);
+		material_list rec_texture;
+		for (int i = 0; i < floor_need->get_geometry_num(); ++i)
+		{
+			floor_need->get_texture(&rec_texture, i);
+			shader_test->set_diffusetex(rec_texture.tex_diffuse_resource);
+			floor_need->draw_mesh_part(teque_need, i);
+		}
+		contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
+	}
+	for (auto data = animaldataview_namelist.begin(); data != animaldataview_namelist.end(); ++data)
+	{
+		XMFLOAT4X4 world_viewrec;
+		XMMATRIX view = XMLoadFloat4x4(&view_matrix);
+		XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
+		XMMATRIX ViewProj = view*proj;
+		XMStoreFloat4x4(&world_viewrec, ViewProj);
+		(*data._Ptr)->display(world_viewrec);
+		//auto *floor_need = geometry_pancy->get_assimp_ModelResourceView_by_name(*data._Ptr);
+		//floor_need->
+	}
+}
+void pancy_world_map::get_view_cormer(float angle_view, XMFLOAT3 direction_view, XMFLOAT3 &direction_corner1, XMFLOAT3 &direction_corner2)
+{
+	float a = direction_view.x;
+	float b = direction_view.z;
+	float c = cos(angle_view / 2.0f);
+	direction_corner1.x = (c - (b*(a*sqrt((a*a + b*b - c*c)) + b*c)) / (a*a + b*b)) / a;
+	direction_corner1.y = 0.0f;
+	direction_corner1.z = (a*sqrt((a*a + b*b - c*c)) + b*c) / (a*a + b*b);
+	direction_corner2.x = (c + (b*(a*sqrt((a*a + b*b - c*c)) - b*c)) / (a*a + b*b)) / a;
+	direction_corner2.y = 0.0f;
+	direction_corner2.z = -(a*sqrt((a*a + b*b - c*c)) - b*c) / (a*a + b*b);
+}
+bool pancy_world_map::check_if_in_view(float angle_view, XMFLOAT3 position_view, XMFLOAT3 direction_view, XMFLOAT3 position_test)
+{
+	float check_direction_x = position_test.x - position_view.x;
+	float check_direction_z = position_test.z - position_view.z;
+	float rec_final = sqrt(check_direction_x * check_direction_x + check_direction_z * check_direction_z);
+	check_direction_x /= rec_final;
+	check_direction_z /= rec_final;
+	float view_final = sqrt(direction_view.x * direction_view.x + direction_view.z * direction_view.z);
+	float check_x_view = direction_view.x / view_final;
+	float check_z_view = direction_view.z / view_final;
+	float angle_dot = check_x_view * check_direction_x + check_z_view * check_direction_z;
+	float width_height = 1.7786;
+	if (angle_dot > cos((angle_view / 2.0f) * width_height))
+	{
+		return true;
+	}
+	return false;
+}
+bool pancy_world_map::check_if_in_range(XMFLOAT3 position_camera, XMFLOAT3 position_target, float distance_max)
+{
+	float distance = sqrt((position_camera.x - position_target.x) * (position_camera.x - position_target.x) + (position_camera.y - position_target.y)*(position_camera.y - position_target.y) + (position_camera.z - position_target.z) * (position_camera.z - position_target.z));
+	if (distance > distance_max)
+	{
+		return false;
+	}
+	return true;
+}
+HRESULT pancy_world_map::init_decorate_by_view(XMFLOAT3 now_pos_camera, XMFLOAT3 now_lool_camera, float angle_projection, int dataID)
+{
+	XMFLOAT3 test_pos;
+	HRESULT hr = find_decoratedata_position_byID(dataID, test_pos);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	bool check_ans = check_if_in_view(angle_projection, now_pos_camera, now_lool_camera, test_pos);
+	if (!check_ans)
+	{
+		return E_FAIL;
+	}
+	hr = init_decoratedata_to_pipeline(dataID);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT pancy_world_map::init_resource_by_view(XMFLOAT3 now_pos_camera, XMFLOAT3 now_lool_camera, float angle_projection, int dataID)
+{
+	XMFLOAT3 test_pos;
+	HRESULT hr = find_resource_position_byID(dataID, test_pos);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	bool check_ans = check_if_in_view(angle_projection, now_pos_camera, now_lool_camera, test_pos);
+	if (!check_ans)
+	{
+		return E_FAIL;
+	}
+	hr = init_resourcedata_to_pipeline(dataID);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+void pancy_world_map::update(float delta_time, XMFLOAT3 now_pos_camera, XMFLOAT3 now_lool_camera, float angle_projection)
+{
+	for (auto data = decoratedataview_namelist.begin(); data != decoratedataview_namelist.end(); ++data)
+	{
+		auto *floor_need = geometry_pancy->get_plant_ResourceView_by_name(*data._Ptr);
+		if (floor_need->get_instance_num() == 0)
+		{
+			continue;
+		}
+		floor_need->clear_instance();
+	}
+	for (auto data = resourcedataview_namelist.begin(); data != resourcedataview_namelist.end(); ++data)
+	{
+		auto *floor_need = geometry_pancy->get_plant_ResourceView_by_name(*data._Ptr);
+		if (floor_need->get_instance_num() == 0)
+		{
+			continue;
+		}
+		floor_need->clear_instance();
+	}
+	//find_resource_position_byID();
+	//获取摄像机位置所在的地图区域
+	int center_ID;
+	find_decoratedata_ID_byposition(now_pos_camera, center_ID);
+	int count_render = 0;
+	//渲染摄像机附近的装饰品
+	int row_data = (center_ID / 10000) % 10000;
+	int col_data = center_ID % 10000;
+	//todo:快速可见性判断，暂时先用向量法进行裁剪，后期再加入其他算法
+	int start_x = 0;
+	int start_y = 0;
+	int final_id = 1 * 100000000 + (row_data + start_x) * 10000 + col_data + start_y;
+	init_decorate_by_view(now_pos_camera, now_lool_camera, angle_projection, final_id);
+	//螺旋循环
+
+	for (int i = 0; i < 80; ++i)
+	{
+		for (int j = 0; j < i; ++j)
+		{
+			int positive = 1;
+			if (i % 2 == 0)
+			{
+				positive = -1;
+			}
+			start_x += positive;
+			final_id = 1 * 100000000 + (row_data + start_x) * 10000 + col_data + start_y;
+			init_decorate_by_view(now_pos_camera, now_lool_camera, angle_projection, final_id);
+		}
+		for (int j = 0; j < i; ++j)
+		{
+			int positive = 1;
+			if (i % 2 == 0)
+			{
+				positive = -1;
+			}
+			start_y += positive;
+			final_id = 1 * 100000000 + (row_data + start_x) * 10000 + col_data + start_y;
+			init_decorate_by_view(now_pos_camera, now_lool_camera, angle_projection, final_id);
+		}
+	}
+	find_resource_ID_byposition(now_pos_camera, center_ID);
+	//渲染摄像机附近的资源
+	row_data = (center_ID / 10000) % 10000;
+	col_data = center_ID % 10000;
+	//todo:快速可见性判断，暂时先用向量法进行裁剪，后期再加入其他算法
+	start_x = 0;
+	start_y = 0;
+	final_id = 1 * 100000000 + (row_data + start_x) * 10000 + col_data + start_y;
+	init_resource_by_view(now_pos_camera, now_lool_camera, angle_projection, final_id);
+	//螺旋循环
+	for (int i = 0; i < 80; ++i)
+	{
+		for (int j = 0; j < i; ++j)
+		{
+			int positive = 1;
+			if (i % 2 == 0)
+			{
+				positive = -1;
+			}
+			start_x += positive;
+			final_id = 1 * 100000000 + (row_data + start_x) * 10000 + col_data + start_y;
+			init_resource_by_view(now_pos_camera, now_lool_camera, angle_projection, final_id);
+		}
+		for (int j = 0; j < i; ++j)
+		{
+			int positive = 1;
+			if (i % 2 == 0)
+			{
+				positive = -1;
+			}
+			start_y += positive;
+			final_id = 1 * 100000000 + (row_data + start_x) * 10000 + col_data + start_y;
+			init_resource_by_view(now_pos_camera, now_lool_camera, angle_projection, final_id);
+		}
+	}
+	//清空动物显示表单
+	clear_animal_list();
+	int count_animal_data = 0;
+	for (auto animal_data = animaldata_list.begin(); animal_data != animaldata_list.end(); ++animal_data)
+	{
+		XMFLOAT3 position_rec;
+		animal_data._Ptr->get_now_position(position_rec.x, position_rec.y, position_rec.z);
+		bool check_ans = check_if_in_view(angle_projection, now_pos_camera, now_lool_camera, position_rec);
+		bool check_dis = check_if_in_range(now_pos_camera, position_rec, 500.0f);
+		if (check_ans && check_dis)
+		{
+			count_animal_data++;
+			add_animal_data_view_byAIdata(animal_data._Ptr);
+			//XMFLOAT3 now_position_check1,now_position_check2;
+			//animal_data._Ptr->get_now_position(now_position_check1.x, now_position_check1.y, now_position_check1.z);
+			XMFLOAT3 animal_data_position, animal_data_normal = XMFLOAT3(0.0f, 0.0f, 0.0f);
+			animal_data._Ptr->get_now_position(animal_data_position.x, animal_data_position.y, animal_data_position.z);
+			//terrain_data->get_position_normal(animal_data_position, animal_data_normal);
+			//animal_data._Ptr->set_now_up_normal(animal_data_normal);
+			animal_data._Ptr->update(delta_time);
+
+			//animal_data._Ptr->get_now_position(now_position_check2.x, now_position_check2.y, now_position_check2.z);
+			/*
+			now_position_check2.x -= now_position_check1.x;
+			now_position_check2.y -= now_position_check1.y;
+			now_position_check2.z -= now_position_check1.z;
+			volatile XMFLOAT3 now_position_check3, now_position_check4;
+			now_position_check3.x = now_position_check2.x / delta_time;
+			now_position_check3.y = now_position_check2.y;
+			now_position_check3.z = now_position_check2.z / delta_time;
+			*/
+			//volatile int a = 0;
+		}
+	}
+	int a = 0;
+	/*
+	for (int i = 0; i < 20; ++i)
+	{
+		for (int j = 0; j < 20; ++j)
+		{
+			int final_id = 0 * 100000000 + (row_data + i) * 10000 + col_data + j;
+			XMFLOAT3 test_pos;
+			HRESULT hr = find_resource_position_byID(final_id, test_pos);
+			if (hr == S_OK)
+			{
+				bool check_ans = check_if_in_view(angle_projection, now_pos_camera, now_lool_camera, test_pos);
+				if (check_ans)
+				{
+					hr = init_resourcedata_to_pipeline(final_id);
+					if (hr == S_OK)
+					{
+						count_render += 1;
+					}
+				}
+			}
+			if (i != 0 || j != 0)
+			{
+				final_id = 0 * 100000000 + (row_data - i) * 10000 + col_data - j;
+				hr = find_resource_position_byID(final_id, test_pos);
+				if (hr == S_OK)
+				{
+					bool check_ans = check_if_in_view(angle_projection, now_pos_camera, now_lool_camera, test_pos);
+					if (check_ans)
+					{
+						hr = init_resourcedata_to_pipeline(final_id);
+						if (hr == S_OK)
+						{
+							count_render += 1;
+						}
+					}
+				}
+			}
+
+		}
+	}
+	*/
+}
+HRESULT pancy_world_map::add_animal_data(AI_animal *animal_data_need)
+{
+	if (animal_data_need == NULL)
+	{
+		return E_FAIL;
+	}
+	animaldata_list.push_back(*animal_data_need);
+	return S_OK;
+}
+void pancy_world_map::release()
+{
+	for (auto data_need = animaldata_list.begin(); data_need != animaldata_list.end(); ++data_need)
+	{
+		data_need._Ptr->release();
+	}
+	animaldata_list.clear();
+	resourcedataview_namelist.clear();
+	decoratedataview_namelist.clear();
+	animaldataview_namelist.clear();
+	data_decorate_map.clear();
+	data_resource_map.clear();
+}
+HRESULT pancy_world_map::add_decorate_instance_byname(std::string geometryresourceview_name, int resource_map_ID, float scal_range)
+{
+	XMFLOAT3 position;
+	HRESULT hr = find_decoratedata_position_byID(resource_map_ID, position);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	static_decorate_basic *decorate_data_rec = new static_decorate_basic(resource_map_ID, geometryresourceview_name, physic_pancy, geometry_pancy, position, scal_range);
+	hr = decorate_data_rec->create();
+	//std::pair<int, static_decorate_basic> data_need;
+	std::pair<int, static_decorate_basic> data_need(resource_map_ID, *decorate_data_rec);
+	//data_need.second = *decorate_data_rec;
+	//data_need.first = resource_map_ID;
+	auto check_iferror = data_decorate_map.insert(data_need);
+	//decorate_data_rec->init_data2pipeline();
+	decorate_data_rec->release();
+	delete decorate_data_rec;
+	if (!check_iferror.second)
+	{
+		MessageBox(0, L"add instance failed,a repeat one already in", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	return S_OK;
+}
+HRESULT pancy_world_map::add_resource_instance_byname(std::string geometryresourceview_name, int resource_map_ID, float scal_range)
+{
+	XMFLOAT3 position;
+	HRESULT hr = find_resource_position_byID(resource_map_ID, position);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	static_resource_basic *resource_data_rec = new static_resource_basic(resource_map_ID, geometryresourceview_name, physic_pancy, geometry_pancy, position, scal_range);
+	hr = resource_data_rec->create();
+	std::pair<int, static_resource_basic> data_need(resource_map_ID, *resource_data_rec);
+	//data_need.second = new static_resource_basic(resource_map_ID, geometryresourceview_name, physic_pancy, geometry_pancy, position, scal_range);
+	//data_need.second = *resource_data_rec;
+	//data_need.first = resource_map_ID;
+	auto check_iferror = data_resource_map.insert(data_need);
+	//resource_data_rec->init_data2pipeline();
+	resource_data_rec->release();
+	delete resource_data_rec;
+	if (!check_iferror.second)
+	{
+		MessageBox(0, L"add instance failed,a repeat one already in", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	return S_OK;
+}
+HRESULT pancy_world_map::add_animal_data_byname(XMFLOAT3 bound_box_range, std::string geometryresource_name, std::string geometryresourceview_name, int resource_map_ID, float scal_range, animal_attribute animal_data_need)
+{
+	XMFLOAT3 position;
+	HRESULT hr = find_resource_position_byID(resource_map_ID, position);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	AI_animal *animal_data_rec = new AI_animal(geometryresource_name, geometryresourceview_name, geometry_pancy, physic_pancy, shader_pancy, model_data_type::pancy_model_assimp, animal_data_need, position, false);
+	hr = animal_data_rec->create(bound_box_range.x, 7.0, bound_box_range.y, bound_box_range.z, player_shape_box);
+	animal_data_rec->set_position_center(position);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	animal_data_rec->set_model_scaling(scal_range);
+	//animal_data_rec->set_speed(0.00f, -0.06f);
+	animaldata_list.push_back(*animal_data_rec);
+	//animal_data_rec->release();
+	delete_animal_data_view_byname(geometryresourceview_name);
+	if (animal_data_rec->check_if_show_bound())
+	{
+		geometry_pancy->delete_BuiltIn_modelview_by_name(animal_data_rec->get_bound_view_name());
+	}
+	delete animal_data_rec;
+	return S_OK;
+}
+
+HRESULT pancy_world_map::add_resource_data_view_byname(std::string geometryresource_name, std::string resource_data_view_name)
+{
+	HRESULT hr = geometry_pancy->add_plant_modelview_by_name(geometryresource_name, resource_data_view_name);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	resourcedataview_namelist.push_back(resource_data_view_name);
+	return S_OK;
+}
+HRESULT pancy_world_map::add_decorate_data_view_byname(std::string geometryresource_name, std::string decorate_data_view_name)
+{
+	HRESULT hr = geometry_pancy->add_plant_modelview_by_name(geometryresource_name, decorate_data_view_name);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	decoratedataview_namelist.push_back(decorate_data_view_name);
+	return S_OK;
+}
+HRESULT pancy_world_map::add_animal_data_view_byAIdata(AI_animal* AI_animal_data)
+{
+	//续接动画时间
+	HRESULT hr = geometry_pancy->add_assimp_modelview_by_name(AI_animal_data->get_model_resource_name(), AI_animal_data->get_model_view_name(), AI_animal_data->get_animation_time());
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	//更新动物状态
+	assimpmodel_resource_view *data_assimp = geometry_pancy->get_assimp_ModelResourceView_by_name(AI_animal_data->get_model_view_name());
+	float st_anim = 0.0f, ed_anim = 0.0f, speed_anim = 0.0f;
+	AI_animal_data->get_animation_data(st_anim, ed_anim, speed_anim);
+	data_assimp->reset_animation_data(st_anim, ed_anim, speed_anim);
+	//data_assimp->reset_animation_data(0, 20,5);
+	//data_assimp->reset_animation_data(45, 60, 5);
+	if (AI_animal_data->check_if_show_bound())
+	{
+		HRESULT hr = geometry_pancy->add_buildin_modelview_by_name("geometry_cube", AI_animal_data->get_bound_view_name(), Geometry_type::pancy_geometry_cube);
+		if (FAILED(hr))
+		{
+			return hr;
+		}
+	}
+	//AI_animal_data->set_speed(0.00f, -0.06f);
+	animaldataview_namelist.push_back(AI_animal_data);
+	return S_OK;
+}
+void pancy_world_map::clear_animal_list()
+{
+	for (auto data = animaldataview_namelist.begin(); data != animaldataview_namelist.end(); ++data)
+	{
+		auto data_animation = geometry_pancy->get_assimp_ModelResourceView_by_name((*data._Ptr)->get_model_view_name());
+		//存储动画时间
+		(*data._Ptr)->set_animation_time(data_animation->get_animation_time());
+		//(*data._Ptr)->set_speed(0.0f, 0.0f);
+		delete_animal_data_view_byname((*data._Ptr)->get_model_view_name());
+		if ((*data._Ptr)->check_if_show_bound())
+		{
+			geometry_pancy->delete_BuiltIn_modelview_by_name((*data._Ptr)->get_bound_view_name());
+		}
+	}
+	animaldataview_namelist.clear();
+}
+void pancy_world_map::delete_animal_data_view_byname(std::string geometryresourceview_name)
+{
+	geometry_pancy->delete_assimp_modelview_by_name(geometryresourceview_name);
+}
+HRESULT pancy_world_map::init_decoratedata_to_pipeline(int dataID)
+{
+	auto data_rec_now = data_decorate_map.find(dataID);
+	if (data_rec_now != data_decorate_map.end())
+	{
+		//成功
+		HRESULT hr = data_rec_now->second.init_data2pipeline();
+		if (FAILED(hr))
+		{
+			return E_FAIL;
+		}
+	}
+	else
+	{
+		//MessageBox(0, L"find world map resource data error", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	return S_OK;
+}
+HRESULT pancy_world_map::init_resourcedata_to_pipeline(int dataID)
+{
+	auto data_rec_now = data_resource_map.find(dataID);
+	if (data_rec_now != data_resource_map.end())
+	{
+		//成功
+		HRESULT hr = data_rec_now->second.init_data2pipeline();
+		if (FAILED(hr))
+		{
+			return E_FAIL;
+		}
+	}
+	else
+	{
+		//	MessageBox(0, L"find world map resource data error", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	return S_OK;
+}
+HRESULT pancy_world_map::find_decoratedata_position_byID(int ID_find, XMFLOAT3 &position_out)
+{
+	HRESULT hr = terrain_data->get_position_ID(ID_find, decorate_range, position_out);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT pancy_world_map::find_resource_position_byID(int ID_find, XMFLOAT3 &position_out)
+{
+	HRESULT hr = terrain_data->get_position_ID(ID_find, resource_range, position_out);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT pancy_world_map::find_decoratedata_ID_byposition(XMFLOAT3 position_in, int &ID_out)
+{
+	HRESULT hr = terrain_data->get_ID_position(position_in, decorate_range, ID_out);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return E_FAIL;
+}
+HRESULT pancy_world_map::find_resource_ID_byposition(XMFLOAT3 position_in, int &ID_out)
+{
+	HRESULT hr = terrain_data->get_ID_position(position_in, resource_range, ID_out);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return E_FAIL;
+}
+
+
+pancy_map_design::pancy_map_design(pancy_world_map *map_control_need)
+{
+	map_control = map_control_need;
+}
+HRESULT pancy_map_design::create()
+{
+	return build_random_map();
+}
+void pancy_map_design::release()
+{
+}
+HRESULT pancy_map_design::load_map_fromfile()
+{
+	return S_OK;
+}
+HRESULT pancy_map_design::build_random_map()
+{
+	map_control->add_resource_data_view_byname("RoughGrass_resource", "RoughGrass_resource_view");
+	map_control->add_resource_data_view_byname("BradfordPear_resource", "BradfordPear_resource_view");
+	map_control->add_resource_data_view_byname("EuropeanAspen_resource", "EuropeanAspen_resource_view");
+	map_control->add_resource_data_view_byname("Pumpkin_resource", "Pumpkin_resource_view");
+	/*
+	map_control->add_decorate_data_view_byname("RoughGrass_resource", "RoughGrass_resource_view");
+	map_control->add_decorate_data_view_byname("BradfordPear_resource", "BradfordPear_resource_view");
+	map_control->add_decorate_data_view_byname("EuropeanAspen_resource", "EuropeanAspen_resource_view");
+	map_control->add_decorate_data_view_byname("Pumpkin_resource", "Pumpkin_resource_view");
+	*/
+	resource_name_list.push_back("RoughGrass_resource_view");
+	resource_name_list.push_back("BradfordPear_resource_view");
+	resource_name_list.push_back("EuropeanAspen_resource_view");
+	resource_name_list.push_back("Pumpkin_resource_view");
+	srand((unsigned)time(NULL));
+	bool rec_use[900];
+	float scal_plant[] = { 3.0f,4.0f,1.0f,3.0f };
+	//{bull,panthor,rhino,wolf}
+	float scal_animal[] = { 16.0f,16.0f,16.0f,5.0f };
+	//{height,foward,slide}
+	float anim_walk_st_animal[] = { 0,0,0,0 };
+	float anim_walk_ed_animal[] = { 100,20,100,20 };
+	float anim_run_st_animal[] = { 0,40,0,40 };
+	float anim_run_ed_animal[] = { 100,65,100,65 };
+	XMFLOAT3 bound_box_nimal[] = { XMFLOAT3{ 3.5f,14.0f,14.0f },XMFLOAT3{ 3.5f,14.0f,14.0f } ,XMFLOAT3{ 3.5f,14.0f,14.0f } ,XMFLOAT3{ 3.5f,5.0f,5.0f } };
+	for (int i = 0; i < 10; ++i)
+	{
+		for (int j = 0; j < 10; ++j)
+		{
+			for (int k = 0; k < 900; ++k)
+			{
+				rec_use[k] = true;
+			}
+			int count = 0;
+			while (true)
+			{
+				int now_use = rand() % 900;
+				if (rec_use[now_use] == true)
+				{
+					int type_res = 100000000;
+					int now_pos_x = 30 * i + now_use / 30;
+					int now_pos_y = 30 * j + now_use % 30;
+					int final_data = type_res + now_pos_x * 10000 + now_pos_y;
+					int now_plant = rand() % 4;
+					map_control->add_resource_instance_byname(resource_name_list[now_plant], final_data, scal_plant[now_plant]);
+					if (count % 5 == 0)
+					{
+						std::stringstream sstr2;
+						sstr2 << final_data;
+						string str2;
+						sstr2 >> str2;
+						string name_animal = "test_animal0" + str2;
+						animal_attribute animal_data_need;
+						animal_data_need.burn_position_id = final_data;
+						animal_data_need.animation_walk_speed = 10.0f;
+						animal_data_need.animation_run_speed = 20.0f;
+						animal_data_need.velocity_walk = 0.33f;
+						animal_data_need.velocity_run = 0.55f;
+						animal_data_need.animation_walk_start = anim_walk_st_animal[now_plant];
+						animal_data_need.animation_walk_end = anim_walk_ed_animal[now_plant];
+						animal_data_need.animation_run_start = anim_run_st_animal[now_plant];
+						animal_data_need.animation_run_end = anim_run_ed_animal[now_plant];
+						animal_data_need.view_range = 300.0f;
+						map_control->add_animal_data_byname(bound_box_nimal[now_plant], animal_geometry_name_list[now_plant], name_animal, final_data, scal_animal[now_plant], animal_data_need);
+						int rec_a = 0;
+					}
+					count += 1;
+					rec_use[now_use] = false;
+				}
+				if (count >= 30)
+				{
+					break;
+				}
+			}
+
+		}
+	}
+	/*
+	for (int i = -50; i < 50; ++i)
+	{
+		for (int j = -50; j < 50; ++j)
+		{
+			int type_res = 100000000;
+			int now_pos_x = 160 + i * 2;
+			int now_pos_y = 160 + j * 2;
+			int final = type_res + now_pos_x * 10000 + now_pos_y;
+			map_control->add_decorate_instance_byname(decorate_name_list[3], final, 3.0f);
+		}
+	}
+	*/
+	return S_OK;
+}
+HRESULT pancy_map_design::save_map_tofile()
+{
+	return S_OK;
+}
+
+goods_member::goods_member(GUI_control  *GUI_engine_need, ID3D11Device *device_need, string goods_name_need, int tex_ID_need)
+{
+	GUI_engine = GUI_engine_need;
+	goods_name = goods_name_need;
+	device_pancy = device_need;
+	goods_position = XMFLOAT3(0, 0, 0);
+	goods_number = 0;
+	tex_ID = tex_ID_need;
+	pos_ID = 0;
+}
+HRESULT goods_member::create(wchar_t *introduce_texture)
+{
+	HRESULT hr = CreateDDSTextureFromFile(device_pancy, introduce_texture, 0, &goods_introduce_texture, 0, 0);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"init goods texture error", L"tip", MB_OK);
+	}
+	return S_OK;
+}
+void goods_member::add_a_goods()
+{
+	goods_number += 1;
+}
+void goods_member::delete_a_goods()
+{
+	goods_number -= 1;
+}
+void goods_member::release()
+{
+	goods_introduce_texture->Release();
+}
+void goods_member::change_position(XMFLOAT3 goods_position_need)
+{
+	goods_position = goods_position_need;
+}
+void goods_member::change_pos_ID(int goods_position_ID)
+{
+	pos_ID = goods_position_ID;
+}
+
+package_design::package_design(GUI_control  *GUI_engine_need, ID3D11Device *device_need, wchar_t *package_texture_name, int UI_num_per_row, wchar_t *goodstex_name_need, wchar_t *number_tex_name_need)
+{
+	device_pancy = device_need;
+	GUI_engine = GUI_engine_need;
+	goods_render_num = 0;
+	bag_width = 5;
+	bag_height = 6;
+	package_tex_name = package_texture_name;
+	goods_tex_name = goodstex_name_need;
+	number_tex_name = number_tex_name_need;
+	row_length_UI = UI_num_per_row;
+	packet_position_start = XMFLOAT3(-0.815f, 0.315f, 0.0f);
+	packet_position_offset = XMFLOAT3(0.185f, -0.23f, 0.0f);
+	if_click = false;
+	if_show_introduce = false;
+	if_package_open = false;
+}
+HRESULT package_design::create()
+{
+	HRESULT hr = GUI_engine->add_a_common(package_tex_name, "package_main");
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	hr = GUI_engine->add_a_common(goods_tex_name, "goods_instancing");
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	hr = GUI_engine->add_a_common(number_tex_name, "goods_number");
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	hr = GUI_engine->add_a_common(goods_tex_name, "goods_introduce");
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT package_design::add_a_goods_type(int tex_id, string goods_name, wchar_t *tex_introduce)
+{
+	goods_member *goods_need = new goods_member(GUI_engine, device_pancy, goods_name, tex_id);
+	HRESULT hr = goods_need->create(tex_introduce);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	std::pair<string, goods_member> data_need(goods_name, *goods_need);
+	auto check_iferror = goods_list.insert(data_need);
+	delete goods_need;
+	if (!check_iferror.second)
+	{
+		MessageBox(0, L"add goods_view failed,a repeat one already in", L"tip", MB_OK);
+		return E_FAIL;
+	}
+	return S_OK;
+}
+void package_design::add_goodsnum_byname(string goods_name)
+{
+	auto data_rec_now = goods_list.find(goods_name);
+	if (data_rec_now != goods_list.end())
+	{
+		data_rec_now->second.add_a_goods();
+	}
+}
+void package_design::delete_goodsnum_byname(string goods_name)
+{
+	auto data_rec_now = goods_list.find(goods_name);
+	if (data_rec_now != goods_list.end())
+	{
+		data_rec_now->second.delete_a_goods();
+	}
+}
+void package_design::change_goods_position_byname(string goods_name, XMFLOAT3 position_input)
+{
+	auto data_rec_now = goods_list.find(goods_name);
+	if (data_rec_now != goods_list.end())
+	{
+		data_rec_now->second.change_position(position_input);
+	}
+}
+void package_design::change_goods_position_byname(string goods_name, int position_bag)
+{
+	float x_offset = static_cast<float>(position_bag % bag_width);
+	float y_offset = static_cast<float>(position_bag / bag_width);
+	XMFLOAT3 position_in;
+	position_in = packet_position_start;
+	position_in.x += packet_position_offset.x * x_offset;
+	position_in.y += packet_position_offset.y * y_offset;
+	auto data_rec_now = goods_list.find(goods_name);
+	if (data_rec_now != goods_list.end())
+	{
+		data_rec_now->second.change_position(position_in);
+		data_rec_now->second.change_pos_ID(position_bag);
+	}
+}
+void package_design::display()
+{
+	if (!if_package_open)
+	{
+		return;
+	}
+	GUI_engine->display_common("package_main");
+	if (goods_render_num != 0)
+	{
+		GUI_engine->display_common_instancing("goods_instancing", goods_render_num, position_list, 10.0f, 7.0f);
+		GUI_engine->display_common_instancing("goods_number", goods_render_num * 3, numpos_list, 11.0f, 1.0f);
+	}
+	if (if_show_introduce == true)
+	{
+		auto data_rec_now = goods_list.find(goods_introduce);
+		if (data_rec_now != goods_list.end())
+		{
+			GUI_engine->display_common("goods_introduce", data_rec_now->second.get_introduce_tex());
+		}
+	}
+}
+void package_design::update(float delta_time)
+{
+	if (!if_package_open)
+	{
+		return;
+	}
+	//设置背包的大小
+	GUI_engine->set_size_common("package_main", 1.0f, 1.0f, 0.0f);
+	GUI_engine->set_position_common("package_main", 0.0f, 0.0f);
+	GUI_engine->update_common(delta_time, "package_main");
+	//设置物品的大小
+	GUI_engine->set_size_common("goods_instancing", 0.07f, 0.09f, 0.0f);
+	GUI_engine->set_position_common("goods_instancing", 0.0f, 0.0f);
+	GUI_engine->update_common(delta_time, "goods_instancing");
+	//设置解释栏的大小
+	GUI_engine->set_size_common("goods_introduce", 0.2f, 0.2f, 0.0f);
+	//GUI_engine->set_position_common("goods_introduce", 0.0f, 0.0f);
+	GUI_engine->update_common(delta_time, "goods_introduce");
+	//设置背包数字的大小
+	GUI_engine->set_size_common("goods_number", 0.02f, 0.035f, 0.0f);
+	GUI_engine->set_position_common("goods_number", 0.0f, 0.0f);
+	GUI_engine->update_common(delta_time, "goods_number");
+
+	if (GUI_engine->get_mouse_state() == mouse_state_down)
+	{
+		//先将鼠标状态标记为点击态
+		if (if_click == false)
+		{
+			goods_click = get_now_mouse_goods();
+			if_click = true;
+		}
+		if (goods_click != "")
+		{
+			auto data_rec_now = goods_list.find(goods_click);
+			if (data_rec_now != goods_list.end())
+			{
+				XMFLOAT3 position_now;
+				position_now.x = GUI_engine->get_mouse_position().x;
+				position_now.y = GUI_engine->get_mouse_position().y;
+				position_now.z = GUI_engine->get_mouse_position().z;
+				data_rec_now->second.change_position(position_now);
+			}
+		}
+	}
+	else if (GUI_engine->get_mouse_state() == mouse_state_up)
+	{
+		//将鼠标还原
+		if_click = false;
+		//重新计算物品所在栏
+		int check_now_pos = count_num_byposition(GUI_engine->get_mouse_position());
+		//检测鼠标之前是否点选到了物品
+		if (goods_click != "")
+		{
+			auto data_rec_now = goods_list.find(goods_click);
+			//检测鼠标下面是不是有别的物品
+			string check_if_use = get_now_pos_goods(check_now_pos);
+			if (check_now_pos >= 0 && check_now_pos < bag_width * bag_height)
+			{
+				//成功更换物品所在栏
+				string check_if_use = get_now_pos_goods(check_now_pos);
+				if (check_if_use != "")
+				{
+					//成功交换物品栏
+					change_goods_position_byname(check_if_use, data_rec_now->second.get_pos_id());
+				}
+				change_goods_position_byname(goods_click, check_now_pos);
+			}
+			else
+			{
+				//鼠标点选在了非法位置，还原物品原来的位置
+				auto data_rec_now = goods_list.find(goods_click);
+				if (data_rec_now != goods_list.end())
+				{
+					change_goods_position_byname(goods_click, data_rec_now->second.get_pos_id());
+				}
+			}
+		}
+
+	}
+	else if (GUI_engine->get_mouse_state() == mouse_state_move)
+	{
+		int check_now_pos = count_num_byposition(GUI_engine->get_mouse_position());
+		string check_if_use = get_now_pos_goods(check_now_pos);
+		if (check_if_use != "")
+		{
+			if_show_introduce = true;
+			goods_introduce = check_if_use;
+			GUI_engine->set_position_common("goods_introduce", GUI_engine->get_mouse_position().x + 0.2f, GUI_engine->get_mouse_position().y + 0.2f);
+		}
+		else
+		{
+			if_show_introduce = false;
+		}
+	}
+	get_pos();
+}
+void  package_design::get_pos()
+{
+	goods_render_num = 0;
+	for (auto data_save = goods_list.begin(); data_save != goods_list.end(); ++data_save)
+	{
+		if (data_save->second.get_resource_num() != 0)
+		{
+			//XMFLOAT3 rec_pos_data = data_save._Ptr->get_goods_position();
+			//float x_offset = static_cast<float>(turn % row_length_UI);
+			//float y_offset = static_cast<float>(turn / row_length_UI);
+			position_list[goods_render_num].x = data_save->second.get_goods_position().x;
+			position_list[goods_render_num].y = data_save->second.get_goods_position().y;
+			int turn = data_save->second.get_tex_id();
+			position_list[goods_render_num].z = static_cast<float>(turn % row_length_UI) / static_cast<float>(row_length_UI);
+			position_list[goods_render_num].w = static_cast<float>(turn / row_length_UI) / static_cast<float>(row_length_UI);
+			//背包数字乘号
+			numpos_list[goods_render_num * 3].x = data_save->second.get_goods_position().x + 0.04 - 0.03f;
+			numpos_list[goods_render_num * 3].y = data_save->second.get_goods_position().y + 0.1;
+			int goods_resource_num = data_save->second.get_resource_num();
+			numpos_list[goods_render_num * 3].z = 10.0f / 11.0f;
+			numpos_list[goods_render_num * 3].w = 0;
+			//背包数字第一位
+			numpos_list[goods_render_num * 3 + 1].x = data_save->second.get_goods_position().x + 0.04;
+			numpos_list[goods_render_num * 3 + 1].y = data_save->second.get_goods_position().y + 0.06;
+			numpos_list[goods_render_num * 3 + 1].z = static_cast<float>(goods_resource_num / 10) / 11.0f;
+			numpos_list[goods_render_num * 3 + 1].w = 0;
+			//背包数字第二位
+			numpos_list[goods_render_num * 3 + 2].x = data_save->second.get_goods_position().x + 0.04 + 0.03f;
+			numpos_list[goods_render_num * 3 + 2].y = data_save->second.get_goods_position().y + 0.06;
+			numpos_list[goods_render_num * 3 + 2].z = static_cast<float>(goods_resource_num % 10) / 11.0f;
+			numpos_list[goods_render_num * 3 + 2].w = 0;
+
+			goods_render_num += 1;
+		}
+	}
+}
+bool package_design::check_mouse_on_instancing(XMFLOAT3 position_bag)
+{
+	XMFLOAT4 position_in;
+	position_in.x = position_bag.x;
+	position_in.y = position_bag.y;
+	return GUI_engine->get_common_byname("goods_instancing")->check_if_in_range_instancing(position_in);
+}
+string package_design::get_now_mouse_goods()
+{
+	for (auto data_save = goods_list.begin(); data_save != goods_list.end(); ++data_save)
+	{
+		if (data_save->second.get_resource_num() != 0)
+		{
+			if (check_mouse_on_instancing(data_save->second.get_goods_position()))
+			{
+				return data_save->first;
+			}
+		}
+	}
+	return "";
+}
+string package_design::get_now_pos_goods(int pos_in)
+{
+	for (auto data_save = goods_list.begin(); data_save != goods_list.end(); ++data_save)
+	{
+		if (data_save->second.get_resource_num() != 0)
+		{
+			if (data_save->second.get_pos_id() == pos_in)
+			{
+				return data_save->first;
+			}
+		}
+	}
+	return "";
+}
+int package_design::count_num_byposition(XMFLOAT4 position_in)
+{
+	int row_value = static_cast<int>((position_in.x - packet_position_start.x) / packet_position_offset.x + 0.5f);
+	int col_value = static_cast<int>((position_in.y - packet_position_start.y) / packet_position_offset.y + 0.5f);
+	return row_value + col_value * bag_width;
+}
+void package_design::release()
+{
+	for (auto data_save = goods_list.begin(); data_save != goods_list.end(); ++data_save)
+	{
+		data_save->second.release();
+	}
+	goods_list.clear();
+}
+
+/*
+class static_resource_basic
+{
+	int resource_map_ID;
+	XMFLOAT3 position;
+	//几何属性
+	geometry_control *geometry_pancy;
+	std::string model_resource;
+	std::string model_view_data_name;
+	int model_view_data_index;
+	//物理属性
+	pancy_physx  *physic_pancy;
+	physx::PxRigidStatic *bound_box;
+	physx::PxMaterial *mat_force;
+public:
+	static_resource_basic(string model_resource_name, string model_resource_view_name, geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need);
+	HRESULT create();
+	virtual void update(float delta_time);
+	virtual void display(XMFLOAT4X4 view_proj_matrix);
+	void release();
+private:
+	HRESULT init_physics();
+	HRESULT init_geometry_assimp();
+	HRESULT init_geometry_bounding_box();
+	void show_bounding_box(XMFLOAT4X4 view_proj_matrix);
+};
+static_resource_basic::static_resource_basic(string model_resource_name, string model_resource_view_name, geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need)
+{
+	model_resource = model_resource_name;
+	model_view_data_name = model_resource_view_name;
+	geometry_pancy = geometry_need;
+	physic_pancy = physic_need;
+	shader_lib = shader_need;
+	mat_force = NULL;
+}
+HRESULT static_resource_basic::create()
+{
+	HRESULT hr;
+
+	//hr = init_geometry_bounding_box();
+	//if (FAILED(hr))
+	//{
+	//return hr;
+	//}
+
+	hr = init_geometry_assimp();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	hr = init_physics();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	return S_OK;
+}
+*/
 scene_engine_physicx::scene_engine_physicx(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_physx *physx_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view) : scene_root(device_need, contex_need, render_state, input_need, camera_need, lib_need, geometry_need, light_need, width, height, near_plane, far_plane, angle_view)
 {
-	physics_pancy = physx_need;	
+	if_click_bag = false;
+	physics_pancy = physx_need;
 	camera_height = 0.0f;
+	//test_start = NULL;
+	//mouse_basic = NULL;
+	//prograss_test = NULL;
 }
 HRESULT scene_engine_physicx::scene_create()
 {
@@ -2174,6 +3913,12 @@ HRESULT scene_engine_physicx::scene_create()
 		return hr_need;
 	}
 	geometry_lib->build_terrain_from_memory(terrain_test);
+	world_map_main = new pancy_world_map(contex_pancy, renderstate_lib, geometry_lib, physics_pancy, shader_lib, terrain_test, 10.0f, 10.0f);
+	hr_need = world_map_main->create();
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
 	//读取场景需要的纹理
 	int texture_index;
 	hr_need = geometry_lib->load_texture_from_file(L"floor.dds", true, "floor_diffuse", texture_index);
@@ -2209,8 +3954,13 @@ HRESULT scene_engine_physicx::scene_create()
 	}
 	//外部模型导入
 	int index_model_rec;
-	int alpha_yuri[] = { 0,1,2,3 };
-	hr_need = geometry_lib->load_modelresource_from_file("yurimodel_skin\\yuri.FBX", "yurimodel_skin\\", true, false, false, 4, alpha_yuri, "yuri_model_resource", index_model_rec);
+	int alpha_yuri[] = { 4,6,9,11 };
+	//hr_need = geometry_lib->load_modelresource_from_file("panther\\panther.FBX", "panther\\", true, false, false, 4, alpha_yuri, "yuri_model_resource", index_model_rec);
+	hr_need = geometry_lib->load_modelresource_from_file("bull\\bull.FBX", "bull\\", true, false, false, 0, NULL, "bull_model_resource", index_model_rec);
+	hr_need = geometry_lib->load_modelresource_from_file("panther\\panther.FBX", "panther\\", true, false, false, 0, NULL, "panther_model_resource", index_model_rec);
+	hr_need = geometry_lib->load_modelresource_from_file("rhino\\rhino.FBX", "rhino\\", true, false, false, 0, NULL, "rhino_model_resource", index_model_rec);
+	hr_need = geometry_lib->load_modelresource_from_file("wolf\\wolf.FBX", "wolf\\", true, false, false, 0, NULL, "wolf_model_resource", index_model_rec);
+	hr_need = geometry_lib->load_modelresource_from_file("player_main\\player.FBX", "player_main\\", true, false, false, 4, alpha_yuri, "yuri_model_resource", index_model_rec);
 	if (FAILED(hr_need))
 	{
 		MessageBox(0, L"load model error", L"tip", MB_OK);
@@ -2223,6 +3973,61 @@ HRESULT scene_engine_physicx::scene_create()
 		MessageBox(0, L"load model error", L"tip", MB_OK);
 		return hr_need;
 	}
+
+	hr_need = geometry_lib->load_modelresource_from_file("Cattail_Med\\Cattail_Med.obj", "Cattail_Med\\", false, false, false, 0, NULL, "RoughGrass_resource", index_model_rec);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model error", L"tip", MB_OK);
+		return hr_need;
+	}
+	hr_need = geometry_lib->load_modelresource_from_file("BradfordPear_Low\\BradfordPear_Low.obj", "BradfordPear_Low\\", false, false, false, 0, NULL, "BradfordPear_resource", index_model_rec);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model error", L"tip", MB_OK);
+		return hr_need;
+	}
+	hr_need = geometry_lib->load_modelresource_from_file("EuropeanAspen_Low\\EuropeanAspen_Low.obj", "EuropeanAspen_Low\\", false, false, false, 0, NULL, "EuropeanAspen_resource", index_model_rec);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model error", L"tip", MB_OK);
+		return hr_need;
+	}
+	hr_need = geometry_lib->load_modelresource_from_file("Pumpkin_Low\\Pumpkin_Low.obj", "Pumpkin_Low\\", false, false, false, 0, NULL, "Pumpkin_resource", index_model_rec);
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"load model error", L"tip", MB_OK);
+		return hr_need;
+	}
+
+	map_designer = new pancy_map_design(world_map_main);
+	map_designer->add_an_animal_type("bull_model_resource");
+	map_designer->add_an_animal_type("panther_model_resource");
+	map_designer->add_an_animal_type("rhino_model_resource");
+	map_designer->add_an_animal_type("wolf_model_resource");
+	hr_need = map_designer->create();
+	if (FAILED(hr_need))
+	{
+		MessageBox(0, L"init map error", L"tip", MB_OK);
+		return hr_need;
+	}
+	/*
+	world_map_main->add_decorate_data_view_byname("RoughGrass_resource", "RoughGrass_resource_view");
+	for (int i = -50; i < 50; ++i)
+	{
+		for (int j = -50; j < 50; ++j)
+		{
+			int type_res = 100000000;
+			int now_pos_x = 160 + i*2;
+			int now_pos_y = 160 + j*2;
+			int final = type_res + now_pos_x * 10000 + now_pos_y;
+			world_map_main->add_decorate_instance_byname("RoughGrass_resource_view", final, 5.0f);
+		}
+	}
+	*/
+	//world_map_main->add_decorate_instance_byname("RoughGrass_resource_view", 101620172, 5.0f);
+	//world_map_main->add_decorate_instance_byname("RoughGrass_resource_view", 101620173, 5.0f);
+	//world_map_main->add_decorate_instance_byname("RoughGrass_resource_view", 101620174, 5.0f);
+	/*
 	hr_need = geometry_lib->add_plant_modelview_by_name("grass_model_resource", "grass_test_instance");
 	if (FAILED(hr_need))
 	{
@@ -2230,8 +4035,13 @@ HRESULT scene_engine_physicx::scene_create()
 	}
 	auto* floor_need = geometry_lib->get_plant_ResourceView_by_name("grass_test_instance");
 	XMFLOAT4X4 rec_trans_mat;
-	float scal_range = 7.0f;
-	XMStoreFloat4x4(&rec_trans_mat, XMMatrixScaling(scal_range, scal_range, scal_range)*XMMatrixRotationX(0.5f*XM_PI)*XMMatrixTranslation(0 - 40, 121, 0));
+	float scal_range = 2.0f;
+	for (int i = 0; i < 260000; ++i)
+	{
+		XMStoreFloat4x4(&rec_trans_mat, XMMatrixScaling(scal_range, scal_range, scal_range)*XMMatrixRotationX(0.5f*XM_PI)*XMMatrixTranslation(0, 121, 0));
+		floor_need->add_a_instance(i, rec_trans_mat);
+	}
+	XMStoreFloat4x4(&rec_trans_mat, XMMatrixScaling(scal_range, scal_range, scal_range)*XMMatrixRotationX(0.5f*XM_PI)*XMMatrixTranslation(0, 121, 0));
 	floor_need->add_a_instance(0, rec_trans_mat);
 	XMStoreFloat4x4(&rec_trans_mat, XMMatrixScaling(scal_range, scal_range, scal_range)*XMMatrixRotationX(0.5f*XM_PI)*XMMatrixTranslation(-14 - 40, 121, 0));
 	floor_need->add_a_instance(1, rec_trans_mat);
@@ -2241,14 +4051,71 @@ HRESULT scene_engine_physicx::scene_create()
 	floor_need->add_a_instance(3, rec_trans_mat);
 	XMStoreFloat4x4(&rec_trans_mat, XMMatrixScaling(scal_range, scal_range, scal_range)*XMMatrixRotationX(0.5f*XM_PI)*XMMatrixTranslation(-46 - 40, 121, 0));
 	floor_need->add_a_instance(4, rec_trans_mat);
-	//创建角色
-	player_main = new player_basic("yuri_model_resource", "test_player_one", geometry_lib, physics_pancy, shader_lib, model_data_type::pancy_model_assimp);
-	//physics_test = new pancy_physx(device_need, contex_need);
-	hr_need = player_main->create();
+	*/
+	gui_list = new GUI_control(static_cast<float>(scene_window_width), static_cast<float>(scene_window_height), user_input, device_pancy, contex_pancy, shader_lib);
+	hr_need = gui_list->create(L"UI\\mouse_move.dds", L"UI\\mouse_up.dds", L"UI\\mouse_down.dds");
 	if (FAILED(hr_need))
 	{
 		return hr_need;
 	}
+	gui_list->set_mouse_size(0.07f, 0.07f, 0.0f);
+	player_package = new package_design(gui_list, device_pancy, L"UI\\package_UI.dds", 10, L"UI\\bufficon01.dds", L"UI\\number.dds");
+	hr_need = player_package->create();
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	hr_need = player_package->add_a_goods_type(0, "test_goods_1", L"UI\\introduce.dds");
+	hr_need = player_package->add_a_goods_type(1, "test_goods_2", L"UI\\introduce.dds");
+	player_package->add_goodsnum_byname("test_goods_1");
+	player_package->add_goodsnum_byname("test_goods_2");
+	player_package->add_goodsnum_byname("test_goods_2");
+	player_package->add_goodsnum_byname("test_goods_2");
+	player_package->add_goodsnum_byname("test_goods_2");
+	player_package->change_goods_position_byname("test_goods_1", 0);
+	player_package->change_goods_position_byname("test_goods_2", 6);
+	//gui_list->add_a_button(L"UI\\start1.dds","ui_start_game");
+	gui_list->add_a_prograssbar(L"UI\\water.dds", "ui_water_prograssbar");
+	gui_list->add_a_prograssbar(L"UI\\HP.dds", "ui_HP_prograssbar");
+	gui_list->add_a_common(L"UI\\fast_inventory.dds", "ui_fast_inventory");
+	//gui_list->add_a_common(L"UI\\package_UI.dds", "ui_package");
+	/*
+	mouse_basic = new GUI_mouse(static_cast<float>(scene_window_width), static_cast<float>(scene_window_height),user_input,device_pancy, contex_pancy, shader_lib);
+	hr_need = mouse_basic->create(L"UI\\mouse_move.dds", L"UI\\mouse_up.dds", L"UI\\mouse_down.dds");
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	mouse_basic->set_mouse_size(0.07f, 0.07f, 0.0f);
+
+	test_start = new GUI_button(mouse_basic,device_pancy,contex_pancy, shader_lib);
+	hr_need = test_start->create(L"UI\\start1.dds");
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	test_start->set_UI_position(0, 0);
+	test_start->set_UI_range(0.2f, 0.2f,0.0f);
+
+	prograss_test = new GUI_progressbar(device_pancy, contex_pancy, shader_lib);
+	hr_need = prograss_test->create(L"UI\\HP.dds");
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	prograss_test->set_UI_position(0.2f, 0);
+	prograss_test->set_UI_range(0.2f, 0.1f, 0.0f);
+	*/
+
+	//创建角色
+	player_main = new player_basic("yuri_model_resource", "test_player_one", geometry_lib, physics_pancy, shader_lib, model_data_type::pancy_model_assimp, XMFLOAT3(0.0f, 250.0f, 0.0f), false);
+	//physics_test = new pancy_physx(device_need, contex_need);
+	hr_need = player_main->create(3.5, 7.0, 0, 0, player_shape_capsule);
+	if (FAILED(hr_need))
+	{
+		return hr_need;
+	}
+	player_main->set_model_scaling(16.0f);
 	//hr_need = geometry_lib->add_buildin_modelview_by_name("geometry_cube", "geometry_project_aabb", pancy_geometry_cube);
 	//if (FAILED(hr_need))
 	//{
@@ -2256,14 +4123,17 @@ HRESULT scene_engine_physicx::scene_create()
 	//}
 	return S_OK;
 }
-void scene_engine_physicx::show_grass() 
+void scene_engine_physicx::show_grass()
 {
+	float blendFactor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	ID3D11BlendState *rec = renderstate_lib->get_blend_tocoverage();
+	contex_pancy->OMSetBlendState(renderstate_lib->get_blend_tocoverage(), blendFactor, 0xffffffff);
 	auto* shader_test = shader_lib->get_shader_light_deffered_draw();
 	auto* floor_need = geometry_lib->get_plant_ResourceView_by_name("grass_test_instance");
 	ID3DX11EffectTechnique *teque_need;
 	shader_test->get_technique(&teque_need, "LightTech_instance");
 	//设定世界变换
-	XMFLOAT4X4 rec_mat[10];
+	XMFLOAT4X4 rec_mat[MAX_PLANT];
 	int mat_num;
 	floor_need->get_world_matrix_array(mat_num, rec_mat);
 	shader_test->set_world_matrix_array(rec_mat, mat_num);
@@ -2274,23 +4144,17 @@ void scene_engine_physicx::show_grass()
 	XMMATRIX ViewProj = view*proj;
 	XMStoreFloat4x4(&world_viewrec, ViewProj);
 	shader_test->set_trans_viewproj(&world_viewrec);
-	/*
-	XMMATRIX view = XMLoadFloat4x4(&view_matrix);
-	XMMATRIX proj = XMLoadFloat4x4(&proj_matrix);
-	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
-	XMFLOAT4X4 world_viewrec;
-	XMStoreFloat4x4(&world_viewrec, worldViewProj);
-	shader_test->set_trans_all(&world_viewrec);
-	*/
+
+
+
 	material_list rec_texture;
 	for (int i = 0; i < floor_need->get_geometry_num(); ++i)
 	{
-		floor_need->get_texture(&rec_texture,i);
+		floor_need->get_texture(&rec_texture, i);
 		shader_test->set_diffusetex(rec_texture.tex_diffuse_resource);
-		floor_need->draw_mesh_part(teque_need,i);
+		floor_need->draw_mesh_part(teque_need, i);
 	}
-	
-	int a = 0;
+	contex_pancy->OMSetBlendState(NULL, blendFactor, 0xffffffff);
 }
 void scene_engine_physicx::show_ball()
 {
@@ -2312,7 +4176,7 @@ void scene_engine_physicx::show_ball()
 	XMMATRIX worldViewProj = world_matrix_rec*view*proj;
 	XMFLOAT4X4 world_viewrec;
 	XMStoreFloat4x4(&world_viewrec, worldViewProj);
-	shader_test->set_trans_all(&world_viewrec);
+	shader_test->set_trans_all(&world_viewrec);;
 	ball_need->draw_full_geometry(teque_need);
 	contex_pancy->RSSetState(NULL);
 }
@@ -2417,9 +4281,12 @@ HRESULT scene_engine_physicx::display()
 	show_ball();
 	//show_floor();
 	show_box();
-	show_grass();
+	//show_grass();
+	world_map_main->display(view_matrix, proj_matrix);
 	player_main->display(view_proj);
+
 	contex_pancy->OMSetDepthStencilState(NULL, 0);
+
 	return S_OK;
 }
 HRESULT scene_engine_physicx::display_enviroment()
@@ -2429,6 +4296,18 @@ HRESULT scene_engine_physicx::display_enviroment()
 HRESULT scene_engine_physicx::display_nopost()
 {
 	renderstate_lib->restore_rendertarget();
+
+	//gui_list->display_button("ui_start_game");
+	gui_list->display_prograssbar("ui_HP_prograssbar");
+	gui_list->display_prograssbar("ui_water_prograssbar");
+	gui_list->display_common("ui_fast_inventory");
+	player_package->display();
+	//gui_list->display_common("ui_package");
+	gui_list->display_mouse();
+	//test_start->display();
+	//prograss_test->display();
+	//mouse_basic->display();
+
 	return S_OK;
 }
 HRESULT scene_engine_physicx::release()
@@ -2436,6 +4315,8 @@ HRESULT scene_engine_physicx::release()
 	//physics_test->release();
 	terrain_test->release();
 	player_main->release();
+	gui_list->release();
+	player_package->release();
 	return S_OK;
 }
 HRESULT scene_engine_physicx::update(float delta_time)
@@ -2496,10 +4377,12 @@ HRESULT scene_engine_physicx::update(float delta_time)
 	auto* box_need = geometry_lib->get_buildin_GeometryResourceView_by_name("geometry_boxtest");
 	box_need->update_physx_worldmatrix(delta_time);
 
-
+	XMFLOAT3 eyeDir_rec;
+	scene_camera->get_view_direct(&eyeDir_rec);
 	player_main->update(delta_time);
+	world_map_main->update(delta_time, eyePos_rec, eyeDir_rec, perspective_angle);
 	//更新天空球世界变换
-	trans_world = XMMatrixTranslation(0.0, 0.0, 0.0);
+	trans_world = XMMatrixTranslation(eyePos_rec.x, eyePos_rec.y, eyePos_rec.z);
 	scal_world = XMMatrixScaling(1000.0f, 1000.0f, 1000.0f);
 	rec_world = scal_world * trans_world;
 	XMStoreFloat4x4(&world_matrix, rec_world);
@@ -2509,15 +4392,38 @@ HRESULT scene_engine_physicx::update(float delta_time)
 	XMFLOAT4X4 view_proj;
 	XMStoreFloat4x4(&view_proj, XMLoadFloat4x4(&view_matrix) * XMLoadFloat4x4(&proj_matrix));
 	time_game += delta_time*0.3;
+
+	gui_list->update_mouse(delta_time);
+	//gui_list->update_button(delta_time,"ui_start_game");
+	gui_list->update_prograssbar(delta_time, "ui_HP_prograssbar");
+	gui_list->update_prograssbar(delta_time, "ui_water_prograssbar");
+	gui_list->update_common(delta_time, "ui_fast_inventory");
+	player_package->update(delta_time);
+	//gui_list->update_common(delta_time, "ui_package");
+	//gui_list->set_size_button("ui_start_game", 0.2f, 0.2f, 0.0f);
+	//gui_list->set_position_button("ui_start_game", 0, 0);
+	gui_list->set_size_common("ui_fast_inventory", 0.4f, 0.1f, 0.0f);
+	gui_list->set_position_common("ui_fast_inventory", 0.0f, -0.95f);
+
+	//gui_list->set_size_common("ui_package", 1.0f, 1.0f, 0.0f);
+	//gui_list->set_position_common("ui_package", 0.0f, 0.0f);
+
+	gui_list->set_size_prograssbar("ui_HP_prograssbar", 0.2f, 0.1f, 0.0f);
+	gui_list->set_position_prograssbar("ui_HP_prograssbar", 0.8f, -0.8);
+	gui_list->set_size_prograssbar("ui_water_prograssbar", 0.2f, 0.1f, 0.0f);
+	gui_list->set_position_prograssbar("ui_water_prograssbar", 0.8f, -0.9);
+	//mouse_basic->update(delta_time);
+	//test_start->update(delta_time);
 	return S_OK;
 }
 void scene_engine_physicx::set_camera_player()
 {
-	
 	user_input->get_input();
+
+	
 	player_main->change_rotation_angle(user_input->MouseMove_X() * 0.001f);
 	camera_height += user_input->MouseMove_Y() * 0.001f;
-	if (camera_height > XM_PI / 4.0f) 
+	if (camera_height > XM_PI / 4.0f)
 	{
 		camera_height = XM_PI / 4.0f;
 	}
@@ -2531,7 +4437,7 @@ void scene_engine_physicx::set_camera_player()
 	player_main->get_now_position(rec_pos.x, rec_pos.y, rec_pos.z);
 	XMFLOAT3 look_dir;
 	player_main->get_look_position(look_dir.x, look_dir.y, look_dir.z);
-	XMFLOAT3 up_dir = XMFLOAT3(0.0f,1.0f,0.0f);
+	XMFLOAT3 up_dir = XMFLOAT3(0.0f, 1.0f, 0.0f);
 	rec_pos.x -= 40 * look_dir.x;
 	rec_pos.z -= 40 * look_dir.z;
 	rec_pos.y += 20;
@@ -2544,20 +4450,41 @@ void scene_engine_physicx::set_camera_player()
 
 	scene_camera->set_camera(look_dir, up_dir, rec_pos);
 	scene_camera->count_view_matrix(&view_matrix);
-	
+
 	if (user_input->check_keyboard(DIK_W))
 	{
-		player_main->set_speed(0.03f * look_dir.x, 0.03f* look_dir.z);
+		player_main->set_speed(0.39f * look_dir.x, 0.39f* look_dir.z);
 	}
-	else 
+	else
 	{
 		player_main->set_speed(0.0, 0.0);
 	}
-	
+
+	if (user_input->check_keyboard(DIK_I))
+	{
+		if_click_bag = true;
+	}
+	else
+	{
+		if (if_click_bag == true)
+		{
+			if (player_package->check_if_open() == true)
+			{
+				player_package->close_package();
+			}
+			else
+			{
+				player_package->open_package();
+			}
+			if_click_bag = false;
+		}
+
+	}
+
 	/*
-	float move_speed = 0.05f;
+	float move_speed = 0.75f;
 	XMMATRIX view;
-	user_input->get_input();
+	//user_input->get_input();
 	if (user_input->check_keyboard(DIK_A))
 	{
 		scene_camera->walk_right(-move_speed);
@@ -2596,7 +4523,8 @@ void scene_engine_physicx::set_camera_player()
 		scene_camera->rotation_right(user_input->MouseMove_Y() * 0.001f);
 	}
 	scene_camera->count_view_matrix(&view_matrix);
+*/
 	//XMStoreFloat4x4(&view_matrix, view);
 	//return S_OK;
-	*/
+
 }

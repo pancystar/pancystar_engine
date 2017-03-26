@@ -392,7 +392,8 @@ HRESULT skin_mesh::build_skintree(aiNode *now_node, skin_tree *now_root)
 		strcpy(now_root->bone_ID, now_node->mName.data);
 		set_matrix(now_root->animation_matrix, &now_node->mTransformation);
 		//set_matrix(now_root->basic_matrix, &now_node->mTransformation);
-		now_root->bone_number = bone_num++;
+		now_root->bone_number = -10;
+		//bone_num += 1;
 		if (now_node->mNumChildren > 0)
 		{
 			//如果有至少一个儿子则建立儿子结点
@@ -555,7 +556,30 @@ void skin_mesh::update_mesh_offset()
 		{
 			set_matrix(offset_matrix_array[tree_node_num[i][j]], &model_need->mMeshes[i]->mBones[j]->mOffsetMatrix);
 		}
+		int a = 0;
 	}
+	int b = 0;
+}
+int skin_mesh::find_min(float x1, float x2, float x3, float x4) 
+{
+	int min = 0;
+	float min_rec = x1;
+	if (x2 < x1) 
+	{
+		min = 1;
+		min_rec = x2;
+	}
+	if (x3 < x2)
+	{
+		min = 2;
+		min_rec = x3;
+	}
+	if (x4 < x3)
+	{
+		min = 3;
+		min_rec = x4;
+	}
+	return min;
 }
 HRESULT skin_mesh::init_mesh(bool if_adj)
 {
@@ -566,6 +590,7 @@ HRESULT skin_mesh::init_mesh(bool if_adj)
 	//创建网格记录表
 	mesh_need = new mesh_list<point_withskin>[model_need->mNumMeshes];
 	mesh_optimization = model_need->mNumMeshes;
+	int now_used_bone_num = 0;
 	for (int i = 0; i < model_need->mNumMeshes; i++)
 	{
 
@@ -621,9 +646,15 @@ HRESULT skin_mesh::init_mesh(bool if_adj)
 				point_need[j].tangent.z = 0.0f;
 			}
 		}
+
 		for (int j = 0; j < paiMesh->mNumBones; ++j)
 		{
 			skin_tree * now_node = find_tree(root_skin, paiMesh->mBones[j]->mName.data);
+			if (now_node->bone_number == -10)
+			{
+				now_node->bone_number = now_used_bone_num++;
+				bone_num += 1;
+			}
 			tree_node_num[i][j] = now_node->bone_number;
 			//set_matrix(now_node->basic_matrix, &paiMesh->mBones[j]->mOffsetMatrix);
 			for (int k = 0; k < paiMesh->mBones[j]->mNumWeights; ++k)
@@ -648,6 +679,33 @@ HRESULT skin_mesh::init_mesh(bool if_adj)
 					point_need[paiMesh->mBones[j]->mWeights[k].mVertexId].bone_id.w = now_node->bone_number;
 					point_need[paiMesh->mBones[j]->mWeights[k].mVertexId].bone_weight.w = paiMesh->mBones[j]->mWeights[k].mWeight;
 				}
+				else 
+				{
+					XMUINT4 rec_number = point_need[paiMesh->mBones[j]->mWeights[k].mVertexId].bone_id;
+					XMFLOAT4 rec_weight = point_need[paiMesh->mBones[j]->mWeights[k].mVertexId].bone_weight;
+					int rec_min_weight = find_min(rec_weight.x, rec_weight.y, rec_weight.z, rec_weight.w);
+
+					if (rec_min_weight == 0 && rec_weight.x < paiMesh->mBones[j]->mWeights[k].mWeight)
+					{
+						point_need[paiMesh->mBones[j]->mWeights[k].mVertexId].bone_id.x = now_node->bone_number;
+						point_need[paiMesh->mBones[j]->mWeights[k].mVertexId].bone_weight.x += paiMesh->mBones[j]->mWeights[k].mWeight;
+					}
+					if (rec_min_weight == 1 && rec_weight.y < paiMesh->mBones[j]->mWeights[k].mWeight)
+					{
+						point_need[paiMesh->mBones[j]->mWeights[k].mVertexId].bone_id.y = now_node->bone_number;
+						point_need[paiMesh->mBones[j]->mWeights[k].mVertexId].bone_weight.y += paiMesh->mBones[j]->mWeights[k].mWeight;
+					}
+					if (rec_min_weight == 2 && rec_weight.z < paiMesh->mBones[j]->mWeights[k].mWeight)
+					{
+						point_need[paiMesh->mBones[j]->mWeights[k].mVertexId].bone_id.z = now_node->bone_number;
+						point_need[paiMesh->mBones[j]->mWeights[k].mVertexId].bone_weight.z += paiMesh->mBones[j]->mWeights[k].mWeight;
+					}
+					if (rec_min_weight == 3 && rec_weight.w < paiMesh->mBones[j]->mWeights[k].mWeight)
+					{
+						point_need[paiMesh->mBones[j]->mWeights[k].mVertexId].bone_id.w = now_node->bone_number;
+						point_need[paiMesh->mBones[j]->mWeights[k].mVertexId].bone_weight.w += paiMesh->mBones[j]->mWeights[k].mWeight;
+					}
+				}
 			}
 		}
 		int count_index = 0;
@@ -661,7 +719,10 @@ HRESULT skin_mesh::init_mesh(bool if_adj)
 			}
 			else
 			{
-				return E_FAIL;
+				index_need[count_index++] = 0;
+				index_need[count_index++] = 0;
+				index_need[count_index++] = 0;
+				//return E_FAIL;
 			}
 		}
 		//根据内存信息创建显存区
@@ -731,6 +792,23 @@ void skin_mesh::update_animation(float delta_time)
 	{
 		time_all -= first_animation->animation_length;
 	}
+	update_anim_data(first_animation->head_animition);
+	//float matrix_identi[] = { 1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1 };
+	XMFLOAT4X4 matrix_identi;
+	XMStoreFloat4x4(&matrix_identi, XMMatrixIdentity());
+	update_root(root_skin, matrix_identi);
+}
+void skin_mesh::specify_animation_time(float animation_time)
+{
+	if (animation_time < 0.0f || animation_time > get_animation_length()) 
+	{
+		return;
+	}
+	time_all = animation_time;
+	//if (time_all >= first_animation->animation_length)
+	//{
+	//	time_all -= first_animation->animation_length;
+	//}
 	update_anim_data(first_animation->head_animition);
 	//float matrix_identi[] = { 1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1 };
 	XMFLOAT4X4 matrix_identi;
@@ -919,6 +997,10 @@ assimpmodel_resource_view::assimpmodel_resource_view(assimp_basic *model_input, 
 	bone_num = 0;
 	geometry_name = name_need;
 	indexnum_geometry = -1;
+	now_time = 0;
+	start_time = 0.0f;
+	animation_speed = 20.0f;
+	end_time = 100.0f;
 	//next = NULL;
 	//pre = NULL;
 	//XMFLOAT4X4 world_matrix;
@@ -959,13 +1041,31 @@ void assimpmodel_resource_view::release()
 	}
 	*/
 };
+void assimpmodel_resource_view::reset_animation_time(float time)
+{
+	now_time = time;
+}
+void assimpmodel_resource_view::reset_animation_data(float animation_start_need, float animation_end_need, float animation_speed_need)
+{
+	start_time = animation_start_need;
+	end_time = animation_end_need;
+	animation_speed = animation_speed_need;
+	//now_time = start_time;
+}
 void assimpmodel_resource_view::update(XMFLOAT4X4 world_matrix_need, float delta_time)
 {
 	reset_world_matrix(world_matrix_need);
 	if (if_skinmesh == true)
 	{
 		skin_mesh *model_animation = static_cast<skin_mesh *>(model_data);
-		model_animation->update_animation(delta_time * 20);
+		now_time += delta_time * animation_speed;
+		if (now_time > end_time)
+		{
+			now_time -= end_time;
+			now_time += start_time;
+		}
+		//model_animation->update_animation(delta_time * 20);
+		model_animation->specify_animation_time(now_time);
 		model_animation->update_mesh_offset();
 		XMFLOAT4X4 *rec_bonematrix = model_animation->get_bone_matrix();
 		int rec_bone_num = model_animation->get_bone_num();
@@ -1051,6 +1151,10 @@ HRESULT plant_resource_view::add_a_instance(int map_position, XMFLOAT4X4 world_m
 		return E_FAIL;
 	}
 	return S_OK;
+}
+void plant_resource_view::clear_instance() 
+{
+	view_data.clear();
 }
 void plant_resource_view::draw_full_geometry(ID3DX11EffectTechnique *tech_common)
 {
@@ -1233,9 +1337,8 @@ HRESULT geometry_control::load_modelresource_from_file(char* filename, char* tex
 	index_output = list_model_resource->add_resource(data_need);
 	return S_OK;
 }
-HRESULT geometry_control::add_assimp_modelview_by_name(std::string model_name,std::string model_view_name)
+HRESULT geometry_control::add_assimp_modelview_by_name(std::string model_name,std::string model_view_name, float time_now_need)
 {
-	
 	model_resource_data *data_need = list_model_resource->get_resource_by_name(model_name);
 	if (data_need == NULL)
 	{
@@ -1249,9 +1352,18 @@ HRESULT geometry_control::add_assimp_modelview_by_name(std::string model_name,st
 		return E_FAIL;
 	}
 	assimpmodel_resource_view *rec_mesh_castel = new assimpmodel_resource_view(data_need->data, data_need->if_skin, model_view_name);
+	rec_mesh_castel->reset_animation_time(time_now_need);
 	list_model_assimp->add_new_geometry(*rec_mesh_castel);
 	delete rec_mesh_castel;
 	return S_OK;
+}
+void geometry_control::delete_assimp_modelview_by_name(std::string model_view_name)
+{
+	list_model_assimp->delete_geometry_byname(model_view_name);
+}
+void geometry_control::delete_BuiltIn_modelview_by_name(std::string model_view_name)
+{
+	list_buildin_model_view->delete_geometry_byname(model_view_name);
 }
 HRESULT geometry_control::add_assimp_modelview_by_index(int model_ID, std::string model_view_name)
 {

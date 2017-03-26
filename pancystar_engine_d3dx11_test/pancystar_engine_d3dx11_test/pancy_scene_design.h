@@ -1,4 +1,6 @@
 #pragma once
+#include <time.h> 
+#include<queue>
 #include"geometry.h"
 #include"pancy_time_basic.h"
 #include"PancyCamera.h"
@@ -13,7 +15,7 @@
 #include"particle_system.h"
 #include"pancy_terrain.h"
 #include"pancy_physx.h"
-
+#include"pancy_GUI_basic.h"
 
 class scene_root
 {
@@ -191,9 +193,21 @@ private:
 	void show_ball();
 	void show_snake_animation_deffered();
 };
-
+//角色系统
+enum player_shape_physic 
+{
+	player_shape_box = 1,
+	player_shape_capsule = 2
+};
+enum animal_behavior
+{
+	animal_walk_around = 0,
+	animal_run_target = 1,
+	animal_run_around = 2
+};
 class player_basic
 {
+protected:
 	float rec_offset_x, rec_offset_z;
 	model_data_type model_type;
 	//渲染包
@@ -207,35 +221,336 @@ class player_basic
 	pancy_physx  *physic_pancy;
 	physx::PxController *player;
 	physx::PxMaterial *mat_force;
+	XMFLOAT3 init_position;
 	float x_speed, z_speed;
 	float rotation_angle;
+	float model_scaling;
+	bool if_show_bound_box;
+	float model_head_radius;
+	float model_height;
+	float model_length_forward;
+	float model_length_slide;
+	player_shape_physic player_shape_use;
+	float time_animation;
 public:
-	player_basic(string model_resource_name, string player_name, geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, model_data_type model_type_need);
-	HRESULT create();
+	player_basic(string model_resource_name, string player_name, geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, model_data_type model_type_need, XMFLOAT3 st_position,bool bound_box_need);
+	HRESULT create(float raidus,float height,float foward,float slide, player_shape_physic player_shape_choose);
+	bool check_if_show_bound() { return if_show_bound_box; };
 	virtual void update(float delta_time);
 	virtual void display(XMFLOAT4X4 view_proj_matrix);
 	void get_now_position(float &x,float &y,float &z);
 	void set_speed(float x,float z);
 	void get_look_position(float &x,float &y,float &z);
 	void change_rotation_angle(float delta_angle);
+	void reset_rotation_angle(float delta_angle);
+	void set_model_scaling(float model_scal_need) { model_scaling = model_scal_need; };
 	void add_offset(float offset_x, float offset_z) { rec_offset_x += offset_x; rec_offset_z += offset_z; };
+	string get_model_resource_name() { return model_resource; };
+	string get_model_view_name() { return model_view_data_name; };
+	string get_bound_view_name() { return model_view_data_name + "bounding_box_player"; };
 	void release();
-private:
-	HRESULT init_physics();
+protected:
+	HRESULT init_physics(player_shape_physic player_shape_choose);
 	HRESULT init_geometry_buildin();
 	HRESULT init_geometry_assimp();
 	HRESULT init_geometry_bounding_box();
 	void show_bounding_box(XMFLOAT4X4 view_proj_matrix);
 	void show_build_in_model(XMFLOAT4X4 view_proj_matrix);
-	void show_assimp_skinmesh_model(XMFLOAT4X4 view_proj_matrix);
+	virtual void show_assimp_skinmesh_model(XMFLOAT4X4 view_proj_matrix);
 	void show_transparent_part(XMFLOAT4X4 view_proj_matrix,int part);
 };
+struct animal_attribute 
+{
+	XMFLOAT3 position_center;
+	float animation_walk_start;
+	float animation_walk_end;
+	float animation_run_start;
+	float animation_run_end;
+	float animation_walk_speed;
+	float animation_run_speed;
+	int hp_animal;
+	int damage_animal;
+	float velocity_walk;
+	float velocity_run;
+	float view_range;
+	bool if_active_attack;
+	bool if_attack;
+	int burn_position_id;
+	animal_attribute() 
+	{
+		animation_walk_start = 0;
+		animation_walk_end = 0;
+		animation_run_start = 0;
+		animation_run_end = 0;
+		hp_animal = 0;
+		damage_animal = 0;
+		velocity_walk = 0;
+		velocity_run = 0;
+		view_range = 0;
+		if_active_attack = false;
+		burn_position_id = 0;
+	}
+	animal_attribute(int hp_need, int damage_need, float walk_speed, float run_speed, float view_range_need, bool if_active_attack_need, int burn_positionID_need) 
+	{
+		animation_walk_start = 0;
+		animation_walk_end = 0;
+		animation_run_start = 0;
+		animation_run_end = 0;
+		hp_animal = hp_need;
+		damage_animal = damage_need;
+		velocity_walk = walk_speed;
+		velocity_run = run_speed;
+		view_range = view_range_need;
+		if_active_attack = if_active_attack_need;
+		burn_position_id = burn_positionID_need;
+	}
+};
+class AI_animal : public player_basic 
+{
+	float animal_animation_time;
+	animal_attribute animal_message;
+	animal_behavior animal_now_behavior;
+	XMFLOAT3 target;
+	XMFLOAT3 speed_animal_dir;
+	//XMFLOAT3 now_up_normal;
+	//XMFLOAT3 last_position;
+	std::queue<XMFLOAT3> real_speed_data;
+	int speed_data_size;
+	//XMFLOAT3 real_speed_direction;
+	bool if_stop;
+	float all_time;
+	/*
+	int hp_animal;
+	int damage_animal;
+	float velocity_walk;
+	float velocity_run;
+	float view_range;
+	bool if_active_attack;
+	bool if_attack;
+	int burn_position_id;
+	*/
+public:
+	void update(float delta_time);
+	AI_animal(string model_resource_name, string player_name, geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, model_data_type model_type_need, animal_attribute animal_data, XMFLOAT3 st_position,bool bound_box_need);
+	void set_animation_time(float time);
+	//void set_now_up_normal(XMFLOAT3 now_normal) { now_up_normal = now_normal; };
+	float get_animation_time() { return animal_animation_time; };
+	void get_animation_data(float &animation_st,float &animation_ed,float &animation_speed);
+	void check_if_stop();
+	void set_position_center(XMFLOAT3 position_center) { animal_message.position_center = position_center; };
+	void change_animal_target(XMFLOAT3 animal_target) { target = animal_target; };
+private:
+	void show_assimp_skinmesh_model(XMFLOAT4X4 view_proj_matrix);
+	void update_target();
+	//HRESULT get_walk_dir(XMFLOAT3 &walk_dir);
+	HRESULT check_walk_dir(XMFLOAT3 walk_dir, XMFLOAT3 now_dir);
+	XMFLOAT3 normalize_float(XMFLOAT3 input);
+	//void init_animal_data(int hp_need, int damage_need, float walk_speed, float run_speed, float view_range_need, bool if_active_attack_need,int burn_positionID_need);
+};
+//植被系统
+class static_resource_basic
+{
+	//传入单例
+	pancy_physx  *physic_pancy;
+	geometry_control *geometry_pancy;
+	//识别属性
+	std::string resource_view_name;
+	int resource_map_ID;
+	//基本几何属性
+	float scaling;
+	XMFLOAT3 position;
+	//物理属性
+	physx::PxRigidStatic *bound_box;
+	physx::PxMaterial *mat_force;
+public:
+	static_resource_basic(int map_ID, std::string model_resource_view_name, pancy_physx  *physic_need, geometry_control *geometry_need, XMFLOAT3 position_need, float scaling_need);
+	HRESULT create();
+	void release();
+	HRESULT init_data2pipeline();
+	int get_num_geometry_view();
+private:
+	HRESULT init_physics();
+	HRESULT init_geometry_bounding_box();
+	void show_bounding_box(XMFLOAT4X4 view_proj_matrix);
+};
+class static_decorate_basic
+{
+	//传入单例
+	pancy_physx  *physic_pancy;
+	geometry_control *geometry_pancy;
+	//识别属性
+	std::string resource_view_name;
+	int resource_map_ID;
+	//基本几何属性
+	float scaling;
+	XMFLOAT3 position;
+	//物理属性
+	physx::PxRigidStatic *bound_box;
+	physx::PxMaterial *mat_force;
+public:
+	static_decorate_basic(int map_ID, std::string model_resource_view_name, pancy_physx  *physic_need, geometry_control *geometry_need, XMFLOAT3 position_need, float scaling_need);
+	HRESULT create();
+	void release();
+	HRESULT init_data2pipeline();
+	int get_num_geometry_view();
+private:
+	HRESULT init_physics();
+	HRESULT init_geometry_bounding_box();
+	void show_bounding_box(XMFLOAT4X4 view_proj_matrix);
+};
+class pancy_world_map
+{
+	std::vector<std::string> resourcedataview_namelist;
+	std::vector<std::string> decoratedataview_namelist;
+	std::vector<AI_animal*> animaldataview_namelist;
+	std::vector<AI_animal> animaldata_list;
+
+	//地图属性
+	float resource_range;//资源占地面积
+	float decorate_range;
+	//传入单例
+	ID3D11DeviceContext *contex_pancy;     //设备描述表
+	pancy_renderstate *renderstate_lib;
+	geometry_control *geometry_pancy;
+	pancy_physx  *physic_pancy;
+	shader_control *shader_pancy;
+	pancy_terrain_build *terrain_data;
+	//装饰品访问表与资源访问表
+	//std::vector<static_decorate_type_basic> data_decorate_list;
+	//std::vector<static_resource_type_basic> data_resource_list;
+	//地图资源实例
+	std::map<int, static_decorate_basic> data_decorate_map;
+	std::map<int, static_resource_basic> data_resource_map;
+public:
+	pancy_world_map(ID3D11DeviceContext *contex_need,pancy_renderstate *renderstate_need,geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, pancy_terrain_build *terrain_input, float resource_range_need, float decorate_range_need);
+	HRESULT create();
+	void release();
+	void display(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix);
+	void update(float delta_time, XMFLOAT3 now_pos_camera, XMFLOAT3 now_lool_camera, float angle_projection);
+	HRESULT add_decorate_instance_byname(std::string geometryresourceview_name, int resource_map_ID, float scal_range);
+	HRESULT add_resource_instance_byname(std::string geometryresourceview_name, int resource_map_ID, float scal_range);
+	HRESULT add_resource_data_view_byname(std::string geometryresource_name, std::string resource_data_view_name);
+	HRESULT add_decorate_data_view_byname(std::string geometryresource_name, std::string decorate_data_view_name);
+	HRESULT add_animal_data_view_byAIdata(AI_animal* AI_animal_data);
+	HRESULT add_animal_data_byname(XMFLOAT3 bound_box_range, std::string geometryresource_name,std::string geometryresourceview_name, int resource_map_ID, float scal_range, animal_attribute animal_data_need);
+	HRESULT add_animal_data(AI_animal *animal_data_need);
+	void clear_animal_list();
+private:
+	HRESULT init_decorate_by_view(XMFLOAT3 now_pos_camera, XMFLOAT3 now_lool_camera, float angle_projection,int dataID);
+	HRESULT init_decoratedata_to_pipeline(int dataID);
+	HRESULT init_resource_by_view(XMFLOAT3 now_pos_camera, XMFLOAT3 now_lool_camera, float angle_projection, int dataID);
+	HRESULT init_resourcedata_to_pipeline(int dataID);
+	HRESULT find_decoratedata_position_byID(int ID_find, XMFLOAT3 &position_out);
+	HRESULT find_resource_position_byID(int ID_find, XMFLOAT3 &position_out);
+	HRESULT find_decoratedata_ID_byposition(XMFLOAT3 position_in, int &ID_out);
+	HRESULT find_resource_ID_byposition(XMFLOAT3 position_in, int &ID_out);
+	void delete_animal_data_view_byname(std::string geometryresourceview_name);
+	void get_view_cormer(float angle_view, XMFLOAT3 direction_view, XMFLOAT3 &direction_corner1, XMFLOAT3 &direction_corner2);
+	bool check_if_in_view(float angle_view, XMFLOAT3 position_view, XMFLOAT3 direction_view, XMFLOAT3 position_test);
+	bool check_if_in_range(XMFLOAT3 position_camera, XMFLOAT3 position_target, float distance_max);
+};
+class pancy_map_design
+{
+	std::vector<string> decorate_name_list;
+	std::vector<string> resource_name_list;
+	std::vector<string> animal_geometry_name_list;
+	pancy_world_map *map_control;
+public:
+	pancy_map_design(pancy_world_map *map_control_need);
+	void add_an_animal_type(string name_geometry_resource) { animal_geometry_name_list.push_back(name_geometry_resource); };
+	HRESULT create();
+	void release();
+private:
+	HRESULT load_map_fromfile();
+	HRESULT build_random_map();
+	HRESULT save_map_tofile();
+};
+//背包系统
+class goods_member 
+{
+	GUI_control  *GUI_engine;
+	ID3D11Device *device_pancy;
+	string goods_name;
+	XMFLOAT3 goods_position;
+	int goods_number;
+	int tex_ID;
+	int pos_ID;
+	ID3D11ShaderResourceView *goods_introduce_texture;
+public:
+	goods_member(GUI_control  *GUI_engine_need,ID3D11Device *device_need,string goods_name_need, int tex_ID_need);
+	HRESULT create(wchar_t *introduce_texture);
+	void add_a_goods();
+	void delete_a_goods();
+	int get_resource_num() { return goods_number; };
+	void change_position(XMFLOAT3 goods_position_need);
+	void change_pos_ID(int goods_position_ID);
+	XMFLOAT3 get_goods_position() { return goods_position; };
+	ID3D11ShaderResourceView *get_introduce_tex() { return goods_introduce_texture; };
+	int      get_tex_id() { return tex_ID; }
+	int      get_pos_id() { return pos_ID; }
+	void release();
+};
+class package_design
+{
+	ID3D11Device *device_pancy;
+	GUI_control  *GUI_engine;
+	pancy_input  *input_engine;
+	bool if_package_open;
+	int bag_width;
+	int bag_height;
+	wchar_t *package_tex_name;
+	wchar_t *goods_tex_name;
+	wchar_t *number_tex_name;
+	int row_length_UI;
+	std::map<string,goods_member>  goods_list;
+	int goods_render_num;
+	XMFLOAT4 position_list[100];
+	XMFLOAT4 numpos_list[300];
+	XMFLOAT3 packet_position_start;
+	XMFLOAT3 packet_position_offset;
+	bool if_click;
+	bool if_show_introduce;
+	string goods_introduce;
+	string goods_click;
+	//XMFLOAT3 tex_position_list[100];
+public:
+	package_design(GUI_control  *GUI_engine_need, ID3D11Device *device_need,wchar_t *package_texture_name,int UI_num_per_row,wchar_t *goodstex_name_need, wchar_t *number_tex_name_need);
+	HRESULT create();
+	HRESULT add_a_goods_type(int tex_id,string goods_name, wchar_t *tex_introduce);
+	void add_goodsnum_byname(string goods_name);
+	void delete_goodsnum_byname(string goods_name);
+	void change_goods_position_byname(string goods_name, XMFLOAT3 position_input);
+	void change_goods_position_byname(string goods_name, int position_bag);
+	void update(float delta_time);
+	void display();
+	void release();
+	void open_package() { if_package_open = true; };
+	void close_package() { if_package_open = false; };
+	bool check_if_open() { return if_package_open; };
+private:
+	void get_pos();
+	string get_now_mouse_goods();
+	string get_now_pos_goods(int pos_in);
+	bool check_mouse_on_instancing(XMFLOAT3 position_bag);
+	int count_num_byposition(XMFLOAT4 position_in);
+};
+
+
 class scene_engine_physicx : public scene_root
 {
+	pancy_world_map *world_map_main;
 	player_basic *player_main;
 	pancy_physx *physics_pancy;
 	pancy_terrain_build *terrain_test;
+	pancy_map_design *map_designer;
 	float camera_height;
+	package_design *player_package;
+	bool if_click_bag;
+	//GUI_button *test_start;
+	//GUI_mouse *mouse_basic;
+	//GUI_progressbar *prograss_test;
+
+	GUI_control *gui_list;
 public:
 	scene_engine_physicx(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_physx *physx_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view);
 	HRESULT scene_create();

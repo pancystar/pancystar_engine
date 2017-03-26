@@ -1,6 +1,6 @@
 float4x4         final_matrix;     //×Ü±ä»»
 float4x4 gBoneTransforms[100];     //¹Ç÷À±ä»»¾ØÕó
-float4x4 world_matrix_array[100];
+float4x4 world_matrix_array[300];
 float4x4 view_proj_matrix;
 Texture2D        texture_diffuse;  //Âþ·´ÉäÌùÍ¼
 SamplerState samTex_liner
@@ -106,6 +106,12 @@ float4 PS_withalpha(VertexOut pin) : SV_Target
 	clip(tex_color.a - 0.9f);
 	return float4(0.0f, 0.0f, 0.0f, 1.0f);;
 }
+float4 PS_withplant(VertexOut pin) : SV_Target
+{
+	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
+	clip(tex_color.a - 0.4f);
+	return float4(0.0f, 0.0f, 0.0f, 1.0f);;
+}
 technique11 ShadowTech
 {
 	pass P0
@@ -134,7 +140,7 @@ technique11 ShadowTech_plant
 	{
 		SetVertexShader(CompileShader(vs_5_0, VS_instance()));
 		SetGeometryShader(NULL);
-		SetPixelShader(CompileShader(ps_5_0, PS_withalpha()));
+		SetPixelShader(CompileShader(ps_5_0, PS_withplant()));
 		//SetRasterizerState(Depth);
 		SetRasterizerState(DisableCulling);
 	}

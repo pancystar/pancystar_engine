@@ -19,6 +19,7 @@ HRESULT pancy_physx::create()
 		MessageBox(0, L"create physx device error", L"tip", MB_OK);
 		return E_FAIL;
 	}
+	/*
 	if (physic_device->getPvdConnectionManager())
 	{
 		const char* pvd_host_ip = "127.0.0.1";
@@ -31,6 +32,7 @@ HRESULT pancy_physx::create()
 			MessageBox(0, L"debug connection success", L"tip", MB_OK);
 		}
 	}
+	*/
 //	mat_force = physic_device->createMaterial(0.5, 0.5, 0.5);
 	//plan_pos = new physx::PxTransform(physx::PxVec3(0.0f, 0.0f, 0.0f), physx::PxQuat(physx::PxHalfPi, physx::PxVec3(0.0f, 0.0f, 1.0f)));
 	
@@ -125,6 +127,15 @@ HRESULT pancy_physx::create_charactor(physx::PxCapsuleControllerDesc charactor_d
 {
 	*charactor_out = controller_manager->createController(charactor_desc);
 	if (*charactor_out == NULL) 
+	{
+		return E_FAIL;
+	}
+	return S_OK;
+}
+HRESULT pancy_physx::create_charactor(physx::PxBoxControllerDesc charactor_desc, physx::PxController **charactor_out)
+{
+	*charactor_out = controller_manager->createController(charactor_desc);
+	if (*charactor_out == NULL)
 	{
 		return E_FAIL;
 	}

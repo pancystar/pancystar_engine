@@ -66,6 +66,9 @@
     <ClInclude Include="pancy_physx.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="pancy_GUI_basic.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="geometry.cpp">
@@ -117,6 +120,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="pancy_physx.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="pancy_GUI_basic.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -193,11 +199,11 @@
     <FxCompile Include="snake_tesselation.fx">
       <Filter>源文件</Filter>
     </FxCompile>
+    <FxCompile Include="UI_comman.fx">
+      <Filter>源文件</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="ClassDiagram.cd" />
-    <None Include="ClassDiagram1.cd" />
-    <None Include="ClassDiagram2.cd" />
     <None Include="terrain.hlsli">
       <Filter>源文件</Filter>
     </None>

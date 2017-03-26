@@ -1842,6 +1842,16 @@ HRESULT light_defered_draw::set_specular_light_tex(ID3D11ShaderResourceView *tex
 	}
 	return S_OK;
 }
+HRESULT light_defered_draw::set_mat_buffer(ID3D11ShaderResourceView* srv)
+{
+	HRESULT hr = mat_buffer_handle->SetResource(srv);
+	if (hr != S_OK)
+	{
+		MessageBox(0, L"an error when setting mat buffer", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 HRESULT light_defered_draw::set_enviroment_tex(ID3D11ShaderResourceView* srv)
 {
 	HRESULT hr = texture_cube_handle->SetResource(srv);
@@ -1884,6 +1894,7 @@ void light_defered_draw::init_handle()
 
 	texture_terainbump_handle = fx_need->GetVariableByName("texture_terrain_bump")->AsShaderResource();
 	texture_terain_handle = fx_need->GetVariableByName("texture_terrain_diffuse")->AsShaderResource();
+	mat_buffer_handle = fx_need->GetVariableByName("mat_buffer")->AsShaderResource();
 	//几何变换句柄
 	view_pos_handle = fx_need->GetVariableByName("position_view");
 	world_matrix_handle = fx_need->GetVariableByName("world_matrix")->AsMatrix();           //世界变换句柄
@@ -2298,6 +2309,92 @@ HRESULT shader_reflectfinal::set_image_size(XMFLOAT4 range)
 	}
 	return S_OK;
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~GUI基础button~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+shader_UI_common::shader_UI_common(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need) : shader_basic(filename, device_need, contex_need)
+{
+}
+void shader_UI_common::release()
+{
+	release_basic();
+}
+void shader_UI_common::init_handle()
+{
+	UI_scal_handle = fx_need->GetVariableByName("UI_scal");
+	UI_position_handle = fx_need->GetVariableByName("UI_pos");
+	UI_position_instance_handle = fx_need->GetVariableByName("UI_pos_instancing");
+	UI_devide_instance_handle = fx_need->GetVariableByName("UI_devide_instancing");
+	tex_color_input = fx_need->GetVariableByName("texture_need")->AsShaderResource();
+}
+void shader_UI_common::set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member)
+{
+	//设置顶点声明
+	D3D11_INPUT_ELEMENT_DESC rec[] =
+	{
+		//语义名    语义索引      数据格式          输入槽 起始地址     输入槽的格式 
+		{ "POSITION",0  ,DXGI_FORMAT_R32G32B32_FLOAT   ,0    ,0  ,D3D11_INPUT_PER_VERTEX_DATA  ,0 },
+		{ "TEXCOORD",0  ,DXGI_FORMAT_R32G32_FLOAT      ,0    ,12 ,D3D11_INPUT_PER_VERTEX_DATA  ,0 }
+	};
+	*num_member = sizeof(rec) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	for (UINT i = 0; i < *num_member; ++i)
+	{
+		member_point[i] = rec[i];
+	}
+}
+HRESULT shader_UI_common::set_tex_color_resource(ID3D11ShaderResourceView *buffer_input)
+{
+	HRESULT hr;
+	hr = tex_color_input->SetResource(buffer_input);
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set UI_comman color texture error in UI common mapping", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_UI_common::set_UI_scal(XMFLOAT4 range)
+{
+	HRESULT hr;
+	hr = UI_scal_handle->SetRawValue((void*)&range, 0, sizeof(range));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set UI_scal_handle error in UI comman part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_UI_common::set_UI_position(XMFLOAT4 range)
+{
+	HRESULT hr;
+	hr = UI_position_handle->SetRawValue((void*)&range, 0, sizeof(range));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set UI_position_handle error in UI comman part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_UI_common::set_UI_position_instancing(XMFLOAT4 *position_range, int num_need)
+{
+	HRESULT hr;
+	hr = UI_position_instance_handle->SetRawValue((void*)position_range, 0, num_need*sizeof(XMFLOAT4));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set UI_position_handle error in UI comman instancing part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT shader_UI_common::set_UI_devide_instancing(XMFLOAT4 devide_num)
+{
+	HRESULT hr;
+	hr = UI_devide_instance_handle->SetRawValue((void*)&devide_num, 0, sizeof(devide_num));
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"set UI_devide_handle error in UI comman part", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~全局shader管理器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shader_control::shader_control()
 {
@@ -2323,7 +2420,9 @@ shader_control::shader_control()
 	shader_reset_alpha = NULL;
 	shader_reflect_blur = NULL;
 	shader_reflect_final = NULL;
+	shader_UI_button = NULL;
 }
+
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
 	HRESULT hr;
@@ -2481,8 +2580,184 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 		MessageBox(0, L"an error when shader_reflect_final created", L"tip", MB_OK);
 		return hr;
 	}
+	shader_UI_button = new shader_UI_common(L"F:\\Microsoft Visual Studio\\pancystar_engine\\pancystar_engine_d3dx11_test\\Debug\\UI_comman.cso", device_pancy, contex_pancy);
+	hr = shader_UI_button->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when shader_UI_button created", L"tip", MB_OK);
+		return hr;
+	}
 	return S_OK;
 }
+
+/*
+HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
+{
+	HRESULT hr;
+	shader_light_pre = new light_pre(L"light_pre.cso", device_pancy, contex_pancy);
+	hr = shader_light_pre->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when pre lighting shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_light_deffered_lbuffer = new light_defered_lightbuffer(L"light_defferd_lightbuffer.cso", device_pancy, contex_pancy);
+	hr = shader_light_deffered_lbuffer->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when deffered lighting shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_light_deffered_draw = new light_defered_draw(L"light_defferd_darw.cso", device_pancy, contex_pancy);
+	hr = shader_light_deffered_draw->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when deffered lighting shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_shadowmap = new light_shadow(L"shadowmap.cso", device_pancy, contex_pancy);
+	hr = shader_shadowmap->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when shadowmap shader created", L"tip", MB_OK);
+		return hr;
+	}
+
+	shader_gbuffer_depthnormal = new shader_gbufferdepthnormal_map(L"gbuffer_normaldepth_map.cso", device_pancy, contex_pancy);
+	hr = shader_gbuffer_depthnormal->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when ssao_depthnormal shader created", L"tip", MB_OK);
+		return hr;
+	}
+
+	shader_ssao_draw = new shader_ssaomap(L"ssao_draw_aomap.cso", device_pancy, contex_pancy);
+	hr = shader_ssao_draw->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when shader_ssaomap shader created", L"tip", MB_OK);
+		return hr;
+	}
+
+	shader_ssao_blur = new shader_ssaoblur(L"ssao_blur_map.cso", device_pancy, contex_pancy);
+	hr = shader_ssao_blur->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when shader_ssaoblur shader created", L"tip", MB_OK);
+		return hr;
+	}
+
+	shader_cubemap = new shader_reflect(L"light_reflect.cso", device_pancy, contex_pancy);
+	hr = shader_cubemap->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when reflect lighting shader created", L"tip", MB_OK);
+		return hr;
+	}
+
+	shader_HDR_average = new compute_averagelight(L"HDR_average_pass.cso", device_pancy, contex_pancy);
+	hr = shader_HDR_average->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when HDR average shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_HDR_preblur = new shader_HDRpreblur(L"HDR_preblur_pass.cso", device_pancy, contex_pancy);
+	hr = shader_HDR_preblur->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when HDR preblur shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_HDR_blur = new shader_HDRblur(L"HDR_blur_pass.cso", device_pancy, contex_pancy);
+	hr = shader_HDR_blur->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when HDR blur shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_HDR_final = new shader_HDRfinal(L"HDR_final.cso", device_pancy, contex_pancy);
+	hr = shader_HDR_final->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when HDR final shader created", L"tip", MB_OK);
+		return hr;
+	}
+
+	particle_fire = new shader_fire(L"fire.cso", device_pancy, contex_pancy);
+	hr = particle_fire->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when fire particle shader created", L"tip", MB_OK);
+		return hr;
+	}
+
+	shader_shadowvolume = new shader_shadow_volume(L"shadow_volume.cso", device_pancy, contex_pancy);
+	hr = shader_shadowvolume->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when shadow volume shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_shadowvolume_draw = new shader_shadow_volume_draw(L"shadow_volume_draw.cso", device_pancy, contex_pancy);
+	hr = shader_shadowvolume_draw->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when shadow volume shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_grass_billboard = new shader_grass(L"cross_grass.cso", device_pancy, contex_pancy);
+	hr = shader_grass_billboard->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when grass billboard shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_resolve_depthstencil = new shader_resolvedepth(L"ResolveMSAAdepthstencil.cso", device_pancy, contex_pancy);
+	hr = shader_resolve_depthstencil->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when grass resolve_depthstencil shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_ssreflect = new ssr_reflect(L"SSR.cso", device_pancy, contex_pancy);
+	hr = shader_ssreflect->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when ssreflect shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_reset_alpha = new shader_save_cube(L"reset_cube_alpha.cso", device_pancy, contex_pancy);
+	hr = shader_reset_alpha->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when save_cube shader created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_reflect_blur = new shader_SSRblur(L"reflect_blur.cso", device_pancy, contex_pancy);
+	hr = shader_reflect_blur->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when shader_reflect_blur created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_reflect_final = new shader_reflectfinal(L"reflect_final_pass.cso", device_pancy, contex_pancy);
+	hr = shader_reflect_final->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when shader_reflect_final created", L"tip", MB_OK);
+		return hr;
+	}
+	shader_UI_button = new shader_UI_common(L"UI_comman.cso", device_pancy, contex_pancy);
+	hr = shader_UI_button->shder_create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"an error when shader_UI_button created", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+*/
 void shader_control::release()
 {
 	shader_light_pre->release();
@@ -2506,4 +2781,5 @@ void shader_control::release()
 	shader_reset_alpha->release();
 	shader_reflect_blur->release();
 	shader_reflect_final->release();
+	shader_UI_button->release();
 }

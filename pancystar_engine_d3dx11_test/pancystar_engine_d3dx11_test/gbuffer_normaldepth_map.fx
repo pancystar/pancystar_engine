@@ -5,7 +5,7 @@ cbuffer PerFrame
 	float4x4 normal_matrix;     //法线变换
 	float4x4 final_matrix;      //总变换
 	float4x4 gBoneTransforms[100];//骨骼变换矩阵
-	float4x4 world_matrix_array[100];
+	float4x4 world_matrix_array[300];
 	float4x4 view_proj_matrix;
 };
 Texture2D        texture_diffuse;  //漫反射贴图
@@ -144,6 +144,7 @@ domin_out_terrain DS(
 	float2 v1_tex1 = lerp(quard[0].tex1, quard[1].tex1, uv.x);
 	float2 v2_tex1 = lerp(quard[2].tex1, quard[3].tex1, uv.x);
 	float2 tex1_need = lerp(v1_tex1, v2_tex1, uv.y);
+	//读取法线图
 	float4 sample_normal = texture_terrain_bump.SampleLevel(samTex_liner, float3(tex1_need, quard[0].texid[0]), 0);
 	float3 normal = sample_normal.xyz;
 
@@ -156,10 +157,12 @@ domin_out_terrain DS(
 	float3x3 T2W = float3x3(T, B, N);
 	normal = 2 * normal - 1;               //将向量从图片坐标[0,1]转换至真实坐标[-1,1]
 	normal = normalize(mul(normal, T2W));  //切线空间至世界空间
+	/*
 	//todo：获得的法线贴图z坐标是反的，待处理
+	//solve：延迟渲染记录的法线是世界空间的而不是取景空间的
 	normal.z = -normal.z;
 	normal = normalize(mul(normal, normal_matrix));
-
+*/
 	position_before.y = height;
 	//地形纹理坐标插值
 	float2 v1_tex2 = lerp(quard[0].tex2, quard[1].tex2, uv.x);
@@ -231,6 +234,8 @@ VertexOut VS_bone(Vertex_IN_bone vin)
 }
 float4 PS(VertexOut pin) : SV_Target
 {
+	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
+	clip(tex_color.a - 0.2f);
 	pin.NormalV = normalize(pin.NormalV);
 	float rec_need = pin.PosV.x + pin.PosV.y + pin.PosV.z;
 	return float4(pin.NormalV, rec_need);
@@ -264,7 +269,7 @@ float4 PS_withnormal(VertexOut pin) : SV_Target
 float4 PS_plant_normal(VertexOut pin) : SV_Target
 {
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
-	clip(tex_color.a - 0.9f);
+	clip(tex_color.a - 0.2f);
 	pin.NormalV = normalize(pin.NormalV);
 	pin.tangent = normalize(pin.tangent);
 	//求解图片所在自空间->模型所在统一世界空间的变换矩阵

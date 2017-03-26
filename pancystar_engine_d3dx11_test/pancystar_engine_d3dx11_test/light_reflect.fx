@@ -30,7 +30,7 @@ VertexOut VS(Vertex_IN vin)
 {
 	VertexOut vout;
 	vout.position = mul(float4(vin.pos, 1.0f), final_matrix);
-	vout.position_bef = normalize(mul(float4(vin.pos, 1.0f), world_matrix)).xyz;
+	vout.position_bef = mul(float4(vin.pos, 1.0f), world_matrix).xyz;
 	vout.normal = normalize(mul(float4(vin.normal, 0.0f), normal_matrix)).xyz;
 	return vout;
 }
@@ -38,7 +38,7 @@ float4 PS_reflect(VertexOut pin) :SV_TARGET
 {
 	float4 tex_color = float4(0.0f,0.0f,0.0f,0.0f);
 	float4 color_fog = float4(0.75f, 0.75f, 0.75f, 1.0f);
-	float3 view_direct = pin.position_bef;
+	float3 view_direct = normalize(pin.position_bef - position_view);
 	float3 map_direct = view_direct.xyz;//视线向量
 
 	tex_color = texture_cube.Sample(samTex, map_direct);

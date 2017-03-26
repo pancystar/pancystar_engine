@@ -466,6 +466,7 @@ class light_defered_draw : public shader_basic
 	ID3DX11EffectShaderResourceVariable   *texture_ssao_handle;      //环境光纹理资源句柄
 	ID3DX11EffectShaderResourceVariable   *texture_diffuse_handle;   //漫反射纹理资源句柄
 	ID3DX11EffectShaderResourceVariable   *texture_cube_handle;
+	ID3DX11EffectShaderResourceVariable   *mat_buffer_handle;
 
 	ID3DX11EffectShaderResourceVariable   *texture_terainbump_handle;
 	ID3DX11EffectShaderResourceVariable   *texture_terain_handle;
@@ -483,6 +484,7 @@ public:
 	HRESULT set_specular_light_tex(ID3D11ShaderResourceView *tex_in);//设置镜面反射光纹理
 	HRESULT set_terainbumptex(ID3D11ShaderResourceView *tex_in);	 //设置地形高度纹理
 	HRESULT set_teraintex(ID3D11ShaderResourceView *tex_in);	     //设置地形纹理
+	HRESULT set_mat_buffer(ID3D11ShaderResourceView* srv);           //设置矩阵组
 	HRESULT set_enviroment_tex(ID3D11ShaderResourceView* srv);
 	virtual HRESULT set_bone_matrix(const XMFLOAT4X4* M, int cnt);	 //设置骨骼变换矩阵
 	HRESULT set_world_matrix_array(const XMFLOAT4X4* M, int cnt);	 //设置世界变换组矩阵
@@ -585,6 +587,26 @@ private:
 	void init_handle();//注册shader中所有全局变量的句柄
 	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~UI_common~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class shader_UI_common : public shader_basic
+{
+	ID3DX11EffectVariable                    *UI_scal_handle;
+	ID3DX11EffectVariable                    *UI_position_handle;
+	ID3DX11EffectVariable                    *UI_position_instance_handle;
+	ID3DX11EffectVariable                    *UI_devide_instance_handle;
+	ID3DX11EffectShaderResourceVariable      *tex_color_input;      //shader中的纹理资源句柄
+public:
+	shader_UI_common(LPCWSTR filename, ID3D11Device *device_need, ID3D11DeviceContext *contex_need);
+	HRESULT set_tex_color_resource(ID3D11ShaderResourceView *buffer_input);
+	HRESULT set_UI_scal(XMFLOAT4 scal_range);
+	HRESULT set_UI_position(XMFLOAT4 position_range);
+	HRESULT set_UI_position_instancing(XMFLOAT4 *position_range,int num_need);
+	HRESULT set_UI_devide_instancing(XMFLOAT4 devide_num);
+	void release();
+private:
+	void init_handle();//注册shader中所有全局变量的句柄
+	void set_inputpoint_desc(D3D11_INPUT_ELEMENT_DESC *member_point, UINT *num_member);
+};
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~shader list~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class shader_control
 {
@@ -609,6 +631,7 @@ class shader_control
 	shader_save_cube           *shader_reset_alpha;              //存储cube方向到alpha
 	shader_SSRblur             *shader_reflect_blur;             //反射贴图高斯模糊
 	shader_reflectfinal        *shader_reflect_final;            //最终的反射合成
+	shader_UI_common           *shader_UI_button;                //普通的按钮式UI
 	//shader_basic *shader_light_deferred;
 public:
 	shader_control();
@@ -634,5 +657,6 @@ public:
 	shader_save_cube*           get_shader_cubesave() { return shader_reset_alpha; };
 	shader_SSRblur*             get_shader_reflect_blur() { return shader_reflect_blur; };
 	shader_reflectfinal*        get_shader_reflect_final() { return shader_reflect_final; };
+	shader_UI_common*           get_shader_UI_button() { return shader_UI_button; }
 	void release();
 };

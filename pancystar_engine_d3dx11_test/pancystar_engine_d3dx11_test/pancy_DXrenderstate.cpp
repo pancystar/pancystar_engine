@@ -18,6 +18,11 @@ HRESULT pancy_renderstate::create(int wind_width, int wind_height,IDXGISwapChain
 	{
 		return hr;
 	}
+	hr = init_alpha_to_coverage();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
 	hr = init_CULL_none();
 	if (FAILED(hr))
 	{
@@ -28,6 +33,7 @@ HRESULT pancy_renderstate::create(int wind_width, int wind_height,IDXGISwapChain
 	{
 		return hr;
 	}
+
 	return S_OK;
 }
 HRESULT pancy_renderstate::change_size(int wind_width, int wind_height) 
@@ -140,19 +146,19 @@ void pancy_renderstate::restore_rendertarget(ID3D11DepthStencilView *depthStenci
 }
 void pancy_renderstate::clear_basicrendertarget()
 {
-	float color[4] = { 0.75f,0.75f,0.75f,1.0f };
+	float color[4] = { 1.0f,0.0f,0.0f,1.0f };
 	contex_pancy->ClearRenderTargetView(m_renderTargetView, color);
 	contex_pancy->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 }
 void pancy_renderstate::clear_posttreatmentcrendertarget()
 {
-	float color[4] = { 0.75f,0.75f,0.75f,1.0f };
+	float color[4] = { 0.0f,1.0f,0.0f,1.0f };
 	contex_pancy->ClearRenderTargetView(posttreatment_RTV, color);
 	//contex_pancy->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 }
 void pancy_renderstate::clear_reflectrendertarget()
 {
-	float color[4] = { 0.0f,0.0f,0.0f,0.0f };
+	float color[4] = { 0.0f,0.0f,1.0f,0.0f };
 	contex_pancy->ClearRenderTargetView(reflectmask_RTV, color);
 	//contex_pancy->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 }
@@ -178,7 +184,7 @@ void pancy_renderstate::release()
 	CULL_none->Release();
 	blend_common->Release();
 	CULL_front = NULL;
-
+	AlphaToCoverageBS->Release();
 	m_renderTargetView->Release();
 	depthStencilView->Release();
 	posttreatment_RTV->Release();
@@ -236,6 +242,21 @@ HRESULT pancy_renderstate::init_CULL_none()
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"CULL_fnone mode init fail", L"tip", MB_OK);
+		return hr;
+	}
+	return S_OK;
+}
+HRESULT pancy_renderstate::init_alpha_to_coverage() 
+{
+	D3D11_BLEND_DESC a2CDesc = { 0 };
+	a2CDesc.AlphaToCoverageEnable = true;
+	a2CDesc.IndependentBlendEnable = false;
+	a2CDesc.RenderTarget[0].BlendEnable = false;
+	a2CDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	HRESULT hr = device_pancy->CreateBlendState(&a2CDesc, &AlphaToCoverageBS);
+	if (FAILED(hr))
+	{
+		MessageBox(NULL, L"create commom blend state error", L"tip", MB_OK);
 		return hr;
 	}
 	return S_OK;

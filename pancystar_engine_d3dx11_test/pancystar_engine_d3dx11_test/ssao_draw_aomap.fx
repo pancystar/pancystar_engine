@@ -110,9 +110,9 @@ float4 PS(VertexOut pin) : SV_Target
 		//根据距离d = |p.z - r.z|，遮挡点指向测试点的向量与测试点法向量的夹角n*(r-p)共同计算出r点对p点的遮挡贡献
 		float distZ = p.z - r.z;
 		//线性AO淡化
-		float delta = min(max((30.0f - p.z), 1.0f) / (30.0f - 5.0f),1.0f);
+		//float delta = min(max((30.0f - p.z), 1.0f) / (30.0f - 5.0f),1.0f);
 		float dp = max(dot(n, normalize(r - p)), 0.0f);
-		float occlusion = delta * dp * OcclusionFunction(distZ);
+		float occlusion = dp * OcclusionFunction(distZ);
 
 		occlusionSum += occlusion*0.3f;
 	}

@@ -51,6 +51,11 @@ struct point_terrain
 	XMFLOAT2 tex_height;
 	XMFLOAT2 tex_diffuse;
 };
+struct point_GUI
+{
+	XMFLOAT3 position;
+	XMFLOAT2 texcoord;
+};
 //骨骼动画顶点格式(顶点坐标 + 法线 + 纹理 + 切线 + 骨骼id + 蒙皮权重)
 struct point_withskin
 {

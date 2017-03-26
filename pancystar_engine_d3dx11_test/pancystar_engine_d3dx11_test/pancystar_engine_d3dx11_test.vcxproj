@@ -180,6 +180,7 @@
     <ClInclude Include="PancyInput.h" />
     <ClInclude Include="pancy_d3d11_basic.h" />
     <ClInclude Include="pancy_DXrenderstate.h" />
+    <ClInclude Include="pancy_GUI_basic.h" />
     <ClInclude Include="pancy_lighting.h" />
     <ClInclude Include="pancy_model_import.h" />
     <ClInclude Include="pancy_physx.h" />
@@ -200,6 +201,7 @@
     <ClCompile Include="PancyInput.cpp" />
     <ClCompile Include="pancy_d3d11_basic.cpp" />
     <ClCompile Include="pancy_DXrenderstate.cpp" />
+    <ClCompile Include="pancy_GUI_basic.cpp" />
     <ClCompile Include="pancy_lighting.cpp" />
     <ClCompile Include="pancy_model_import.cpp" />
     <ClCompile Include="pancy_physx.cpp" />
@@ -238,11 +240,9 @@
     <FxCompile Include="SSR.fx">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
     </FxCompile>
+    <FxCompile Include="UI_comman.fx" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="ClassDiagram.cd" />
-    <None Include="ClassDiagram1.cd" />
-    <None Include="ClassDiagram2.cd" />
     <None Include="terrain.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

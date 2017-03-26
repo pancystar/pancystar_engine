@@ -49,6 +49,7 @@ public:
 	HRESULT create_terrain(physx::PxHeightFieldDesc height_data, physx::PxVec3 scal_data, physx::PxTransform terrain_trans, physx::PxMaterial *mat_force);
 	HRESULT create_dynamic_box(physx::PxTransform position_st, physx::PxBoxGeometry geometry_need, physx::PxMaterial *mat_need, physx::PxRigidDynamic **physic_out);
 	HRESULT create_charactor(physx::PxCapsuleControllerDesc charactor_desc, physx::PxController **charactor_out);
+	HRESULT create_charactor(physx::PxBoxControllerDesc charactor_desc, physx::PxController **charactor_out);
 	HRESULT create();
 	HRESULT add_actor(physx::PxRigidDynamic *box);
 	HRESULT remove_actor(physx::PxRigidDynamic *box) {};

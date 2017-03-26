@@ -32,7 +32,6 @@
 #include"pancy_pretreatment.h"
 #include<ShellScalingAPI.h>
 #pragma comment ( lib, "Shcore.lib")
-
 //继承的d3d注册类
 class d3d_pancy_1 :public d3d_pancy_basic
 {
@@ -271,7 +270,7 @@ void d3d_pancy_1::update()
 	time_game += delta_time;
 	delta_need += XM_PI*0.5f*delta_time;
 	time_need.refresh();
-	if (delta_time > 0.000000001 && delta_time < 1.0f / 30.0f)
+	if (delta_time > 0.000000001 && delta_time < 1.0f / 10.0f)
 	{
 		physics_pancy->update(delta_time);
 	}
@@ -380,7 +379,8 @@ HRESULT engine_windows_main::game_create()
 	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
 	int width = R.right - R.left;
 	int height = R.bottom - R.top;
-
+	//int width = window_width;
+	//int height = window_hight;
 	hwnd = CreateWindow(TEXT("pancystar_engine"), // window class name创建窗口所用的窗口类的名字。
 		TEXT("pancystar_engine"), // window caption所要创建的窗口的标题。
 		WS_OVERLAPPEDWINDOW,        // window style所要创建的窗口的类型（这里使用的是一个拥有标准窗口形状的类型，包括了标题，系统菜单，最大化最小化等）。
