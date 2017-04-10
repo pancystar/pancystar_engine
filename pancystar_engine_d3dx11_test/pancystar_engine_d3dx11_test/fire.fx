@@ -84,6 +84,24 @@ void StreamOutGS(point Particle gin[1],
 		// 是否应当产生新的粒子
 		if (gin[0].Age > 0.005f)
 		{
+			float3 vRandom = RandUnitVec3(0.0f);
+			vRandom.x *= 0.5f;
+			vRandom.z *= 0.5f;
+			if (vRandom.y < 0)
+				vRandom.y = -vRandom.y;
+			//vRandom.y *= 0.6f;
+			Particle p;
+			p.position = position_start.xyz;
+			//p.position.z -= 0.73*j;
+			//p.position.z -= 4.76*i;
+			p.speed = 4.0f*vRandom;
+			p.SizeW = float2(0.5f, 0.5f);
+			p.Age = 0.0f;
+			p.Type = PT_FLARE;
+			ptStream.Append(p);
+			//还原源粒子的时间
+			gin[0].Age = 0.0f;
+			/*
 			for (int i = 0; i < 6; ++i)
 			{
 				for (int j = 0; j < 2; ++j)
@@ -135,6 +153,7 @@ void StreamOutGS(point Particle gin[1],
 					gin[0].Age = 0.0f;
 				}
 			}
+			*/
 		}
 
 		// 将源粒子送入顶点缓冲区

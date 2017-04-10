@@ -2422,7 +2422,7 @@ shader_control::shader_control()
 	shader_reflect_final = NULL;
 	shader_UI_button = NULL;
 }
-
+/*
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
 	HRESULT hr;
@@ -2589,8 +2589,8 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 	}
 	return S_OK;
 }
+*/
 
-/*
 HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceContext *contex_pancy)
 {
 	HRESULT hr;
@@ -2757,7 +2757,7 @@ HRESULT shader_control::shader_init(ID3D11Device *device_pancy, ID3D11DeviceCont
 	}
 	return S_OK;
 }
-*/
+
 void shader_control::release()
 {
 	shader_light_pre->release();

@@ -69,6 +69,9 @@
     <ClInclude Include="pancy_GUI_basic.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="pancy_audio.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="geometry.cpp">
@@ -123,6 +126,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="pancy_GUI_basic.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="pancy_audio.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -668,8 +668,8 @@ void light_control::divide_view_frustum(float lamda_log, int divide_num)
 	for (int i = 0; i < divide_num+1; ++i)
 	{
 		float now_percent = static_cast<float>(i) / static_cast<float>(divide_num);
-		C_log = perspective_near_plane * pow((perspective_far_plane / perspective_near_plane), now_percent);
-		C_uni = perspective_near_plane + (perspective_far_plane - perspective_near_plane) * now_percent;
+		C_log = perspective_near_plane * pow((300 / perspective_near_plane), now_percent);
+		C_uni = perspective_near_plane + (300 - perspective_near_plane) * now_percent;
 		sunlight_pssm_depthdevide[i] = C_log * lamda_log + (1.0f - lamda_log) * C_uni;
 		if (i > 0)
 		{

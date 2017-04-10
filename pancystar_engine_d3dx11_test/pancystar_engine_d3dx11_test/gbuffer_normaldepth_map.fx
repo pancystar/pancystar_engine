@@ -235,7 +235,7 @@ VertexOut VS_bone(Vertex_IN_bone vin)
 float4 PS(VertexOut pin) : SV_Target
 {
 	float4 tex_color = texture_diffuse.Sample(samTex_liner, pin.tex);
-	clip(tex_color.a - 0.2f);
+	//clip(tex_color.a - 0.2f);
 	pin.NormalV = normalize(pin.NormalV);
 	float rec_need = pin.PosV.x + pin.PosV.y + pin.PosV.z;
 	return float4(pin.NormalV, rec_need);

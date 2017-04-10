@@ -740,6 +740,7 @@ class skin_mesh : public model_reader_assimp<point_withskin>
 	XMFLOAT4X4 offset_matrix_array[100];
 	XMFLOAT4X4 final_matrix_array[100];
 	int tree_node_num[100][100];
+	int hand_matrix_number;
 public:
 	skin_mesh(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, char* filename, char* texture_path);
 	void update_root(skin_tree *root, XMFLOAT4X4 matrix_parent);
@@ -749,6 +750,7 @@ public:
 	void specify_animation_time(float animation_time);
 	XMFLOAT4X4* get_bone_matrix(int i, int &num_bone);
 	XMFLOAT4X4* get_bone_matrix();
+	XMFLOAT4X4 get_hand_matrix();
 	float get_animation_length() { return first_animation->animation_length; };
 	int get_bone_num() { return bone_num; };
 	void release_all();
@@ -803,6 +805,7 @@ public:
 	float get_animation_time() { return now_time; };
 	XMFLOAT4X4 get_world_matrix() { return world_matrix; };
 	XMFLOAT4X4* get_bone_matrix() { return if_skinmesh ? bone_matrix : NULL; };
+	XMFLOAT4X4 get_hand_matrix();
 	int get_bone_num() { return bone_num; };
 	std::string get_geometry_name() { return geometry_name; };
 	int get_geometry_index() { return indexnum_geometry; };
@@ -952,6 +955,7 @@ void pancy_resource_list<T>::release()
 {
 	for (auto data_need = model_resource_list.begin(); data_need != model_resource_list.end(); ++data_need)
 	{
+		//volatile int a = 0;
 		data_need._Ptr->data->release();
 	}
 	model_resource_list.clear();

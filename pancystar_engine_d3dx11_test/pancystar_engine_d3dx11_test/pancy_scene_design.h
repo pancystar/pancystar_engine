@@ -16,7 +16,7 @@
 #include"pancy_terrain.h"
 #include"pancy_physx.h"
 #include"pancy_GUI_basic.h"
-
+#include"pancy_audio.h"
 class scene_root
 {
 protected:
@@ -44,7 +44,8 @@ protected:
 	float                     perspective_near_plane;
 	float                     perspective_far_plane;
 	float                     perspective_angle;
-
+	bool                      if_stop;
+	bool                      if_close_window;
 public:
 	scene_root(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state,pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need,int width,int height,float near_plane,float far_plane,float angle_view);
 	virtual HRESULT scene_create() = 0;
@@ -55,6 +56,8 @@ public:
 	virtual HRESULT display_nopost() = 0;
 	virtual HRESULT update(float delta_time) = 0;
 	virtual HRESULT release() = 0;
+	bool check_if_stop() { return if_stop; };
+	bool check_if_close_window() { return if_close_window; };
 	void set_proj_matrix(XMFLOAT4X4 proj_mat_need);
 	void reset_proj_matrix();
 	void get_environment_map(ID3D11ShaderResourceView  *input) { environment_map = input; };
@@ -85,7 +88,13 @@ private:
 	void show_yuri_animation_deffered();
 	void show_billboard();
 };
-
+enum player_weapon 
+{
+	weapon_hand = 0,
+	weapon_axe = 1,
+	weapon_pick = 2,
+	weapon_Spear = 3
+};
 class shader_snakecompute : public shader_basic
 {
 	ID3DX11EffectShaderResourceVariable      *snakecontrol_input;      //shader中的纹理资源句柄
@@ -305,13 +314,31 @@ struct animal_attribute
 		burn_position_id = burn_positionID_need;
 	}
 };
+enum animal_type 
+{
+	animal_panther = 0,
+	animal_rhino = 1,
+	animal_wolf = 2,
+	animal_bull = 3
+};
 class AI_animal : public player_basic 
 {
+	//动物属性
+	float animal_HP;
+	float animal_attack;
+	bool if_dead;
+	float time_dead;
+	float rebirth_time;
+	string resource_name;
 	float animal_animation_time;
 	animal_attribute animal_message;
 	animal_behavior animal_now_behavior;
 	XMFLOAT3 target;
 	XMFLOAT3 speed_animal_dir;
+	int music_ID;
+	int channel_ID;
+	int music_voice_ID;
+	int channel_voice_ID;
 	//XMFLOAT3 now_up_normal;
 	//XMFLOAT3 last_position;
 	std::queue<XMFLOAT3> real_speed_data;
@@ -319,6 +346,7 @@ class AI_animal : public player_basic
 	//XMFLOAT3 real_speed_direction;
 	bool if_stop;
 	float all_time;
+	float attack_time;
 	/*
 	int hp_animal;
 	int damage_animal;
@@ -330,15 +358,26 @@ class AI_animal : public player_basic
 	int burn_position_id;
 	*/
 public:
+	bool check_if_dead() { return if_dead; };
+	bool check_if_hit_player();
 	void update(float delta_time);
-	AI_animal(string model_resource_name, string player_name, geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, model_data_type model_type_need, animal_attribute animal_data, XMFLOAT3 st_position,bool bound_box_need);
+	AI_animal(string model_resource_name,string player_name, geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, model_data_type model_type_need, animal_attribute animal_data, XMFLOAT3 st_position,bool bound_box_need);
 	void set_animation_time(float time);
+	void set_music_message(int music_ID_need,int channel_ID_need);
+	void get_music_message(int &music_ID_need, int &channel_ID_need) { music_ID_need = music_ID; channel_ID_need = channel_ID; };
+	void set_music_voice_message(int music_ID_need, int channel_ID_need);
+	void get_music_voice_message(int &music_ID_need, int &channel_ID_need) { music_ID_need = music_voice_ID; channel_ID_need = channel_voice_ID; };
 	//void set_now_up_normal(XMFLOAT3 now_normal) { now_up_normal = now_normal; };
 	float get_animation_time() { return animal_animation_time; };
 	void get_animation_data(float &animation_st,float &animation_ed,float &animation_speed);
 	void check_if_stop();
 	void set_position_center(XMFLOAT3 position_center) { animal_message.position_center = position_center; };
 	void change_animal_target(XMFLOAT3 animal_target) { target = animal_target; };
+	void hit_animal(int hp_minus);
+	animal_type get_animal_type();
+	float get_attack() { return animal_attack; };
+	animal_behavior get_animal_behavior() { return animal_now_behavior; };
+	void reset_target(XMFLOAT3 target_pos);
 private:
 	void show_assimp_skinmesh_model(XMFLOAT4X4 view_proj_matrix);
 	void update_target();
@@ -348,8 +387,23 @@ private:
 	//void init_animal_data(int hp_need, int damage_need, float walk_speed, float run_speed, float view_range_need, bool if_active_attack_need,int burn_positionID_need);
 };
 //植被系统
+enum static_resource_type 
+{
+	static_resource_tree = 0,
+	static_resource_grass = 1,
+	static_resource_pumpkin = 2,
+	static_resource_bamboo = 3,
+	static_resource_stone = 4,
+};
+
 class static_resource_basic
 {
+	//资源属性
+	int resource_hp;
+	static_resource_type resource_type;
+	bool if_dead;
+	float time_dead;
+	float rebirth_time;
 	//传入单例
 	pancy_physx  *physic_pancy;
 	geometry_control *geometry_pancy;
@@ -363,11 +417,16 @@ class static_resource_basic
 	physx::PxRigidStatic *bound_box;
 	physx::PxMaterial *mat_force;
 public:
-	static_resource_basic(int map_ID, std::string model_resource_view_name, pancy_physx  *physic_need, geometry_control *geometry_need, XMFLOAT3 position_need, float scaling_need);
+	bool check_if_dead() { return if_dead; };
+	void kill_the_resource() { if_dead = true; time_dead = 0.0f; }
+	static_resource_basic(static_resource_type resource_type_nee, int map_ID, std::string model_resource_view_name, pancy_physx  *physic_need, geometry_control *geometry_need, XMFLOAT3 position_need, float scaling_need);
 	HRESULT create();
 	void release();
+	void update_time(float now_time);
+	void hit_resource(int hp_minus);
 	HRESULT init_data2pipeline();
 	int get_num_geometry_view();
+	static_resource_type get_resource_type() { return resource_type; };
 private:
 	HRESULT init_physics();
 	HRESULT init_geometry_bounding_box();
@@ -404,11 +463,12 @@ class pancy_world_map
 	std::vector<std::string> decoratedataview_namelist;
 	std::vector<AI_animal*> animaldataview_namelist;
 	std::vector<AI_animal> animaldata_list;
-
+	float time_game;
 	//地图属性
 	float resource_range;//资源占地面积
 	float decorate_range;
 	//传入单例
+	FMOD_basic *audio_engine;
 	ID3D11DeviceContext *contex_pancy;     //设备描述表
 	pancy_renderstate *renderstate_lib;
 	geometry_control *geometry_pancy;
@@ -422,19 +482,24 @@ class pancy_world_map
 	std::map<int, static_decorate_basic> data_decorate_map;
 	std::map<int, static_resource_basic> data_resource_map;
 public:
-	pancy_world_map(ID3D11DeviceContext *contex_need,pancy_renderstate *renderstate_need,geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, pancy_terrain_build *terrain_input, float resource_range_need, float decorate_range_need);
+	pancy_world_map(FMOD_basic * audio_engine_need,ID3D11DeviceContext *contex_need,pancy_renderstate *renderstate_need,geometry_control *geometry_need, pancy_physx  *physic_need, shader_control *shader_need, pancy_terrain_build *terrain_input, float resource_range_need, float decorate_range_need);
 	HRESULT create();
 	void release();
 	void display(XMFLOAT4X4 view_matrix, XMFLOAT4X4 proj_matrix);
-	void update(float delta_time, XMFLOAT3 now_pos_camera, XMFLOAT3 now_lool_camera, float angle_projection);
+	void update(float delta_time, XMFLOAT3 now_pos_camera, XMFLOAT3 now_lool_camera, float angle_projection, XMFLOAT3 player_pos,float&attack_value);
 	HRESULT add_decorate_instance_byname(std::string geometryresourceview_name, int resource_map_ID, float scal_range);
 	HRESULT add_resource_instance_byname(std::string geometryresourceview_name, int resource_map_ID, float scal_range);
+	HRESULT delete_resource_instance_byID(int resource_map_ID);
+
 	HRESULT add_resource_data_view_byname(std::string geometryresource_name, std::string resource_data_view_name);
 	HRESULT add_decorate_data_view_byname(std::string geometryresource_name, std::string decorate_data_view_name);
 	HRESULT add_animal_data_view_byAIdata(AI_animal* AI_animal_data);
 	HRESULT add_animal_data_byname(XMFLOAT3 bound_box_range, std::string geometryresource_name,std::string geometryresourceview_name, int resource_map_ID, float scal_range, animal_attribute animal_data_need);
 	HRESULT add_animal_data(AI_animal *animal_data_need);
+	HRESULT hit_the_resource_byposition(player_weapon weapon_need,XMFLOAT3 position_in, int attack_value, bool &if_killed, static_resource_type &type_need);
+	HRESULT hit_the_animal_byposition(player_weapon weapon_need,XMFLOAT3 position_in, XMFLOAT3 now_lool_camera, float angle_projection, int attack_value, bool &if_killed, animal_type &type_need);
 	void clear_animal_list();
+	HRESULT find_resource_ID_byposition(XMFLOAT3 position_in, int &ID_out);
 private:
 	HRESULT init_decorate_by_view(XMFLOAT3 now_pos_camera, XMFLOAT3 now_lool_camera, float angle_projection,int dataID);
 	HRESULT init_decoratedata_to_pipeline(int dataID);
@@ -443,11 +508,12 @@ private:
 	HRESULT find_decoratedata_position_byID(int ID_find, XMFLOAT3 &position_out);
 	HRESULT find_resource_position_byID(int ID_find, XMFLOAT3 &position_out);
 	HRESULT find_decoratedata_ID_byposition(XMFLOAT3 position_in, int &ID_out);
-	HRESULT find_resource_ID_byposition(XMFLOAT3 position_in, int &ID_out);
+	
 	void delete_animal_data_view_byname(std::string geometryresourceview_name);
 	void get_view_cormer(float angle_view, XMFLOAT3 direction_view, XMFLOAT3 &direction_corner1, XMFLOAT3 &direction_corner2);
 	bool check_if_in_view(float angle_view, XMFLOAT3 position_view, XMFLOAT3 direction_view, XMFLOAT3 position_test);
 	bool check_if_in_range(XMFLOAT3 position_camera, XMFLOAT3 position_target, float distance_max);
+	static_resource_type get_resource_type_byname(string name_in);
 };
 class pancy_map_design
 {
@@ -468,6 +534,8 @@ private:
 //背包系统
 class goods_member 
 {
+protected:
+
 	GUI_control  *GUI_engine;
 	ID3D11Device *device_pancy;
 	string goods_name;
@@ -486,12 +554,26 @@ public:
 	void change_pos_ID(int goods_position_ID);
 	XMFLOAT3 get_goods_position() { return goods_position; };
 	ID3D11ShaderResourceView *get_introduce_tex() { return goods_introduce_texture; };
-	int      get_tex_id() { return tex_ID; }
-	int      get_pos_id() { return pos_ID; }
+	int      get_tex_id() { return tex_ID; };
+	int      get_pos_id() { return pos_ID; };
 	void release();
 };
+class build_goods_member : public goods_member
+{
+	string resource_out_build;    //生成的资源种类
+	std::vector<string> resource_use_type;//需要的资源种类
+	int resource_use_num[100];//需要的资源数量
+public:
+	build_goods_member(GUI_control  *GUI_engine_need, ID3D11Device *device_need, string goods_name_need, string build_out_name_need, std::vector<string> resourceuse_type_need,int* resourceuse_num_need,int tex_ID_need);
+	int get_resource_use_typenum() { return resource_use_type.size(); };
+	string get_resource_out_name() { return resource_out_build; };
+	HRESULT get_resource_use_by_index(int index, int& resource_use_num, string &resource_use_type);
+};
+
+
 class package_design
 {
+protected:
 	ID3D11Device *device_pancy;
 	GUI_control  *GUI_engine;
 	pancy_input  *input_engine;
@@ -502,6 +584,7 @@ class package_design
 	wchar_t *goods_tex_name;
 	wchar_t *number_tex_name;
 	int row_length_UI;
+	int col_height_UI;
 	std::map<string,goods_member>  goods_list;
 	int goods_render_num;
 	XMFLOAT4 position_list[100];
@@ -510,49 +593,110 @@ class package_design
 	XMFLOAT3 packet_position_offset;
 	bool if_click;
 	bool if_show_introduce;
+	
 	string goods_introduce;
 	string goods_click;
 	//XMFLOAT3 tex_position_list[100];
 public:
-	package_design(GUI_control  *GUI_engine_need, ID3D11Device *device_need,wchar_t *package_texture_name,int UI_num_per_row,wchar_t *goodstex_name_need, wchar_t *number_tex_name_need);
+	package_design(GUI_control  *GUI_engine_need, ID3D11Device *device_need,wchar_t *package_texture_name,int UI_num_per_row, int UI_num_per_col,wchar_t *goodstex_name_need, wchar_t *number_tex_name_need);
 	HRESULT create();
 	HRESULT add_a_goods_type(int tex_id,string goods_name, wchar_t *tex_introduce);
 	void add_goodsnum_byname(string goods_name);
 	void delete_goodsnum_byname(string goods_name);
 	void change_goods_position_byname(string goods_name, XMFLOAT3 position_input);
 	void change_goods_position_byname(string goods_name, int position_bag);
-	void update(float delta_time);
-	void display();
-	void release();
-	void open_package() { if_package_open = true; };
-	void close_package() { if_package_open = false; };
+	virtual void update(float delta_time);
+	virtual void display();
+	virtual void release();
+	void open_package();
+	void close_package();
 	bool check_if_open() { return if_package_open; };
-private:
+	void add_goods_by_resource(static_resource_type resource_in);
+	void add_goods_animal();
+protected:
 	void get_pos();
 	string get_now_mouse_goods();
 	string get_now_pos_goods(int pos_in);
 	bool check_mouse_on_instancing(XMFLOAT3 position_bag);
 	int count_num_byposition(XMFLOAT4 position_in);
+	void reset_goods_packetID(string goodsname);
 };
+class package_with_build : public package_design
+{
+	XMFLOAT3 build_position_start;
+	std::map<string, build_goods_member>  builds_list;
+	XMFLOAT3 build_position_st;
+	XMFLOAT3 fastpacket_position_start;
+	XMFLOAT3 fastpacket_position_offset;
+	int package_fast[8];
+	void get_pos_first8();
+	int build_width;
+	int build_height;
+	int build_render_num;
+	bool if_click_build;
+public:
+	package_with_build(GUI_control  *GUI_engine_need, ID3D11Device *device_need, wchar_t *package_texture_name, int UI_num_per_row, int UI_num_per_col, wchar_t *goodstex_name_need, wchar_t *number_tex_name_need);
+	HRESULT add_a_build_type(int tex_id, string build_name, string goods_out_name, std::vector<string> use_goods_type, int *use_goods_num, wchar_t *tex_introduce);
+	void display();
+	void update(float delta_time);
+	void release();
+	int get_fast_pocket(int turn);
+private:
+	void get_pos();
+	int count_build_num_bypos(XMFLOAT4 position_in);
+	string get_now_pos_build(int pos_in);
+	HRESULT make_a_build_byname(string name);
+};
+
+
+
 
 
 class scene_engine_physicx : public scene_root
 {
+
+	player_weapon now_weapon;
 	pancy_world_map *world_map_main;
 	player_basic *player_main;
 	pancy_physx *physics_pancy;
 	pancy_terrain_build *terrain_test;
 	pancy_map_design *map_designer;
+	FMOD_basic *audio_engine;
 	float camera_height;
-	package_design *player_package;
+	package_with_build *player_package;
 	bool if_click_bag;
+	bool if_call_died;
+	bool if_dead;
+	//角色动画控制
+	float attack_time_save;
+	bool if_attack;
+	bool if_use_fast;
+	bool if_use_eat;
+	//建筑控制
+	bool if_build;
+	int last_ID;
+	//音乐ID号
+	int music_ID_walk;
+	int music_ID_wave;
+	int music_ID_woodhit;
+	int music_ID_treedied;
+	int music_ID_stone_hit;
+	int music_ID_stone_died;
+	int music_ID_hearted;
+	int music_ID_hited;
+	//当前选定的快速栏
+	int now_fast_choose;
 	//GUI_button *test_start;
 	//GUI_mouse *mouse_basic;
 	//GUI_progressbar *prograss_test;
-
+	//主角状态
+	float player_food;
+	float player_HP;
+	float player_power;
+	float player_heart_now;
 	GUI_control *gui_list;
 public:
-	scene_engine_physicx(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_physx *physx_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view);
+	scene_engine_physicx(FMOD_basic *audio_engine_need,ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_physx *physx_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view);
 	HRESULT scene_create();
 	HRESULT display();
 	HRESULT display_nopost();
@@ -563,6 +707,38 @@ private:
 	void show_floor();
 	void show_ball();
 	void show_box();
-	void set_camera_player();
+	void set_camera_player(float delta_time);
 	void show_grass();
+	void show_axe();
+	void show_pick();
+	void check_fast_inventory();
+};
+class scene_engine_UI : public scene_root
+{
+	int music_ID_bgm;
+	FMOD_basic *audio_engine;
+	GUI_control *gui_list;
+	float rotate_angle;
+	bool if_first;
+	particle_system<fire_point>           *particle_fire;
+public:
+	scene_engine_UI(FMOD_basic *audio_engine_need, ID3D11Device *device_need, ID3D11DeviceContext *contex_need, pancy_renderstate *render_state, pancy_input *input_need, pancy_camera *camera_need, shader_control *lib_need, geometry_control *geometry_need, light_control *light_need, int width, int height, float near_plane, float far_plane, float angle_view);
+	HRESULT scene_create();
+	HRESULT display();
+	HRESULT display_nopost();
+	HRESULT display_enviroment();
+	HRESULT update(float delta_time);
+	HRESULT release();
+	bool check_if_close() { return if_first; };
+private:
+	void show_ball();
+	void show_floor();
+	void show_fire_place();
+	void show_tree(string name);
+	void show_castel(LPCSTR techname, LPCSTR technamenormal);
+	void show_castel_deffered(LPCSTR techname);
+	void show_fire_particle();
+	void show_yuri_animation();
+	void show_yuri_animation_deffered();
+	void show_billboard();
 };

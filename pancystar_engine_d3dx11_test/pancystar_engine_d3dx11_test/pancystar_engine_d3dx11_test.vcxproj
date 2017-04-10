@@ -71,8 +71,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>F:\vs2015_lib\dx11\include;F:\vs2015_lib\assimp\include;F:\physX sdk\PhysX-3.3-master\PhysXSDK\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>F:\vs2015_lib\dx11\lib;F:\vs2015_lib\assimp\lib32;F:\physX sdk\PhysX-3.3-master\PhysXSDK\Lib\vc14win32;$(LibraryPath)</LibraryPath>
+    <IncludePath>F:\vs2015_lib\dx11\include;F:\vs2015_lib\assimp\include;F:\physX sdk\PhysX-3.3-master\PhysXSDK\Include;C:\Program Files %28x86%29\FMOD SoundSystem\FMOD Studio API Windows\api\lowlevel\inc;$(IncludePath)</IncludePath>
+    <LibraryPath>F:\vs2015_lib\dx11\lib;F:\vs2015_lib\assimp\lib32;F:\physX sdk\PhysX-3.3-master\PhysXSDK\Lib\vc14win32;C:\Program Files %28x86%29\FMOD SoundSystem\FMOD Studio API Windows\api\lowlevel\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -81,8 +81,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>F:\vs2015_lib\dx11\include;F:\vs2015_lib\assimp\include;F:\physX sdk\PhysX-3.3-master\PhysXSDK\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>F:\vs2015_lib\dx11\lib;F:\vs2015_lib\assimp\lib32;F:\physX sdk\PhysX-3.3-master\PhysXSDK\Lib\vc14win32;$(LibraryPath)</LibraryPath>
+    <IncludePath>F:\vs2015_lib\dx11\include;F:\vs2015_lib\assimp3\assimp-3.3.1\include;F:\physX sdk\PhysX-3.3-master\PhysXSDK\Include;C:\Program Files %28x86%29\FMOD SoundSystem\FMOD Studio API Windows\api\lowlevel\inc;$(IncludePath)</IncludePath>
+    <LibraryPath>F:\vs2015_lib\dx11\lib;F:\vs2015_lib\assimp3\assimp-3.3.1\build\code\Release;F:\physX sdk\PhysX-3.3-master\PhysXSDK\Lib\vc14win32;C:\Program Files %28x86%29\FMOD SoundSystem\FMOD Studio API Windows\api\lowlevel\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -99,7 +99,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>DirectXTK.lib;Effects11.lib;assimp.lib;DirectXMeshd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DirectXTK.lib;Effects11.lib;assimp.lib;DirectXMeshd.lib;fmod_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <StackReserveSize>20000000</StackReserveSize>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -147,7 +147,11 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>DirectXTKR.lib;Effects11R.lib;assimp.lib;DirectXMesh.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DirectXTKR.lib;Effects11R.lib;assimp-vc140-mt.lib;DirectXMesh.lib;fmod_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <StackReserveSize>
+      </StackReserveSize>
+      <StackCommitSize>
+      </StackCommitSize>
     </Link>
     <FxCompile>
       <ShaderType>Effect</ShaderType>
@@ -178,6 +182,7 @@
     <ClInclude Include="geometry.h" />
     <ClInclude Include="PancyCamera.h" />
     <ClInclude Include="PancyInput.h" />
+    <ClInclude Include="pancy_audio.h" />
     <ClInclude Include="pancy_d3d11_basic.h" />
     <ClInclude Include="pancy_DXrenderstate.h" />
     <ClInclude Include="pancy_GUI_basic.h" />
@@ -199,6 +204,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PancyCamera.cpp" />
     <ClCompile Include="PancyInput.cpp" />
+    <ClCompile Include="pancy_audio.cpp" />
     <ClCompile Include="pancy_d3d11_basic.cpp" />
     <ClCompile Include="pancy_DXrenderstate.cpp" />
     <ClCompile Include="pancy_GUI_basic.cpp" />

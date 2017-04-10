@@ -320,7 +320,7 @@ void model_reader_assimp<T>::release()
 		delete[] mesh_need;
 		//释放表资源
 		delete[] matlist_need;
-		model_need->~aiScene();
+		//model_need->~aiScene();
 	}
 }
 template<typename T>

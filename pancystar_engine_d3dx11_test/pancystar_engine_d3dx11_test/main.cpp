@@ -35,8 +35,10 @@
 //继承的d3d注册类
 class d3d_pancy_1 :public d3d_pancy_basic
 {
+	FMOD_basic               *audio_engine;
 	pancy_physx              *physics_pancy;
 	scene_root               *first_scene_test;
+	scene_root               *second_scene_test;
 	geometry_control         *geometry_list;       //几何体表
 	shader_control           *shader_list;         //shader表
 	light_control            *light_list;          //光源表
@@ -53,12 +55,14 @@ class d3d_pancy_1 :public d3d_pancy_basic
 	float                    perspective_near_plane;
 	float                    perspective_far_plane;
 	float                    perspective_angle;
+	bool                     if_show_face;
 public:
 	d3d_pancy_1(HWND wind_hwnd, UINT wind_width, UINT wind_hight, HINSTANCE hInstance);
 	HRESULT init_create();
 	void update();
 	void display();
 	void release();
+	bool check_if_close_window() { return first_scene_test->check_if_close_window(); };
 private:
 	void render_static_enviroment_map(XMFLOAT3 camera_location);
 	void display_shadowao(bool if_shadow, bool if_ao);
@@ -90,12 +94,14 @@ void d3d_pancy_1::release()
 }
 d3d_pancy_1::d3d_pancy_1(HWND hwnd_need, UINT width_need, UINT hight_need, HINSTANCE hInstance_need) :d3d_pancy_basic(hwnd_need, width_need, hight_need)
 {
+	if_show_face = false;
 	perspective_near_plane = 0.1f;
 	perspective_far_plane = 1200.0f;
 	perspective_angle = XM_PI * 0.25f;
 	time_need.reset();
 	time_game = 0.0f;
 	shader_list = new shader_control();
+	audio_engine = new FMOD_basic();
 	posttreat_scene = NULL;
 	posttreat_reflect = NULL;
 	pretreat_scene = NULL;
@@ -108,7 +114,11 @@ HRESULT d3d_pancy_1::init_create()
 {
 	HRESULT hr;
 	hr = init(wind_hwnd, wind_width, wind_hight);
-
+	//声音引擎
+	if (audio_engine->init_system() != S_OK)
+	{
+		return E_FAIL;
+	}
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create d3dx11 failed", L"tip", MB_OK);
@@ -123,6 +133,7 @@ HRESULT d3d_pancy_1::init_create()
 	test_camera = new pancy_camera(device_pancy, window_width, window_hight);
 	test_input = new pancy_input(wind_hwnd, device_pancy, hInstance);
 	geometry_list = new geometry_control(device_pancy, contex_pancy,physics_pancy);
+	auto geometry_list1 = new geometry_control(device_pancy, contex_pancy, physics_pancy);
 	light_list = new light_control(device_pancy, contex_pancy, test_camera,20,perspective_near_plane, perspective_far_plane, perspective_angle,window_width, window_hight);
 	hr = shader_list->shader_init(device_pancy, contex_pancy);
 	if (FAILED(hr))
@@ -136,18 +147,33 @@ HRESULT d3d_pancy_1::init_create()
 		MessageBox(0, L"create geometry list failed", L"tip", MB_OK);
 		return hr;
 	}
+	hr = geometry_list1->create();
+	if (FAILED(hr))
+	{
+		MessageBox(0, L"create geometry list failed", L"tip", MB_OK);
+		return hr;
+	}
 	hr = light_list->create(shader_list, geometry_list, render_state);
 	if (FAILED(hr))
 	{
 		return hr;
 	}
-	first_scene_test = new scene_engine_physicx(device_pancy, contex_pancy, physics_pancy, render_state, test_input, test_camera, shader_list, geometry_list, light_list, wind_width, wind_hight, perspective_near_plane, perspective_far_plane, perspective_angle);
+	first_scene_test = new scene_engine_UI(audio_engine,device_pancy, contex_pancy, render_state, test_input, test_camera, shader_list, geometry_list, light_list, wind_width, wind_hight, perspective_near_plane, perspective_far_plane, perspective_angle);
+	//first_scene_test = new scene_engine_physicx(device_pancy, contex_pancy, physics_pancy, render_state, test_input, test_camera, shader_list, geometry_list, light_list, wind_width, wind_hight, perspective_near_plane, perspective_far_plane, perspective_angle);
+	
 	hr = first_scene_test->scene_create();
 	if (FAILED(hr))
 	{
 		MessageBox(0, L"create scene failed", L"tip", MB_OK);
 		return hr;
 	}
+	//hr = second_scene_test->scene_create();
+	//if (FAILED(hr))
+	//{
+	//	MessageBox(0, L"create scene failed", L"tip", MB_OK);
+	//	return hr;
+	//}
+	//std::swap(first_scene_test, second_scene_test);
 	ssao_part = new ssao_pancy(render_state, device_pancy, contex_pancy, shader_list, geometry_list, window_width, window_hight, perspective_near_plane, perspective_far_plane, perspective_angle);
 	hr = ssao_part->basic_create();
 	if (FAILED(hr))
@@ -279,8 +305,19 @@ void d3d_pancy_1::update()
 }
 void d3d_pancy_1::display()
 {
+	if (if_show_face) 
+	{
+		if_show_face = false;
+		first_scene_test->release();
+		first_scene_test = new scene_engine_physicx(audio_engine,device_pancy, contex_pancy, physics_pancy, render_state, test_input, test_camera, shader_list, geometry_list, light_list, wind_width, wind_hight, perspective_near_plane, perspective_far_plane, perspective_angle);
+		HRESULT hr = first_scene_test->scene_create();
+		return;
+	}
 	//render_static_enviroment_map(XMFLOAT3(0.0f, 5.0f, 0.0f));
-
+	if (first_scene_test->check_if_stop())
+	{
+		if_show_face = true;
+	}
 	//初始化gbuffer与lbuffer
 	pretreat_scene->display(true);
 	render_state->clear_basicrendertarget();
@@ -299,7 +336,7 @@ void d3d_pancy_1::display()
 	render_state->set_posttreatment_rendertarget();
 	//反射处理
 	posttreat_reflect->set_normaldepthcolormap(pretreat_scene->get_gbuffer_normalspec(), pretreat_scene->get_gbuffer_depth());
-	posttreat_reflect->draw_reflect(render_state->get_postrendertarget(), render_state->get_reflectrendertarget());
+	//posttreat_reflect->draw_reflect(render_state->get_postrendertarget(), render_state->get_reflectrendertarget());
 	render_state->restore_rendertarget();
 	//HDR处理
 	posttreat_scene->display();
@@ -334,12 +371,13 @@ public:
 };
 LRESULT CALLBACK engine_windows_main::WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	
 	switch (message)
 	{
-	case WM_KEYDOWN:                // 键盘按下消息
-		if (wParam == VK_ESCAPE)    // ESC键
-			DestroyWindow(hwnd);    // 销毁窗口, 并发送一条WM_DESTROY消息
-		break;
+	//case WM_KEYDOWN:                // 键盘按下消息
+	//	if (wParam == VK_ESCAPE)    // ESC键
+	//		DestroyWindow(hwnd);    // 销毁窗口, 并发送一条WM_DESTROY消息
+	//	break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
@@ -375,17 +413,23 @@ HRESULT engine_windows_main::game_create()
 			TEXT("pancystar_engine"), MB_ICONERROR);
 		return E_FAIL;
 	}
-	RECT R = { 0, 0, window_width, window_hight };
+	RECT R = { 0, 0, viewport_width, viewport_height };
+	//AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
 	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
 	int width = R.right - R.left;
 	int height = R.bottom - R.top;
+	//int width = ::GetSystemMetrics(SM_CXSCREEN);
+	//int height = ::GetSystemMetrics(SM_CYSCREEN);
+	
+	//ClipCursor(&rect);
+	ShowCursor(false);		//隐藏鼠标光标
 	//int width = window_width;
 	//int height = window_hight;
 	hwnd = CreateWindow(TEXT("pancystar_engine"), // window class name创建窗口所用的窗口类的名字。
 		TEXT("pancystar_engine"), // window caption所要创建的窗口的标题。
 		WS_OVERLAPPEDWINDOW,        // window style所要创建的窗口的类型（这里使用的是一个拥有标准窗口形状的类型，包括了标题，系统菜单，最大化最小化等）。
-		CW_USEDEFAULT,              // initial x position窗口的初始位置水平坐标。
-		CW_USEDEFAULT,              // initial y position窗口的初始位置垂直坐标。
+		0,              // initial x position窗口的初始位置水平坐标。
+		0,              // initial y position窗口的初始位置垂直坐标。
 		width,               // initial x size窗口的水平位置大小。
 		height,               // initial y size窗口的垂直位置大小。
 		NULL,                       // parent window handle其父窗口的句柄。
@@ -398,6 +442,26 @@ HRESULT engine_windows_main::game_create()
 	}
 	ShowWindow(hwnd, SW_SHOW);   // 将窗口显示到桌面上。
 	UpdateWindow(hwnd);           // 刷新一遍窗口（直接刷新，不向windows消息循环队列做请示）。
+
+
+	POINT lt, rb;
+	RECT rect;
+	GetClientRect(hwnd, &rect);  //取得窗口内部矩形
+								 //将矩形左上点坐标存入lt中
+	lt.x = rect.left;
+	lt.y = rect.top;
+	//将矩形右下坐标存入rb中
+	rb.x = rect.right;
+	rb.y = rect.bottom;
+	//将lt和rb的窗口坐标转换为屏幕坐标
+	ClientToScreen(hwnd, &lt);
+	ClientToScreen(hwnd, &rb);
+	//以屏幕坐标重新设定矩形区域
+	rect.left = lt.x;
+	rect.top = lt.y;
+	rect.right = rb.x;
+	rect.bottom = rb.y;
+	ClipCursor(&R);
 	return S_OK;
 }
 HRESULT engine_windows_main::game_loop()
@@ -413,13 +477,16 @@ HRESULT engine_windows_main::game_loop()
 			{
 				TranslateMessage(&msg);//消息转换
 				DispatchMessage(&msg);//消息传递给窗口过程函数
-				d3d11_test->update();
-				d3d11_test->display();
 			}
 			else
 			{
-				d3d11_test->update();
-				d3d11_test->display();
+			}
+			d3d11_test->update();
+			d3d11_test->display();
+			if (d3d11_test->check_if_close_window())
+			{
+				DestroyWindow(hwnd);    // 销毁窗口, 并发送一条WM_DESTROY消息
+				return 0;
 			}
 		}
 		d3d11_test->release();
@@ -438,8 +505,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 {
 	//unsigned int x, y;
 	//GetDpiForMonitor(NULL, MDT_EFFECTIVE_DPI,&x,&y);
-
-	engine_windows_main *engine_main = new engine_windows_main(hInstance, hPrevInstance, szCmdLine, iCmdShow, window_width, window_hight);
+	//int width = ::GetSystemMetrics(SM_CXSCREEN);
+	//int height = ::GetSystemMetrics(SM_CYSCREEN);
+	int width = window_width;
+	int height = window_hight;
+	engine_windows_main *engine_main = new engine_windows_main(hInstance, hPrevInstance, szCmdLine, iCmdShow, width, height);
 	engine_main->game_create();
 	engine_main->game_loop();
 	return engine_main->game_end();

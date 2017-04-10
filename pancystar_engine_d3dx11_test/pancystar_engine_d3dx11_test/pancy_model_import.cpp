@@ -69,8 +69,7 @@ HRESULT assimp_basic::model_create(bool if_adj, bool if_optimize, int alpha_part
 			if_alpha_array[alpha_part[i]] = true;
 		}
 	}
-
-	aiProcess_ConvertToLeftHanded;
+	//aiProcess_ConvertToLeftHanded;
 	model_need = importer.ReadFile(filename,
 		aiProcess_MakeLeftHanded |
 		aiProcess_FlipWindingOrder |
@@ -262,7 +261,7 @@ void modelview_basic_assimp::release()
 		delete[] mesh_need_view;
 		//释放表资源
 		delete[] matlist_need;
-		model_need->~aiScene();
+		//model_need->~aiScene();
 	}
 }
 void modelview_basic_assimp::draw_part(int i)
@@ -304,6 +303,7 @@ void modelview_basic_assimp::draw_mesh_instance(int copy_num)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~骨骼动画~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 skin_mesh::skin_mesh(ID3D11Device *device_need, ID3D11DeviceContext *contex_need, char* filename, char* texture_path) : model_reader_assimp(device_need, contex_need, filename, texture_path)
 {
+	hand_matrix_number = 0;
 	root_skin = new skin_tree;
 	strcpy(root_skin->bone_ID, "root_node");
 	root_skin->son = new skin_tree;
@@ -581,6 +581,10 @@ int skin_mesh::find_min(float x1, float x2, float x3, float x4)
 	}
 	return min;
 }
+XMFLOAT4X4 skin_mesh::get_hand_matrix() 
+{
+	return final_matrix_array[hand_matrix_number];
+}
 HRESULT skin_mesh::init_mesh(bool if_adj)
 {
 	point_withskin *point_need;
@@ -653,6 +657,10 @@ HRESULT skin_mesh::init_mesh(bool if_adj)
 			if (now_node->bone_number == -10)
 			{
 				now_node->bone_number = now_used_bone_num++;
+				if (strcmp(now_node->bone_ID, "GothGirlRArmPalm") == 0) 
+				{
+					hand_matrix_number = now_used_bone_num - 1;
+				}
 				bone_num += 1;
 			}
 			tree_node_num[i][j] = now_node->bone_number;
@@ -829,7 +837,7 @@ void skin_mesh::update_anim_data(animation_data *now)
 	//四元数插值并寻找变换矩阵
 	quaternion_animation rotation_now;
 	//rotation_now = now->rotation_key[0];
-	if (start_anim == end_anim)
+	if (start_anim == end_anim || end_anim >= now->number_rotation)
 	{
 		rotation_now = now->rotation_key[start_anim];
 	}
@@ -953,7 +961,7 @@ void skin_mesh::find_anim_sted(int &st, int &ed, vector_animation *input, int nu
 		ed = num_animation - 1;
 		return;
 	}
-	for (int i = 0; i < num_animation; ++i)
+	for (int i = 0; i < num_animation-1; ++i)
 	{
 		if (time_all >= input[i].time && time_all <= input[i + 1].time)
 		{
@@ -1006,6 +1014,17 @@ assimpmodel_resource_view::assimpmodel_resource_view(assimp_basic *model_input, 
 	//XMFLOAT4X4 world_matrix;
 	XMStoreFloat4x4(&world_matrix, XMMatrixIdentity());
 	//world_matrix = matrix_need;
+}
+XMFLOAT4X4 assimpmodel_resource_view::get_hand_matrix() 
+{
+	XMFLOAT4X4 hand_matrix;
+	XMStoreFloat4x4(&hand_matrix,XMMatrixIdentity());
+	if (if_skinmesh == true)
+	{
+		skin_mesh *model_animation = static_cast<skin_mesh *>(model_data);
+		hand_matrix = model_animation->get_hand_matrix();
+	}
+	return hand_matrix;
 }
 void assimpmodel_resource_view::draw_full_geometry(ID3DX11EffectTechnique *tech_common)
 {
